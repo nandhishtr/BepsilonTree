@@ -4,9 +4,10 @@
 #include <optional>
 #include <memory>
 #include "DRAMCacheObject.h"
+#include "NVRAMCacheObject.h"
 
 template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-class INode : public DRAMCacheObject
+class INode : public NVRAMCacheObject
 {
 	typedef std::shared_ptr<CacheType<CacheKeyType, CacheValueType>> CacheTypePtr;
 	typedef std::shared_ptr<INode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>> INodePtr;

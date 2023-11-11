@@ -5,13 +5,19 @@
 #include "DRAMLRUCache.h"
 #include "DRAMCacheObject.h"
 
+#include "NVRAMLRUCache.h"
+#include "NVRAMCacheObject.h"
+#include "NVRAMCacheObjectKey.h"
+
 class BPlusTree_TestSuite1 : public ::testing::Test {
 protected:
-    BTree<int, int, DRAMLRUCache, uintptr_t, DRAMCacheObject>* m_objBPlusTree;
+    //BTree<int, int, DRAMLRUCache, uintptr_t, DRAMCacheObject>* m_objBPlusTree;
+    BTree<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>* m_objBPlusTree;
 
 
     void SetUp() override {
-        m_objBPlusTree = new BTree<int, int, DRAMLRUCache, uintptr_t, DRAMCacheObject>();
+        //m_objBPlusTree = new BTree<int, int, DRAMLRUCache, uintptr_t, DRAMCacheObject>();
+        m_objBPlusTree = new BTree<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>();
         m_objBPlusTree->init();
     }
 

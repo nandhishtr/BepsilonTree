@@ -3,12 +3,12 @@
 #include <unordered_map>
 
 #include "ICache.h"
-#include "DRAMCacheObject.h"
-#include "DRAMCacheObjectKey.h"
+#include "NVRAMCacheObject.h"
+#include "NVRAMCacheObjectKey.h"
 #include "UnsortedMapUtil.h"
 
-template <typename KeyType = uintptr_t, typename ValueType = ICacheObject>
-class DRAMLRUCache : public ICoreCache
+template <typename KeyType = uintptr_t, typename ValueType = NVRAMCacheObject>
+class NVRAMLRUCache : public ICoreCache
 {
 private:
 	struct Item {
@@ -35,7 +35,7 @@ private:
 	std::shared_ptr<Item> m_ptrTail;
 
 public:
-	DRAMLRUCache(size_t nCapacity)
+	NVRAMLRUCache(size_t nCapacity)
 		: m_nCapacity(nCapacity)
 		, m_ptrHead(nullptr)
 		, m_ptrTail(nullptr)
@@ -77,7 +77,7 @@ public:
 	{
 		std::shared_ptr<Type> obj = std::make_shared<Type>(args...);
 		////
-		KeyType* objKey = this->getKey<KeyType>();
+		KeyType* objKey = this->getKey<KeyType, Type>(obj);
 		//ValueType::get(objKey, obj);
 
 		std::shared_ptr<KeyType> key = std::make_shared<KeyType>(*objKey);
@@ -164,25 +164,27 @@ private:
 		m_ptrHead = ptrItem;
 	}
 
-	template <typename KeyType>
-	KeyType* getKey()
+	template <typename KeyType, typename Type>
+	KeyType* getKey(std::shared_ptr<Type> obj)
 	{
 		KeyType* ptrKey = new KeyType();
-		generateKey(ptrKey);
+		generateKey(ptrKey, obj);
 
 		return ptrKey;
 	}
 
-	void generateKey(uintptr_t*& key)
+	template <typename Type>
+	void generateKey(uintptr_t*& key, std::shared_ptr<Type> obj)
 	{
-		*key = reinterpret_cast<uintptr_t>(this);
+		*key = reinterpret_cast<uintptr_t>(&(*obj.get()));
 	}
 
-	void generateKey(DRAMCacheObjectKey*& key)
+	template <typename Type>
+	void generateKey(NVRAMCacheObjectKey*& key, std::shared_ptr<Type> obj)
 	{
-		*key = DRAMCacheObjectKey(this);
+		*key = NVRAMCacheObjectKey(&(*obj.get()));
 	}
 };
 
-template class DRAMLRUCache<uintptr_t, DRAMCacheObject>;
-template class DRAMLRUCache<DRAMCacheObjectKey, DRAMCacheObject>;
+template class NVRAMLRUCache<uintptr_t, NVRAMCacheObject>;
+template class NVRAMLRUCache<NVRAMCacheObjectKey, NVRAMCacheObject>;

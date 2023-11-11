@@ -6,9 +6,14 @@
 #include "DRAMCacheObject.h"
 #include "DRAMCacheObjectKey.h"
 
+#include "NVRAMLRUCache.h"
+#include "NVRAMCacheObject.h"
+#include "NVRAMCacheObjectKey.h"
+
 TEST(a, b)
 {
-    BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>* btree = new BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>();
+    //BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>* btree = new BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>();
+    BTree<int, int, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>* btree = new BTree<int, int, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>();
 
     btree->init();
 

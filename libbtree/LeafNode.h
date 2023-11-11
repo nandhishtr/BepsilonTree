@@ -10,6 +10,10 @@
 #include "DRAMCacheObject.h"
 #include "DRAMCacheObjectKey.h"
 
+#include "NVRAMLRUCache.h"
+#include "NVRAMCacheObject.h"
+#include "NVRAMCacheObjectKey.h"
+
 using namespace std; 
 
 template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
@@ -53,10 +57,13 @@ public:
 	}
 };
 
-template class LeafNode<int, int, DRAMLRUCache, uintptr_t, DRAMCacheObject>;
-template class LeafNode<int, std::string, DRAMLRUCache, uintptr_t, DRAMCacheObject>;
+//template class LeafNode<int, int, DRAMLRUCache, uintptr_t, DRAMCacheObject>;
+//template class LeafNode<int, std::string, DRAMLRUCache, uintptr_t, DRAMCacheObject>;
+//template class LeafNode<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>;
+//template class LeafNode<int, std::string, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>;
 
 
-template class LeafNode<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>;
-template class LeafNode<int, std::string, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>;
-
+template class LeafNode<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>;
+template class LeafNode<int, std::string, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>;
+template class LeafNode<int, int, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>;
+template class LeafNode<int, std::string, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>;

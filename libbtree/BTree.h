@@ -9,6 +9,10 @@
 #include "DRAMCacheObject.h"
 #include "DRAMCacheObjectKey.h"
 
+#include "NVRAMLRUCache.h"
+#include "NVRAMCacheObject.h"
+#include "NVRAMCacheObjectKey.h"
+
 template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
 class BTree
 {
@@ -35,8 +39,13 @@ public:
     void print();
 };
 
-template class BTree<int, int, DRAMLRUCache, uintptr_t, DRAMCacheObject>;
-template class BTree<int, std::string, DRAMLRUCache, uintptr_t, DRAMCacheObject>;
+//template class BTree<int, int, DRAMLRUCache, uintptr_t, DRAMCacheObject>;
+//template class BTree<int, std::string, DRAMLRUCache, uintptr_t, DRAMCacheObject>;
+//template class BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>;
+//template class BTree<int, std::string, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>;
 
-template class BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>;
-template class BTree<int, std::string, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>;
+
+template class BTree<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>;
+template class BTree<int, std::string, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>;
+template class BTree<int, int, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>;
+template class BTree<int, std::string, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>;

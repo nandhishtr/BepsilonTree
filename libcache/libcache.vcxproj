@@ -147,6 +147,9 @@
     <ClInclude Include="ICache.h" />
     <ClInclude Include="ICacheObject.h" />
     <ClInclude Include="ICacheObjectKey.h" />
+    <ClInclude Include="NVRAMCacheObject.h" />
+    <ClInclude Include="NVRAMCacheObjectKey.h" />
+    <ClInclude Include="NVRAMLRUCache.h" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="UnsortedMapUtil.h" />
   </ItemGroup>
@@ -154,6 +157,9 @@
     <ClCompile Include="DRAMCacheObject.cpp" />
     <ClCompile Include="DRAMCacheObjectKey.cpp" />
     <ClCompile Include="DRAMLRUCache.cpp" />
+    <ClCompile Include="NVRAMCacheObject.cpp" />
+    <ClCompile Include="NVRAMCacheObjectKey.cpp" />
+    <ClCompile Include="NVRAMLRUCache.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
