@@ -10,8 +10,14 @@
 #include "NVRAMCacheObject.h"
 #include "NVRAMCacheObjectKey.h"
 
+#include "INode.h"
+
 TEST(a, b)
 {
+    // send betree as type.. to create objects...
+
+    //BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, INode<int, int, DRAMLRUCache, DRAMCacheObjectKey, INode<...>> >* btree_ = new BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, INode<int, int, DRAMLRUCache, DRAMCacheObjectKey, void>>();
+
     BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>* btree = new BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>();
     //BTree<int, int, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>* btree = new BTree<int, int, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>();
 

@@ -145,8 +145,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="BTree.h" />
+    <ClInclude Include="CacheManager.h" />
     <ClInclude Include="ErrorCodes.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="ICacheManager.h" />
     <ClInclude Include="INode.h" />
     <ClInclude Include="InternalNode.h" />
     <ClInclude Include="LeafNode.h" />
@@ -154,6 +156,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BTree.cpp" />
+    <ClCompile Include="CacheManager.cpp" />
     <ClCompile Include="InternalNode.cpp" />
     <ClCompile Include="LeafNode.cpp" />
     <ClCompile Include="pch.cpp">

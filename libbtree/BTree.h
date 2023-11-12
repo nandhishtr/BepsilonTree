@@ -13,6 +13,8 @@
 #include "NVRAMCacheObject.h"
 #include "NVRAMCacheObjectKey.h"
 
+#include "CacheManager.h"
+
 template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
 class BTree
 {
@@ -40,6 +42,11 @@ public:
         m_cktRootNodeKey = m_ptrCache->createObjectOfType<LeafNode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>>(5);
 
         std::cout << "BTree::BTree()" << std::endl;
+
+
+        CacheManager<BTree<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>, CacheType, CacheKeyType, CacheValueType>* mgr = new CacheManager<BTree<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>, CacheType, CacheKeyType, CacheValueType>(this);
+        m_cktRootNodeKey = mgr->createObjectOfType<CacheKeyType, LeafNode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>>(5);
+        //INodePtr ptrParentNode = mgr->getObjectOfType<CacheKeyType, INode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>>(*m_cktRootNodeKey);
     }
 
     ErrorCode init()
