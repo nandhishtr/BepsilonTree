@@ -7,7 +7,7 @@
 #include "DRAMCacheObjectKey.h"
 #include "UnsortedMapUtil.h"
 
-template <typename KeyType = uintptr_t, typename ValueType = ICacheObject>
+template <typename KeyType = uintptr_t, typename ValueType = DRAMCacheObject>
 class DRAMLRUCache : public ICoreCache
 {
 private:
@@ -77,7 +77,7 @@ public:
 	{
 		std::shared_ptr<Type> obj = std::make_shared<Type>(args...);
 		////
-		KeyType* objKey = this->getKey<KeyType>();
+		KeyType* objKey = this->getKey<KeyType, Type>(obj);
 		//ValueType::get(objKey, obj);
 
 		std::shared_ptr<KeyType> key = std::make_shared<KeyType>(*objKey);
@@ -164,23 +164,25 @@ private:
 		m_ptrHead = ptrItem;
 	}
 
-	template <typename KeyType>
-	KeyType* getKey()
+	template <typename KeyType, typename Type>
+	KeyType* getKey(std::shared_ptr<Type> obj)
 	{
 		KeyType* ptrKey = new KeyType();
-		generateKey(ptrKey);
+		generateKey(ptrKey, obj);
 
 		return ptrKey;
 	}
 
-	void generateKey(uintptr_t*& key)
+	template <typename Type>
+	void generateKey(uintptr_t*& key, std::shared_ptr<Type> obj)
 	{
-		*key = reinterpret_cast<uintptr_t>(this);
+		*key = reinterpret_cast<uintptr_t>(&(*obj.get()));
 	}
 
-	void generateKey(DRAMCacheObjectKey*& key)
+	template <typename Type>
+	void generateKey(DRAMCacheObjectKey*& key, std::shared_ptr<Type> obj)
 	{
-		*key = DRAMCacheObjectKey(this);
+		*key = DRAMCacheObjectKey(&(*obj.get()));
 	}
 };
 

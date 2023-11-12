@@ -12,8 +12,8 @@
 
 TEST(a, b)
 {
-    //BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>* btree = new BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>();
-    BTree<int, int, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>* btree = new BTree<int, int, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>();
+    BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>* btree = new BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>();
+    //BTree<int, int, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>* btree = new BTree<int, int, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>();
 
     btree->init();
 

@@ -3,9 +3,4 @@
 
 class ICacheObject
 {
-public:
-	ICacheObject()
-	{
-
-	}
 };
