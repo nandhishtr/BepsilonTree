@@ -6,9 +6,9 @@
 class ICacheManager
 {
 //	typedef std::shared_ptr<CacheType<CacheKeyType, CacheValueType>> CacheTypePtr;
-//	typedef std::shared_ptr<INode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>> INodePtr;
-//	typedef std::shared_ptr<LeafNode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>> LeafNodePtr;
-//	typedef std::shared_ptr<InternalNode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>> InternalNodePtr;
+//	typedef std::shared_ptr<INode<KeyType, ValueType, Cache, CacheKeyType>> INodePtr;
+//	typedef std::shared_ptr<LeafNode<KeyType, ValueType, Cache, CacheKeyType>> LeafNodePtr;
+//	typedef std::shared_ptr<InternalNode<KeyType, ValueType, Cache, CacheKeyType>> InternalNodePtr;
 //
 //
 //public:

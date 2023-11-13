@@ -12,12 +12,12 @@ using namespace std;
 
 class BPlusTree_TestSuite2 : public ::testing::Test {
 protected:
-    BTree<int, string, DRAMLRUCache, uintptr_t, DRAMCacheObject>* m_objBPlusTree;
+    BTree<int, string, DRAMLRUCache, uintptr_t, DRAMCacheObject, IDRAMCacheObject>* m_objBPlusTree;
     //BTree<int, string, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>* m_objBPlusTree;
 
 
     void SetUp() override {
-        m_objBPlusTree = new BTree<int, string, DRAMLRUCache, uintptr_t, DRAMCacheObject>();
+        m_objBPlusTree = new BTree<int, string, DRAMLRUCache, uintptr_t, DRAMCacheObject, IDRAMCacheObject>();
         //m_objBPlusTree = new BTree<int, string, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>();
         m_objBPlusTree->init();
     }

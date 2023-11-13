@@ -19,12 +19,13 @@
 
 using namespace std;
 
-template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-class InternalNode : public INode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>
+//template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
+template <typename KeyType, typename ValueType, typename CacheType, typename CacheKeyType>
+class InternalNode : public INode<KeyType, ValueType, CacheType, CacheKeyType>
 {
-	typedef std::shared_ptr<CacheType<CacheKeyType, CacheValueType>> CacheTypePtr;
-	typedef std::shared_ptr<INode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>> INodePtr;
-	typedef std::shared_ptr<InternalNode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>> InternalNodePtr;
+	typedef std::shared_ptr<CacheType> CacheTypePtr;
+	typedef std::shared_ptr<INode<KeyType, ValueType, CacheType, CacheKeyType>> INodePtr;
+	typedef std::shared_ptr<InternalNode<KeyType, ValueType, CacheType, CacheKeyType>> InternalNodePtr;
 
 private:
 	uint32_t m_nDegree;
@@ -55,7 +56,7 @@ public:
 		m_vtChildren.push_back(ptrRHSNode);
 	}
 
-	InternalNode(uint32_t nDegree, InternalNode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>* ptrNodeSource, size_t nOffset)
+	InternalNode(uint32_t nDegree, InternalNode<KeyType, ValueType, CacheType, CacheKeyType>* ptrNodeSource, size_t nOffset)
 		: m_nDegree(nDegree)
 	{
 		std::cout << "InternalNode::InternalNode(..due to split)" << std::endl;
@@ -82,7 +83,7 @@ public:
 
 		std::cout << "InternalNode::insert(" << key << "," << value << ") Idx: " << nChildIdx << std::endl;
 
-		INodePtr ptrParentNode = ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>>(m_vtChildren[nChildIdx]);
+		INodePtr ptrParentNode = ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType, CacheKeyType>>(m_vtChildren[nChildIdx]);
 		if (ptrParentNode == NULL)
 			return ErrorCode::Error;
 
@@ -128,7 +129,7 @@ public:
 	{
 		int nIdx = getChildNodeIndex(key);
 
-		INodePtr ptrChildNode = ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>>(m_vtChildren[nIdx]);
+		INodePtr ptrChildNode = ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType, CacheKeyType>>(m_vtChildren[nIdx]);
 		if (ptrChildNode == NULL)
 			return ErrorCode::Error;
 
@@ -171,7 +172,7 @@ private:
 		int nOffset = m_vtPivots.size() / 2;
 
 		nSiblingPivot = this->m_vtPivots[nOffset];
-		ptrSiblingNode = ptrCache->createObjectOfType<InternalNode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>>(5, this, nOffset);
+		ptrSiblingNode = ptrCache->createObjectOfType<InternalNode<KeyType, ValueType, CacheType, CacheKeyType>>(5, this, nOffset);
 
 		//m_vtPivots.erase(m_vtPivots.begin() + nOffset, m_vtPivots.end());
 		//m_vtChildren.erase(m_vtChildren.begin() + nOffset, m_vtChildren.end());
@@ -210,7 +211,7 @@ private:
 			printf("%s  child: %d\n", std::string(nLevel, ' ').c_str(), i);
 
 
-			INodePtr ptrChildNode = ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>>(m_vtChildren[i]);
+			INodePtr ptrChildNode = ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType, CacheKeyType>>(m_vtChildren[i]);
 			if (ptrChildNode == NULL)
 				return;
 

@@ -2,21 +2,21 @@
 #include <memory>
 #include "ICacheManager.h"
 
-template <typename ABC, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
+template </*typename ABC,*/ template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
 class CacheManager : public ICacheManager
 {
 private:
 	std::shared_ptr<CacheType<CacheKeyType, CacheValueType>> m_ptrCache;
-	ABC* oe;
+	//ABC* oe;
 public:
     ~CacheManager()
     {
 
     }
 
-    CacheManager(ABC* oe)
+    CacheManager(/*ABC* oe*/)
     {
-		this->oe = oe;
+		//this->oe = oe;
         m_ptrCache = std::make_shared<CacheType<CacheKeyType, CacheValueType>>(10000);
     }
 
@@ -32,7 +32,7 @@ public:
 	KeyType createObjectOfType(ClassArgsType ... args)
 	{
 		std::cout << "CacheManager::createObjectOfType" << std::endl;
-		oe->init();
+		//oe->init();
 		return NULL;
 	}
 };

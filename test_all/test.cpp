@@ -11,6 +11,12 @@
 #include "NVRAMCacheObjectKey.h"
 
 #include "INode.h"
+template <typename T>
+class A {
+public:
+    class A()
+    {}
+};
 
 TEST(a, b)
 {
@@ -18,7 +24,10 @@ TEST(a, b)
 
     //BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, INode<int, int, DRAMLRUCache, DRAMCacheObjectKey, INode<...>> >* btree_ = new BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, INode<int, int, DRAMLRUCache, DRAMCacheObjectKey, void>>();
 
-    BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>* btree = new BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>();
+     
+    DRAMLRUCache<int, A, int> x(1);
+    
+    BTree<int, int, DRAMLRUCache, uintptr_t, DRAMCacheObject,IDRAMCacheObject>* btree = new BTree<int, int, DRAMLRUCache, uintptr_t, DRAMCacheObject, IDRAMCacheObject>();
     //BTree<int, int, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>* btree = new BTree<int, int, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>();
 
     btree->init();

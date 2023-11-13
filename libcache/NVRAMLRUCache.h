@@ -7,18 +7,19 @@
 #include "NVRAMCacheObjectKey.h"
 #include "UnsortedMapUtil.h"
 
-template <typename KeyType = uintptr_t, typename ValueType = NVRAMCacheObject>
+template <typename KeyType, template <typename> typename ValueType, typename ValueCoreType>
 class NVRAMLRUCache : public ICoreCache
 {
 private:
-	struct Item {
+	struct Item
+	{
 	public:
 		std::shared_ptr<KeyType> m_ptrKey;
-		std::shared_ptr<ValueType> m_ptrValue;
+		std::shared_ptr<ValueType<ValueCoreType>> m_ptrValue;
 		std::shared_ptr<Item> m_ptrPrev;
 		std::shared_ptr<Item> m_ptrNext;
 
-		Item(std::shared_ptr<KeyType> oKey, std::shared_ptr<ValueType> ptrValue)
+		Item(std::shared_ptr<KeyType> oKey, std::shared_ptr<ValueType<ValueCoreType>> ptrValue)
 			: m_ptrNext(nullptr)
 			, m_ptrPrev(nullptr)
 		{
@@ -27,7 +28,6 @@ private:
 		}
 	};
 
-	//std::unordered_map<KeyType, std::shared_ptr<ValueType>, std::hash<KeyType>> m_mpObject;
 	std::unordered_map<std::shared_ptr<KeyType>, std::shared_ptr<Item>, SharedPtrHash<KeyType>, SharedPtrEqual<KeyType>> m_mpObject;
 
 	size_t m_nCapacity;
@@ -61,13 +61,8 @@ public:
 		{
 			std::shared_ptr<Item> ptrItem = m_mpObject[key];
 			moveToFront(ptrItem);
-			return std::static_pointer_cast<Type>(ptrItem->m_ptrValue);
+			return std::static_pointer_cast<Type>(ptrItem->m_ptrValue->m_ptrCoreObject);
 		}
-
-		/*auto it = m_mpObject.find(objKey);
-		if (it != m_mpObject.end()) {
-			return std::static_pointer_cast<Type>(it->second);
-		}*/
 
 		return nullptr;
 	}
@@ -75,24 +70,19 @@ public:
 	template<class Type, typename... ArgsType>
 	KeyType createObjectOfType(ArgsType ... args)
 	{
-		std::shared_ptr<Type> obj = std::make_shared<Type>(args...);
-		////
-		KeyType* objKey = this->getKey<KeyType, Type>(obj);
-		//ValueType::get(objKey, obj);
+		//.. do we really need these much objects? ponder!
+		std::shared_ptr<ValueCoreType> ptrCoreObj = std::make_shared<Type>(args...);
+		std::shared_ptr<KeyType> key = this->getKey(ptrCoreObj);
 
-		std::shared_ptr<KeyType> key = std::make_shared<KeyType>(*objKey);
-		//m_mpObject[objKey] = obj;
+		std::shared_ptr<ValueType<ValueCoreType>> ptrNVRAMObj = std::make_shared<ValueType<ValueCoreType>>(ptrCoreObj);
 
-
-
-		std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, obj);
+		std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrNVRAMObj);
 
 		if (m_mpObject.find(key) != m_mpObject.end())
 		{
 			// Update existing key
 			std::shared_ptr<Item> ptrItem = m_mpObject[key];
-			ptrItem->m_ptrValue = obj;
-
+			ptrItem->m_ptrValue = ptrNVRAMObj;
 			moveToFront(ptrItem);
 		}
 		else
@@ -100,11 +90,9 @@ public:
 			// Insert new key
 			if (m_mpObject.size() == m_nCapacity)
 			{
-
 				if (m_ptrTail->m_ptrValue.use_count() > 1)
 				{
-					std::cout << "****************************************************tail is still in use.." << std::endl;
-					//return nullptr;
+					throw std::invalid_argument("reached an invalid state..");
 				}
 
 				// Remove the least recently used item
@@ -136,7 +124,8 @@ public:
 			}
 		}
 
-		return *objKey;
+		return *key.get();
+
 	}
 
 private:
@@ -164,27 +153,24 @@ private:
 		m_ptrHead = ptrItem;
 	}
 
-	template <typename KeyType, typename Type>
-	KeyType* getKey(std::shared_ptr<Type> obj)
+	std::shared_ptr<KeyType> getKey(std::shared_ptr<ValueCoreType> obj)
 	{
-		KeyType* ptrKey = new KeyType();
+		std::shared_ptr<KeyType> ptrKey = std::make_shared<KeyType>();
 		generateKey(ptrKey, obj);
 
 		return ptrKey;
 	}
 
-	template <typename Type>
-	void generateKey(uintptr_t*& key, std::shared_ptr<Type> obj)
+	void generateKey(std::shared_ptr<uintptr_t> key, std::shared_ptr<ValueCoreType> obj)
 	{
 		*key = reinterpret_cast<uintptr_t>(&(*obj.get()));
 	}
 
-	template <typename Type>
-	void generateKey(NVRAMCacheObjectKey*& key, std::shared_ptr<Type> obj)
+	void generateKey(std::shared_ptr<NVRAMCacheObjectKey> key, std::shared_ptr<ValueCoreType> obj)
 	{
 		*key = NVRAMCacheObjectKey(&(*obj.get()));
 	}
 };
 
-template class NVRAMLRUCache<uintptr_t, NVRAMCacheObject>;
-template class NVRAMLRUCache<NVRAMCacheObjectKey, NVRAMCacheObject>;
+//template class NVRAMLRUCache<uintptr_t, NVRAMCacheObject>;
+//template class NVRAMLRUCache<NVRAMCacheObjectKey, NVRAMCacheObject>;

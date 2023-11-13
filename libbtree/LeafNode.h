@@ -16,11 +16,12 @@
 
 using namespace std; 
 
-template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-class LeafNode : public INode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>
+//template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
+template <typename KeyType, typename ValueType, typename CacheType, typename CacheKeyType>
+class LeafNode : public INode<KeyType, ValueType, CacheType, CacheKeyType>
 {
-	typedef std::shared_ptr<CacheType<CacheKeyType, CacheValueType>> CacheTypePtr;
-	typedef std::shared_ptr<LeafNode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>> LeafNodePtr;
+	typedef std::shared_ptr<CacheType> CacheTypePtr;
+	typedef std::shared_ptr<LeafNode<KeyType, ValueType, CacheType, CacheKeyType>> LeafNodePtr;
 private:
 	uint32_t m_nDegree;
 	
@@ -36,7 +37,7 @@ public:
 	{
 	}
 
-	LeafNode(uint32_t nDegree, LeafNode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>* ptrNodeSource, size_t nOffset)
+	LeafNode(uint32_t nDegree, LeafNode<KeyType, ValueType, CacheType, CacheKeyType>* ptrNodeSource, size_t nOffset)
 		: m_nDegree(nDegree)
 	{
 		this->m_vtKeys.assign(ptrNodeSource->m_vtKeys.begin() + nOffset, ptrNodeSource->m_vtKeys.end());
@@ -165,7 +166,7 @@ private:
 
 		int nOffset = m_vtKeys.size() / 2;
 
-		ptrSiblingNode = ptrCache->createObjectOfType<LeafNode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>>(5, this, nOffset);
+		ptrSiblingNode = ptrCache->createObjectOfType<LeafNode<KeyType, ValueType, CacheType, CacheKeyType>>(5, this, nOffset);
 		if (!ptrSiblingNode)
 		{
 			return ErrorCode::Error;

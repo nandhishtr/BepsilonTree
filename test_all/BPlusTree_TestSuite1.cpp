@@ -2,8 +2,8 @@
 
 #include "gtest/gtest.h"
 #include "BTree.h"
-#include "DRAMLRUCache.h"
-#include "DRAMCacheObject.h"
+#include "NVRAMLRUCache.h"
+#include "NVRAMCacheObject.h"
 
 #include "NVRAMLRUCache.h"
 #include "NVRAMCacheObject.h"
@@ -11,13 +11,13 @@
 
 class BPlusTree_TestSuite1 : public ::testing::Test {
 protected:
-    //BTree<int, int, DRAMLRUCache, uintptr_t, DRAMCacheObject>* m_objBPlusTree;
-    BTree<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>* m_objBPlusTree;
+    //BTree<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>* m_objBPlusTree;
+    BTree<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject, INVRAMCacheObject>* m_objBPlusTree;
 
 
     void SetUp() override {
-        //m_objBPlusTree = new BTree<int, int, DRAMLRUCache, uintptr_t, DRAMCacheObject>();
-        m_objBPlusTree = new BTree<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>();
+        //m_objBPlusTree = new BTree<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>();
+        m_objBPlusTree = new BTree<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject, INVRAMCacheObject>();
         m_objBPlusTree->init();
     }
 
