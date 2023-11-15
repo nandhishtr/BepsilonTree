@@ -37,7 +37,6 @@ private:
 public:
 	~InternalNode()
 	{
-
 	}
 
 	InternalNode(uint32_t nDegree)

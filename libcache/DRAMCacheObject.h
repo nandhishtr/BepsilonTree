@@ -1,12 +1,7 @@
 #pragma once
 #include <memory>
+#include "IDRAMCacheObject.h"
 
-#include "ICacheObject.h"
-
-class IDRAMCacheObject
-{
-	// interface
-};
 
 template <typename CoreObjectType = IDRAMCacheObject>
 class DRAMCacheObject : public ICacheObject

@@ -8,16 +8,17 @@
 #include "NVRAMLRUCache.h"
 #include "NVRAMCacheObject.h"
 #include "NVRAMCacheObjectKey.h"
+#include "NVRAMVolatileStorage.h"
 
 class BPlusTree_TestSuite1 : public ::testing::Test {
 protected:
     //BTree<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>* m_objBPlusTree;
-    BTree<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject, INVRAMCacheObject>* m_objBPlusTree;
+    BTree<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject, INVRAMCacheObject, NVRAMVolatileStorage>* m_objBPlusTree;
 
 
     void SetUp() override {
         //m_objBPlusTree = new BTree<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>();
-        m_objBPlusTree = new BTree<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject, INVRAMCacheObject>();
+        m_objBPlusTree = new BTree<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject, INVRAMCacheObject, NVRAMVolatileStorage>();
         m_objBPlusTree->init();
     }
 
