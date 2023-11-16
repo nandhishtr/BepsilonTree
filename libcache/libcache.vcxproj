@@ -142,6 +142,7 @@
     <ClInclude Include="DRAMCacheObject.h" />
     <ClInclude Include="DRAMCacheObjectKey.h" />
     <ClInclude Include="DRAMLRUCache.h" />
+    <ClInclude Include="DRAMVolatileStorage.h" />
     <ClInclude Include="ErrorCodes.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="IBufferCacheObject.h" />
@@ -163,6 +164,7 @@
     <ClCompile Include="DRAMCacheObject.cpp" />
     <ClCompile Include="DRAMCacheObjectKey.cpp" />
     <ClCompile Include="DRAMLRUCache.cpp" />
+    <ClCompile Include="DRAMVolatileStorage.cpp" />
     <ClCompile Include="NVRAMCacheObject.cpp" />
     <ClCompile Include="NVRAMCacheObjectKey.cpp" />
     <ClCompile Include="NVRAMLRUCache.cpp" />

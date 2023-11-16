@@ -3,20 +3,20 @@
 #include <optional>
 
 //template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-//InternalNode<KeyType, ValueType, CacheType, CacheKeyType>::~InternalNode()
+//InternalNode<KeyType, ValueType, CacheType>::~InternalNode()
 //{
 //
 //}
 //
 //template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-//InternalNode<KeyType, ValueType, CacheType, CacheKeyType>::InternalNode(uint32_t nDegree)
+//InternalNode<KeyType, ValueType, CacheType>::InternalNode(uint32_t nDegree)
 //	: m_nDegree(nDegree)
 //{
 //	std::cout << "InternalNode::InternalNode()" << std::endl;
 //}
 //
 //template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-//InternalNode<KeyType, ValueType, CacheType, CacheKeyType>::InternalNode(uint32_t nDegree, int nPivot, CacheKeyType ptrLHSNode, CacheKeyType ptrRHSNode)
+//InternalNode<KeyType, ValueType, CacheType>::InternalNode(uint32_t nDegree, int nPivot, CacheKeyType ptrLHSNode, CacheKeyType ptrRHSNode)
 //	: m_nDegree(nDegree)
 //{
 //	std::cout << "InternalNode::InternalNode(pvt, lhs, rhs)" << std::endl;
@@ -27,7 +27,7 @@
 //}
 //
 //template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-//InternalNode<KeyType, ValueType, CacheType, CacheKeyType>::InternalNode(uint32_t nDegree, InternalNode<KeyType, ValueType, CacheType, CacheKeyType>* ptrNodeSource, size_t nOffset)
+//InternalNode<KeyType, ValueType, CacheType>::InternalNode(uint32_t nDegree, InternalNode<KeyType, ValueType, CacheType>* ptrNodeSource, size_t nOffset)
 //	: m_nDegree(nDegree)
 //{
 //	std::cout << "InternalNode::InternalNode(..due to split)" << std::endl;
@@ -42,7 +42,7 @@
 //}
 //
 //template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-//ErrorCode InternalNode<KeyType, ValueType, CacheType, CacheKeyType>::insert(const KeyType& key, const ValueType& value, CacheTypePtr ptrCache, std::optional<CacheKeyType>& ptrSiblingNode, int& nSiblingPivot)
+//ErrorCode InternalNode<KeyType, ValueType, CacheType>::insert(const KeyType& key, const ValueType& value, CacheTypePtr ptrCache, std::optional<CacheKeyType>& ptrSiblingNode, int& nSiblingPivot)
 //{
 //	int nChildIdx = 0;
 //	while (nChildIdx < m_vtPivots.size() && key > m_vtPivots[nChildIdx]) {
@@ -51,7 +51,7 @@
 //
 //	std::cout << "InternalNode::insert(" << key << "," << value << ") Idx: " << nChildIdx << std::endl;
 //
-//	INodePtr ptrParentNode = ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType, CacheKeyType>>(m_vtChildren[nChildIdx]);
+//	INodePtr ptrParentNode = ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType>>(m_vtChildren[nChildIdx]);
 //	if (ptrParentNode == NULL)
 //		return ErrorCode::Error;
 //
@@ -68,7 +68,7 @@
 //}
 //
 //template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-//ErrorCode InternalNode<KeyType, ValueType, CacheType, CacheKeyType>::insert(CacheTypePtr ptrCache, CacheKeyType ptrChildNode, int nChildPivot, std::optional<CacheKeyType>& ptrSiblingNode, int& nSiblingPivot)
+//ErrorCode InternalNode<KeyType, ValueType, CacheType>::insert(CacheTypePtr ptrCache, CacheKeyType ptrChildNode, int nChildPivot, std::optional<CacheKeyType>& ptrSiblingNode, int& nSiblingPivot)
 //{
 //	int nChildIdx = m_vtPivots.size();
 //	for (int nIdx = 0; nIdx < m_vtPivots.size(); ++nIdx) {
@@ -92,7 +92,7 @@
 //}
 //
 //template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-//bool InternalNode<KeyType, ValueType, CacheType, CacheKeyType>::requireSplit()
+//bool InternalNode<KeyType, ValueType, CacheType>::requireSplit()
 //{
 //	if (m_vtPivots.size() > m_nDegree)
 //		return true;
@@ -101,14 +101,14 @@
 //}
 //
 //template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-//ErrorCode InternalNode<KeyType, ValueType, CacheType, CacheKeyType>::split(CacheTypePtr ptrCache, std::optional<CacheKeyType>& ptrSiblingNode, int& nSiblingPivot)
+//ErrorCode InternalNode<KeyType, ValueType, CacheType>::split(CacheTypePtr ptrCache, std::optional<CacheKeyType>& ptrSiblingNode, int& nSiblingPivot)
 //{
 //	std::cout << "InternalNode::split" << std::endl;
 //
 //	int nOffset = m_vtPivots.size() / 2;
 //
 //	nSiblingPivot = this->m_vtPivots[nOffset];
-//	ptrSiblingNode = ptrCache->createObjectOfType<InternalNode<KeyType, ValueType, CacheType, CacheKeyType>>(5, this, nOffset);
+//	ptrSiblingNode = ptrCache->createObjectOfType<InternalNode<KeyType, ValueType, CacheType>>(5, this, nOffset);
 //
 //	//m_vtPivots.erase(m_vtPivots.begin() + nOffset, m_vtPivots.end());
 //	//m_vtChildren.erase(m_vtChildren.begin() + nOffset, m_vtChildren.end());
@@ -126,7 +126,7 @@
 //}
 //
 ////template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-////ErrorCode InternalNode<KeyType, ValueType, CacheType, CacheKeyType>::remove(const KeyType& key) 
+////ErrorCode InternalNode<KeyType, ValueType, CacheType>::remove(const KeyType& key) 
 ////{
 ////	size_t nIdx = getChildNodeIndex(key);
 ////	ErrorCode retCode = m_vtChildren[nIdx]->remove(key);
@@ -145,7 +145,7 @@
 ////}
 //
 //template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-//size_t InternalNode<KeyType, ValueType, CacheType, CacheKeyType>::getChildNodeIndex(const KeyType& key)
+//size_t InternalNode<KeyType, ValueType, CacheType>::getChildNodeIndex(const KeyType& key)
 //{
 //	for (size_t nIdx = 0; nIdx < m_vtPivots.size(); ++nIdx) {
 //		if (key < m_vtPivots[nIdx]) {
@@ -156,11 +156,11 @@
 //}
 //
 //template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-//ErrorCode InternalNode<KeyType, ValueType, CacheType, CacheKeyType>::search(CacheTypePtr ptrCache, const KeyType& key, ValueType& value)
+//ErrorCode InternalNode<KeyType, ValueType, CacheType>::search(CacheTypePtr ptrCache, const KeyType& key, ValueType& value)
 //{
 //	int nIdx= getChildNodeIndex(key);
 //
-//	INodePtr ptrChildNode = ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType, CacheKeyType>>(m_vtChildren[nIdx]);
+//	INodePtr ptrChildNode = ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType>>(m_vtChildren[nIdx]);
 //	if (ptrChildNode == NULL)
 //		return ErrorCode::Error;
 //
@@ -168,7 +168,7 @@
 //}
 //
 ////template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-////ErrorCode InternalNode<KeyType, ValueType, CacheType, CacheKeyType>::rebalance(size_t nChildNodeIdx) {
+////ErrorCode InternalNode<KeyType, ValueType, CacheType>::rebalance(size_t nChildNodeIdx) {
 ////	//if (m_vtPivots.size() >= (m_nDegree / 2) - 1) {
 ////	//	return ErrorCode::Success;
 ////	//}
@@ -210,15 +210,15 @@
 ////}
 //
 //template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-//size_t InternalNode<KeyType, ValueType, CacheType, CacheKeyType>::getChildCount()
+//size_t InternalNode<KeyType, ValueType, CacheType>::getChildCount()
 //{
 //	return m_vtPivots.size();
 //}
 //
 ////template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-////ErrorCode InternalNode<KeyType, ValueType, CacheType, CacheKeyType>::moveAnEntityFromLHSSibling(INodePtr ptrLHSSibling, KeyType& oKey)
+////ErrorCode InternalNode<KeyType, ValueType, CacheType>::moveAnEntityFromLHSSibling(INodePtr ptrLHSSibling, KeyType& oKey)
 ////{
-////	InternalNode<KeyType, ValueType, CacheType, CacheKeyType>* lhsibling = static_cast<InternalNode<KeyType, ValueType, CacheType, CacheKeyType>*>(ptrLHSSibling);
+////	InternalNode<KeyType, ValueType, CacheType>* lhsibling = static_cast<InternalNode<KeyType, ValueType, CacheType>*>(ptrLHSSibling);
 ////
 ////	KeyType key = lhsibling->m_vtPivots.back();
 ////	INodePtr node= lhsibling->m_vtChildren.back();
@@ -235,9 +235,9 @@
 ////}
 //
 ////template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-////ErrorCode InternalNode<KeyType, ValueType, CacheType, CacheKeyType>::moveAnEntityFromRHSSibling(INodePtr ptrRHSSibling, KeyType& oKey)
+////ErrorCode InternalNode<KeyType, ValueType, CacheType>::moveAnEntityFromRHSSibling(INodePtr ptrRHSSibling, KeyType& oKey)
 ////{
-////	InternalNode<KeyType, ValueType, CacheType, CacheKeyType>* rhssibling = static_cast<InternalNode<KeyType, ValueType, CacheType, CacheKeyType>*>(ptrRHSSibling);
+////	InternalNode<KeyType, ValueType, CacheType>* rhssibling = static_cast<InternalNode<KeyType, ValueType, CacheType>*>(ptrRHSSibling);
 ////
 ////	KeyType key = rhssibling->m_vtPivots.front();
 ////	INodePtr node = rhssibling->m_vtChildren.front();
@@ -254,9 +254,9 @@
 ////}
 //
 ////template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-////ErrorCode InternalNode<KeyType, ValueType, CacheType, CacheKeyType>::mergeNodes(INodePtr ptrSiblingToMerge)
+////ErrorCode InternalNode<KeyType, ValueType, CacheType>::mergeNodes(INodePtr ptrSiblingToMerge)
 ////{
-////	InternalNode<KeyType, ValueType, CacheType, CacheKeyType>* ptrNode = static_cast<InternalNode<KeyType, ValueType, CacheType, CacheKeyType>*>(ptrSiblingToMerge);
+////	InternalNode<KeyType, ValueType, CacheType>* ptrNode = static_cast<InternalNode<KeyType, ValueType, CacheType>*>(ptrSiblingToMerge);
 ////
 ////	m_vtPivots.insert(m_vtPivots.end(), ptrNode->m_vtPivots.begin(), ptrNode->m_vtPivots.end());
 ////	m_vtChildren.insert(m_vtChildren.end(), ptrNode->m_vtChildren.begin(), ptrNode->m_vtChildren.end());
@@ -268,7 +268,7 @@
 //
 //
 //template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
-//void InternalNode<KeyType, ValueType, CacheType, CacheKeyType>::print(CacheTypePtr ptrCache, int nLevel)
+//void InternalNode<KeyType, ValueType, CacheType>::print(CacheTypePtr ptrCache, int nLevel)
 //{
 //	std::ostringstream oss;
 //
@@ -290,7 +290,7 @@
 //		printf("%s  child: %d\n", std::string(nLevel, ' ').c_str(), i);
 //
 //
-//		INodePtr ptrChildNode = ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType, CacheKeyType>>(m_vtChildren[i]);
+//		INodePtr ptrChildNode = ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType>>(m_vtChildren[i]);
 //		if (ptrChildNode == NULL)
 //			return;
 //

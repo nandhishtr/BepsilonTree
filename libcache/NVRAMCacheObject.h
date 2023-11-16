@@ -2,7 +2,7 @@
 #include "IDRAMCacheObject.h"
 #include "INVRAMCacheObject.h"
 #include "IBufferCacheObject.h"
-
+#include <iostream>
 
 template <typename CoreDRAMObjectType = IDRAMCacheObject, typename CoreNVRAMObjectType = INVRAMCacheObject, typename CoreBufferObjectType = IBufferCacheObject>
 class NVRAMCacheObjectEx : public ICacheObject
@@ -22,7 +22,7 @@ public:
 };
 
 
-template <typename CoreObjectType = INVRAMCacheObject>
+template <typename CoreObjectType>
 class NVRAMCacheObject : public ICacheObject
 {
 public:
@@ -32,6 +32,24 @@ public:
 	NVRAMCacheObject(std::shared_ptr<CoreObjectType> ptrObj)
 		: m_ptrCoreObject(ptrObj)
 	{
+		//const std::size_t n = sizeof...(CoreObjectType);
+		std::cout << typeid(CoreObjectType).name() << std::endl;
+	}
+};
 
+template <typename CoreObjectType1, typename CoreObjectType2>
+class NVRAMCacheObject2 : public ICacheObject
+{
+public:
+	std::shared_ptr<CoreObjectType1> m_ptrCoreObject;
+	std::shared_ptr<CoreObjectType2> m_ptrCoreObject2;
+
+public:
+	NVRAMCacheObject2(std::shared_ptr<CoreObjectType1> ptrObj)
+		: m_ptrCoreObject(ptrObj)
+	{
+		//const std::size_t n = sizeof...(CoreObjectType);
+		std::cout << typeid(CoreObjectType1).name() << std::endl;
+		std::cout << typeid(CoreObjectType2).name() << std::endl;
 	}
 };

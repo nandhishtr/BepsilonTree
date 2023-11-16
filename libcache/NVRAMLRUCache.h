@@ -8,19 +8,27 @@
 #include "UnsortedMapUtil.h"
 #include "NVRAMVolatileStorage.h"
 
-template <typename KeyType, template <typename> typename ValueType, typename ValueCoreType, template <typename KeyType, typename ValueCoreType> typename NVRAMStorage>
+template <
+	template <typename, typename> typename NVRAMStorage, typename StorageKeyType, typename StorageValueCoreType, 
+	template <typename StorageValueCoreType, typename... > typename StorageValueType, typename... StorageValueOtherCoreTypes
+>
 class NVRAMLRUCache : public ICoreCache
 {
+public:
+	typedef StorageKeyType KeyType;
+
+	typedef StorageKeyType CacheStorageKeyType;
+
 private:
 	struct Item
 	{
 	public:
-		std::shared_ptr<KeyType> m_ptrKey;
-		std::shared_ptr<ValueType<ValueCoreType>> m_ptrValue;
+		std::shared_ptr<StorageKeyType> m_ptrKey;
+		std::shared_ptr<StorageValueType<StorageValueCoreType, StorageValueOtherCoreTypes...>> m_ptrValue;
 		std::shared_ptr<Item> m_ptrPrev;
 		std::shared_ptr<Item> m_ptrNext;
 
-		Item(std::shared_ptr<KeyType> oKey, std::shared_ptr<ValueType<ValueCoreType>> ptrValue)
+		Item(std::shared_ptr<StorageKeyType> oKey, std::shared_ptr<StorageValueType<StorageValueCoreType, StorageValueOtherCoreTypes...>> ptrValue)
 			: m_ptrNext(nullptr)
 			, m_ptrPrev(nullptr)
 		{
@@ -29,23 +37,26 @@ private:
 		}
 	};
 
-	std::unordered_map<std::shared_ptr<KeyType>, std::shared_ptr<Item>, SharedPtrHash<KeyType>, SharedPtrEqual<KeyType>> m_mpObject;
+	std::unordered_map<std::shared_ptr<StorageKeyType>, std::shared_ptr<Item>, SharedPtrHash<StorageKeyType>, SharedPtrEqual<StorageKeyType>> m_mpObject;
 
 	size_t m_nCapacity;
 	std::shared_ptr<Item> m_ptrHead;
 	std::shared_ptr<Item> m_ptrTail;
 
-	std::unique_ptr<NVRAMStorage<KeyType, ValueCoreType>> m_ptrStorage;
+	std::unique_ptr<NVRAMStorage<StorageKeyType, StorageValueCoreType>> m_ptrStorage;
 public:
 	NVRAMLRUCache(size_t nCapacity)
 		: m_nCapacity(nCapacity)
 		, m_ptrHead(nullptr)
 		, m_ptrTail(nullptr)
 	{
-		m_ptrStorage = std::make_unique<NVRAMStorage<KeyType, ValueCoreType>>(1000);
+		const std::size_t n = sizeof...(StorageValueOtherCoreTypes);
+		std::cout << n << std::endl;
+
+		m_ptrStorage = std::make_unique<NVRAMStorage<StorageKeyType, StorageValueCoreType>>(1000);
 	}
 
-	CacheErrorCode remove(KeyType& objKey)
+	CacheErrorCode remove(StorageKeyType& objKey)
 	{
 		/*auto it = m_mpObject.find(objKey);
 		if (it != m_mpObject.end()) {
@@ -57,9 +68,9 @@ public:
 	}
 
 	template<class Type>
-	std::shared_ptr<Type> getObjectOfType(KeyType& objKey/*, Hints for nvm!!*/)
+	std::shared_ptr<Type> getObjectOfType(StorageKeyType& objKey/*, Hints for nvm!!*/)
 	{
-		std::shared_ptr<KeyType> ptrKey = std::make_shared<KeyType>(objKey);	//TODO: Use Object type directly.
+		std::shared_ptr<StorageKeyType> ptrKey = std::make_shared<StorageKeyType>(objKey);	//TODO: Use Object type directly.
 		if (m_mpObject.find(ptrKey) != m_mpObject.end())
 		{
 			std::shared_ptr<Item> ptrItem = m_mpObject[ptrKey];
@@ -67,7 +78,7 @@ public:
 			return std::static_pointer_cast<Type>(ptrItem->m_ptrValue->m_ptrCoreObject);
 		}
 
-		std::shared_ptr<ValueCoreType> ptrValue = m_ptrStorage->getObject(ptrKey);
+		std::shared_ptr<StorageValueCoreType> ptrValue = m_ptrStorage->getObject(ptrKey);
 		if (ptrValue != nullptr)
 		{
 			moveItemToDRAM(ptrKey, ptrValue);
@@ -78,14 +89,14 @@ public:
 	}
 
 	template<class Type, typename... ArgsType>
-	KeyType createObjectOfType(ArgsType ... args)
+	StorageKeyType createObjectOfType(ArgsType ... args)
 	{
 		//TODO .. do we really need these much objects? ponder!
-		std::shared_ptr<ValueCoreType> ptrCoreObj = std::make_shared<Type>(args...);
+		std::shared_ptr<StorageValueCoreType> ptrCoreObj = std::make_shared<Type>(args...);
 
-		std::shared_ptr<KeyType> ptrKey = this->getKey(ptrCoreObj);
+		std::shared_ptr<StorageKeyType> ptrKey = this->getKey(ptrCoreObj);
 
-		std::shared_ptr<ValueType<ValueCoreType>> ptrNVRAMObj = std::make_shared<ValueType<ValueCoreType>>(ptrCoreObj);
+		std::shared_ptr<StorageValueType<StorageValueCoreType, StorageValueOtherCoreTypes...>> ptrNVRAMObj = std::make_shared<StorageValueType<StorageValueCoreType, StorageValueOtherCoreTypes...>>(ptrCoreObj);
 
 		std::shared_ptr<Item> ptrItem = std::make_shared<Item>(ptrKey, ptrNVRAMObj);
 
@@ -167,9 +178,9 @@ private:
 		}
 	}
 
-	void moveItemToDRAM(std::shared_ptr<KeyType> ptrKey, std::shared_ptr<ValueCoreType> ptrCoreObj)
+	void moveItemToDRAM(std::shared_ptr<StorageKeyType> ptrKey, std::shared_ptr<StorageValueCoreType> ptrCoreObj)
 	{
-		std::shared_ptr<ValueType<ValueCoreType>> ptrNVRAMObj = std::make_shared<ValueType<ValueCoreType>>(ptrCoreObj);
+		std::shared_ptr<StorageValueType<StorageValueCoreType, StorageValueOtherCoreTypes...>> ptrNVRAMObj = std::make_shared<StorageValueType<StorageValueCoreType, StorageValueOtherCoreTypes...>>(ptrCoreObj);
 
 		std::shared_ptr<Item> ptrItem = std::make_shared<Item>(ptrKey, ptrNVRAMObj);
 
@@ -187,38 +198,38 @@ private:
 		tryMoveItemToStorage();
 	}
 
-	std::shared_ptr<KeyType> getKey(std::shared_ptr<ValueCoreType> obj)
+	std::shared_ptr<StorageKeyType> getKey(std::shared_ptr<StorageValueCoreType> obj)
 	{
-		std::shared_ptr<KeyType> ptrKey = std::make_shared<KeyType>();
+		std::shared_ptr<StorageKeyType> ptrKey = std::make_shared<StorageKeyType>();
 		generateKey(ptrKey, obj);
 
 		return ptrKey;
 	}
 
-	void generateKey(std::shared_ptr<uintptr_t> key, std::shared_ptr<ValueCoreType> obj)
+	void generateKey(std::shared_ptr<uintptr_t> key, std::shared_ptr<StorageValueCoreType> obj)
 	{
 		*key = reinterpret_cast<uintptr_t>(&(*obj.get()));
 	}
 
-	void generateKey(std::shared_ptr<NVRAMCacheObjectKey> key, std::shared_ptr<ValueCoreType> obj)
+	void generateKey(std::shared_ptr<NVRAMCacheObjectKey> key, std::shared_ptr<StorageValueCoreType> obj)
 	{
 		*key = NVRAMCacheObjectKey(&(*obj.get()));
 	}
 };
 
-template <typename KeyType, template <typename, typename, typename> typename ValueType, typename ValueDRAMCoreType, typename ValueNVRAMCoreType, typename ValueBufferCoreType>
+template <typename StorageKeyType, template <typename, typename, typename> typename StorageValueType, typename ValueDRAMCoreType, typename ValueNVRAMCoreType, typename ValueBufferCoreType>
 class NVRAMLRUCacheEx : public ICoreCache
 {
 private:
 	struct Item
 	{
 	public:
-		std::shared_ptr<KeyType> m_ptrKey;
-		std::shared_ptr<ValueType<ValueDRAMCoreType, ValueNVRAMCoreType, ValueBufferCoreType>> m_ptrValue;
+		std::shared_ptr<StorageKeyType> m_ptrKey;
+		std::shared_ptr<StorageValueType<ValueDRAMCoreType, ValueNVRAMCoreType, ValueBufferCoreType>> m_ptrValue;
 		std::shared_ptr<Item> m_ptrPrev;
 		std::shared_ptr<Item> m_ptrNext;
 
-		Item(std::shared_ptr<KeyType> oKey, std::shared_ptr<ValueType<ValueDRAMCoreType, ValueNVRAMCoreType, ValueBufferCoreType>> ptrValue)
+		Item(std::shared_ptr<StorageKeyType> oKey, std::shared_ptr<StorageValueType<ValueDRAMCoreType, ValueNVRAMCoreType, ValueBufferCoreType>> ptrValue)
 			: m_ptrNext(nullptr)
 			, m_ptrPrev(nullptr)
 		{
@@ -227,7 +238,7 @@ private:
 		}
 	};
 
-	std::unordered_map<std::shared_ptr<KeyType>, std::shared_ptr<Item>, SharedPtrHash<KeyType>, SharedPtrEqual<KeyType>> m_mpObject;
+	std::unordered_map<std::shared_ptr<StorageKeyType>, std::shared_ptr<Item>, SharedPtrHash<StorageKeyType>, SharedPtrEqual<StorageKeyType>> m_mpObject;
 
 	size_t m_nCapacity;
 	std::shared_ptr<Item> m_ptrHead;
@@ -243,7 +254,7 @@ public:
 	{
 	}
 
-	CacheErrorCode remove(KeyType& objKey)
+	CacheErrorCode remove(StorageKeyType& objKey)
 	{
 		/*auto it = m_mpObject.find(objKey);
 		if (it != m_mpObject.end()) {
@@ -258,11 +269,11 @@ public:
 	//.. getReadObjectOfType
 
 	template<class Type>
-	std::shared_ptr<Type> getObjectOfType(KeyType& objKey/*, Hints for nvm!!*/)
+	std::shared_ptr<Type> getObjectOfType(StorageKeyType& objKey/*, Hints for nvm!!*/)
 	{
 
 
-		/*std::shared_ptr<KeyType> key = std::make_shared<KeyType>(objKey);
+		/*std::shared_ptr<StorageKeyType> key = std::make_shared<StorageKeyType>(objKey);
 		if (m_mpObject.find(key) != m_mpObject.end())
 		{
 			std::shared_ptr<Item> ptrItem = m_mpObject[key];
@@ -274,15 +285,15 @@ public:
 	}
 
 	template<class Type, typename... ArgsType>
-	KeyType createObjectOfType(ArgsType ... args)
+	StorageKeyType createObjectOfType(ArgsType ... args)
 	{
 		//.. do we really need these much objects? ponder!
 		std::shared_ptr<ValueDRAMCoreType> ptrCoreObj = std::make_shared<Type>(args...);
-		std::shared_ptr<KeyType> key = this->getKey(ptrCoreObj);
+		std::shared_ptr<StorageKeyType> key = this->getKey(ptrCoreObj);
 
 		std::shared_ptr<ValueBufferCoreType> ptrBufferObj = nullptr;
 
-		std::shared_ptr<ValueType<ValueDRAMCoreType, ValueNVRAMCoreType, ValueBufferCoreType>> ptrNVRAMObj = std::make_shared<ValueType<ValueDRAMCoreType, ValueNVRAMCoreType, ValueBufferCoreType>>(ptrCoreObj, nullptr, ptrBufferObj);
+		std::shared_ptr<StorageValueType<ValueDRAMCoreType, ValueNVRAMCoreType, ValueBufferCoreType>> ptrNVRAMObj = std::make_shared<StorageValueType<ValueDRAMCoreType, ValueNVRAMCoreType, ValueBufferCoreType>>(ptrCoreObj, nullptr, ptrBufferObj);
 
 		std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrNVRAMObj);
 
@@ -363,9 +374,9 @@ private:
 		m_ptrHead = ptrItem;
 	}
 
-	std::shared_ptr<KeyType> getKey(std::shared_ptr<ValueDRAMCoreType> obj)
+	std::shared_ptr<StorageKeyType> getKey(std::shared_ptr<ValueDRAMCoreType> obj)
 	{
-		std::shared_ptr<KeyType> ptrKey = std::make_shared<KeyType>();
+		std::shared_ptr<StorageKeyType> ptrKey = std::make_shared<StorageKeyType>();
 		generateKey(ptrKey, obj);
 
 		return ptrKey;
