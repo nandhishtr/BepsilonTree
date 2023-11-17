@@ -10,7 +10,7 @@
 
 template <
 	template <typename, typename> typename NVRAMStorage, typename StorageKeyType, typename StorageValueCoreType, 
-	template <typename StorageValueCoreType, typename... > typename StorageValueType, typename... StorageValueOtherCoreTypes
+	template <typename, typename... > typename StorageValueType, typename... StorageValueOtherCoreTypes
 >
 class NVRAMLRUCache : public ICoreCache
 {

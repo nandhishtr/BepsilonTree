@@ -67,7 +67,7 @@ public:
 
 	ErrorCode insert(CacheTypePtr ptrCache, CacheKeyType ptrChildNode, int nChildPivot, std::optional<CacheKeyType>& ptrSiblingNode, int& nSiblingPivot)
 	{
-		throw new exception("should occur!");
+		//throw new exception("should occur!");
 		return ErrorCode::ChildSplitCalledOnLeafNode;
 	}
 
@@ -168,7 +168,7 @@ private:
 
 		int nOffset = m_vtKeys.size() / 2;
 
-		ptrSiblingNode = ptrCache->createObjectOfType<LeafNode<KeyType, ValueType, CacheType>>(m_nDegree, this, nOffset);
+		ptrSiblingNode = ptrCache->template createObjectOfType<LeafNode<KeyType, ValueType, CacheType>>(m_nDegree, this, nOffset);
 		if (!ptrSiblingNode)
 		{
 			return ErrorCode::Error;

@@ -76,7 +76,7 @@ public:
 
 		std::cout << "InternalNode::insert(" << key << "," << value << ") Idx: " << nChildIdx << std::endl;
 
-		INodePtr ptrParentNode = ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType>>(m_vtChildren[nChildIdx]);
+		INodePtr ptrParentNode = ptrCache->template getObjectOfType<INode<KeyType, ValueType, CacheType>>(m_vtChildren[nChildIdx]);
 		if (ptrParentNode == NULL)
 			return ErrorCode::Error;
 
@@ -122,7 +122,7 @@ public:
 	{
 		int nIdx = getChildNodeIndex(key);
 
-		INodePtr ptrChildNode = ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType>>(m_vtChildren[nIdx]);
+		INodePtr ptrChildNode = ptrCache->template getObjectOfType<INode<KeyType, ValueType, CacheType>>(m_vtChildren[nIdx]);
 		if (ptrChildNode == NULL)
 			return ErrorCode::Error;
 
@@ -165,7 +165,7 @@ private:
 		int nOffset = m_vtPivots.size() / 2;
 
 		nSiblingPivot = this->m_vtPivots[nOffset];
-		ptrSiblingNode = ptrCache->createObjectOfType<InternalNode<KeyType, ValueType, CacheType>>(m_nDegree, this, nOffset);
+		ptrSiblingNode = ptrCache->template createObjectOfType<InternalNode<KeyType, ValueType, CacheType>>(m_nDegree, this, nOffset);
 
 		//m_vtPivots.erase(m_vtPivots.begin() + nOffset, m_vtPivots.end());
 		//m_vtChildren.erase(m_vtChildren.begin() + nOffset, m_vtChildren.end());
@@ -204,7 +204,7 @@ private:
 			printf("%s  child: %d\n", std::string(nLevel, ' ').c_str(), i);
 
 
-			INodePtr ptrChildNode = ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType>>(m_vtChildren[i]);
+			INodePtr ptrChildNode = ptrCache->template getObjectOfType<INode<KeyType, ValueType, CacheType>>(m_vtChildren[i]);
 			if (ptrChildNode == NULL)
 				return;
 

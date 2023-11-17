@@ -38,7 +38,7 @@ public:
         : m_nDegree(nDegree)
     {    
         m_ptrCache = std::make_shared<CacheType>(CacheArgs...);
-        m_cktRootNodeKey = m_ptrCache->createObjectOfType<LeafNode<KeyType, ValueType, CacheType>>(m_nDegree);
+        m_cktRootNodeKey = m_ptrCache->template createObjectOfType<LeafNode<KeyType, ValueType, CacheType>>(m_nDegree);
 
         std::cout << "BTree::BTree()" << std::endl;
     }
@@ -47,7 +47,7 @@ public:
     {
         std::cout << "BTree::insert(" << key << "," << value << ")" << std::endl;
 
-        INodePtr ptrRootNode = m_ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType>>(*m_cktRootNodeKey);
+        INodePtr ptrRootNode = m_ptrCache->template getObjectOfType<INode<KeyType, ValueType, CacheType>>(*m_cktRootNodeKey);
         if (ptrRootNode == NULL)
             return ErrorCode::Error;
 
@@ -59,7 +59,7 @@ public:
         {
             if (ptrSibling)
             {
-                m_cktRootNodeKey = m_ptrCache->createObjectOfType<InternalNode<KeyType, ValueType, CacheType>>(m_nDegree, nPivot, *m_cktRootNodeKey, *ptrSibling);
+                m_cktRootNodeKey = m_ptrCache->template createObjectOfType<InternalNode<KeyType, ValueType, CacheType>>(m_nDegree, nPivot, *m_cktRootNodeKey, *ptrSibling);
             }
         }
 
@@ -77,7 +77,7 @@ public:
 
     ErrorCode search(const KeyType& key, ValueType& value)
     {
-        INodePtr ptrRootNode = m_ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType>>(*m_cktRootNodeKey);
+        INodePtr ptrRootNode = m_ptrCache->template getObjectOfType<INode<KeyType, ValueType, CacheType>>(*m_cktRootNodeKey);
         if (ptrRootNode == NULL)
             return ErrorCode::Error;
 
@@ -87,7 +87,7 @@ public:
 
     void print()
     {
-        INodePtr ptrRootNode = m_ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType>>(*m_cktRootNodeKey);
+        INodePtr ptrRootNode = m_ptrCache->template getObjectOfType<INode<KeyType, ValueType, CacheType>>(*m_cktRootNodeKey);
         if (ptrRootNode == NULL)
             return;
 
