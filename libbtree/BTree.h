@@ -13,8 +13,6 @@
 #include "NVRAMCacheObject.h"
 #include "NVRAMCacheObjectKey.h"
 
-#include "CacheManager.h"
-
 template <typename KeyType, typename ValueType, typename CacheType>
 class BTree
 {
