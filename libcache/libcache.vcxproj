@@ -129,6 +129,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -151,6 +152,7 @@
     <ClInclude Include="ICacheObjectKey.h" />
     <ClInclude Include="IDRAMCacheObject.h" />
     <ClInclude Include="INVRAMCacheObject.h" />
+    <ClInclude Include="NoCache.h" />
     <ClInclude Include="NVRAMCacheObject.h" />
     <ClInclude Include="NVRAMCacheObjectKey.h" />
     <ClInclude Include="NVRAMLRUCache.h" />
@@ -165,6 +167,7 @@
     <ClCompile Include="DRAMCacheObjectKey.cpp" />
     <ClCompile Include="DRAMLRUCache.cpp" />
     <ClCompile Include="DRAMVolatileStorage.cpp" />
+    <ClCompile Include="NoCache.cpp" />
     <ClCompile Include="NVRAMCacheObject.cpp" />
     <ClCompile Include="NVRAMCacheObjectKey.cpp" />
     <ClCompile Include="NVRAMLRUCache.cpp" />

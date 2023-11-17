@@ -36,9 +36,11 @@
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="BPlusTree_TestSuite1.cpp" />
-    <ClCompile Include="BPlusTree_TestSuite2.cpp" />
-    <ClCompile Include="test.cpp" />
+    <ClCompile Include="BPlusTree_DRAMLRU_Suite_2.cpp" />
+    <ClCompile Include="BPlusTree_NoCache_Suite_1.cpp" />
+    <ClCompile Include="BPlusTree_NVRAMLRU_Suite_1.cpp" />
+    <ClCompile Include="BPlusTree_DRAMLRU_Suite_1.cpp" />
+    <ClCompile Include="main.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
@@ -111,12 +113,15 @@
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <LanguageStandard>stdcpp20</LanguageStandard>
+      <AdditionalIncludeDirectories>..\libbtree;..\libcache;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <AdditionalDependencies>..\x64\Debug\libbtree.lib;..\x64\Debug\libcache.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

@@ -2,22 +2,20 @@
 #include <memory>
 #include "ICacheManager.h"
 
-template </*typename ABC,*/ template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
+template <typename CacheType>
 class CacheManager : public ICacheManager
 {
 private:
-	std::shared_ptr<CacheType<CacheKeyType, CacheValueType>> m_ptrCache;
-	//ABC* oe;
+	std::shared_ptr<CacheType> m_ptrCache;
+
 public:
     ~CacheManager()
     {
-
     }
 
-    CacheManager(/*ABC* oe*/)
+    CacheManager()
     {
-		//this->oe = oe;
-        m_ptrCache = std::make_shared<CacheType<CacheKeyType, CacheValueType>>(10000);
+		m_ptrCache = std::make_shared<CacheType>(10);
     }
 
 	template<typename KeyType, class ClassType>

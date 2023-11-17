@@ -168,7 +168,7 @@ private:
 
 		int nOffset = m_vtKeys.size() / 2;
 
-		ptrSiblingNode = ptrCache->createObjectOfType<LeafNode<KeyType, ValueType, CacheType>>(5, this, nOffset);
+		ptrSiblingNode = ptrCache->createObjectOfType<LeafNode<KeyType, ValueType, CacheType>>(m_nDegree, this, nOffset);
 		if (!ptrSiblingNode)
 		{
 			return ErrorCode::Error;

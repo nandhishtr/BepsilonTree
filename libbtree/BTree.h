@@ -16,7 +16,6 @@
 #include "CacheManager.h"
 
 template <typename KeyType, typename ValueType, typename CacheType>
-
 class BTree
 {
     typedef CacheType::KeyType CacheKeyType;
@@ -30,34 +29,20 @@ private:
     uint32_t m_nDegree;
     std::shared_ptr<CacheType> m_ptrCache;
     std::optional<CacheKeyType> m_cktRootNodeKey;
-    //LeafNode<KeyType, ValueType, CacheType, CacheKeyType>* m_ptrRootNode;
 
 public:
     ~BTree()
     {
-
     }
 
-    BTree()
-        //    : m_nDegree(nDegree),
-    {
-        m_ptrCache = std::make_shared<CacheType>(10);
-        m_cktRootNodeKey = m_ptrCache->createObjectOfType<LeafNode<KeyType, ValueType, CacheType>>(5);
+    template<typename... Args>
+    BTree(uint32_t nDegree, Args... CacheArgs)
+        : m_nDegree(nDegree)
+    {    
+        m_ptrCache = std::make_shared<CacheType>(CacheArgs...);
+        m_cktRootNodeKey = m_ptrCache->createObjectOfType<LeafNode<KeyType, ValueType, CacheType>>(m_nDegree);
 
         std::cout << "BTree::BTree()" << std::endl;
-
-
-        //CacheManager<BTree<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>, CacheType, CacheKeyType, CacheValueType>* mgr = new CacheManager<BTree<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>, CacheType, CacheKeyType, CacheValueType>(this);
-        //m_cktRootNodeKey = mgr->createObjectOfType<CacheKeyType, LeafNode<KeyType, ValueType, CacheType, CacheKeyType>>(5);
-        //INodePtr ptrParentNode = mgr->getObjectOfType<CacheKeyType, INode<KeyType, ValueType, CacheType, CacheKeyType>>(*m_cktRootNodeKey);
-    }
-
-    ErrorCode init()
-    {
-        std::cout << "BTree::init()" << std::endl;
-
-
-        return ErrorCode::Success;
     }
 
     ErrorCode insert(const KeyType& key, const ValueType& value)
@@ -76,7 +61,7 @@ public:
         {
             if (ptrSibling)
             {
-                m_cktRootNodeKey = m_ptrCache->createObjectOfType<InternalNode<KeyType, ValueType, CacheType>>(5, nPivot, *m_cktRootNodeKey, *ptrSibling);
+                m_cktRootNodeKey = m_ptrCache->createObjectOfType<InternalNode<KeyType, ValueType, CacheType>>(m_nDegree, nPivot, *m_cktRootNodeKey, *ptrSibling);
             }
         }
 

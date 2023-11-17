@@ -32,18 +32,11 @@ private:
 	uint32_t m_nDegree;
 
 	std::vector<KeyType> m_vtPivots;
-	//std::vector<ValueType> m_vtValues;
 	std::vector<CacheKeyType> m_vtChildren;
 
 public:
 	~InternalNode()
 	{
-	}
-
-	InternalNode(uint32_t nDegree)
-		: m_nDegree(nDegree)
-	{
-		std::cout << "InternalNode::InternalNode()" << std::endl;
 	}
 
 	InternalNode(uint32_t nDegree, int nPivot, CacheKeyType ptrLHSNode, CacheKeyType ptrRHSNode)
@@ -172,7 +165,7 @@ private:
 		int nOffset = m_vtPivots.size() / 2;
 
 		nSiblingPivot = this->m_vtPivots[nOffset];
-		ptrSiblingNode = ptrCache->createObjectOfType<InternalNode<KeyType, ValueType, CacheType>>(5, this, nOffset);
+		ptrSiblingNode = ptrCache->createObjectOfType<InternalNode<KeyType, ValueType, CacheType>>(m_nDegree, this, nOffset);
 
 		//m_vtPivots.erase(m_vtPivots.begin() + nOffset, m_vtPivots.end());
 		//m_vtChildren.erase(m_vtChildren.begin() + nOffset, m_vtChildren.end());
