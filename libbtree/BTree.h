@@ -40,26 +40,42 @@ public:
         m_ptrCache = std::make_shared<CacheType>(CacheArgs...);
         m_cktRootNodeKey = m_ptrCache->template createObjectOfType<LeafNode<KeyType, ValueType, CacheType>>(m_nDegree);
 
-        std::cout << "BTree::BTree()" << std::endl;
+        LOG(INFO) << "BTree::BTree.";
     }
 
     ErrorCode insert(const KeyType& key, const ValueType& value)
     {
-        std::cout << "BTree::insert(" << key << "," << value << ")" << std::endl;
+        LOG(INFO) << "BTree::insert(" << key << "," << value << ").";
 
         INodePtr ptrRootNode = m_ptrCache->template getObjectOfType<INode<KeyType, ValueType, CacheType>>(*m_cktRootNodeKey);
         if (ptrRootNode == NULL)
+        {
+            LOG(ERROR) << "Failed to get object.";
+
             return ErrorCode::Error;
+        }
 
         int nPivot = 0;
         std::optional<CacheKeyType> ptrSibling;
         ErrorCode nRes = ptrRootNode->insert(key, value, m_ptrCache, ptrSibling, nPivot);
 
-        if (nRes == ErrorCode::Success)
+        if (nRes == ErrorCode::Error)
         {
-            if (ptrSibling)
+            LOG(ERROR) << "Failed to insert object.";
+
+            return ErrorCode::Error;
+        }
+
+        if (ptrSibling)
+        {
+            LOG(INFO) << "Update the root.";
+
+            m_cktRootNodeKey = m_ptrCache->template createObjectOfType<InternalNode<KeyType, ValueType, CacheType>>(m_nDegree, nPivot, *m_cktRootNodeKey, *ptrSibling);
+
+            if (!m_cktRootNodeKey)
             {
-                m_cktRootNodeKey = m_ptrCache->template createObjectOfType<InternalNode<KeyType, ValueType, CacheType>>(m_nDegree, nPivot, *m_cktRootNodeKey, *ptrSibling);
+                LOG(INFO) << "Failed to create object.";
+                return ErrorCode::Error;
             }
         }
 
@@ -94,14 +110,3 @@ public:
         ptrRootNode->print(m_ptrCache, 0);
     }
 };
-
-//template class BTree<int, int, DRAMLRUCache, uintptr_t, DRAMCacheObject>;
-//template class BTree<int, std::string, DRAMLRUCache, uintptr_t, DRAMCacheObject>;
-//template class BTree<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>;
-//template class BTree<int, std::string, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>;
-
-
-//template class BTree<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>;
-//template class BTree<int, std::string, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>;
-//template class BTree<int, int, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>;
-//template class BTree<int, std::string, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>;

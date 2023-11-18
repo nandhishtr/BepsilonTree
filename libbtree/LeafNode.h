@@ -47,12 +47,12 @@ public:
 
 		std::ostringstream oss;
 		std::copy(m_vtKeys.begin(), m_vtKeys.end(), std::ostream_iterator<int>(oss, ","));
-		std::cout << "LeafNode::split - after - new node - pivots: " << oss.str() << std::endl;
+		LOG(INFO) << "Newly created node details (" << oss.str() << ").";
 	}
 
 	ErrorCode insert(const KeyType& key, const ValueType& value, CacheTypePtr ptrCache, std::optional<CacheKeyType>& ptrSiblingNode, int& nSiblingPivot)
 	{
-		std::cout << "LeafNode::insert(" << key << "," << value << ")" << std::endl;
+		LOG(INFO) << "Insert (Key=" << key << ", Value=" << value << ").";
 
 		m_vtKeys.push_back(key);
 		m_vtValues.push_back(value);
@@ -67,6 +67,7 @@ public:
 
 	ErrorCode insert(CacheTypePtr ptrCache, CacheKeyType ptrChildNode, int nChildPivot, std::optional<CacheKeyType>& ptrSiblingNode, int& nSiblingPivot)
 	{
+		LOG(ERROR) << "Invalid split request.";
 		//throw new exception("should occur!");
 		return ErrorCode::ChildSplitCalledOnLeafNode;
 	}
@@ -90,7 +91,8 @@ public:
 	ErrorCode search(CacheTypePtr ptrCache, const KeyType& key, ValueType& value)
 	{
 		auto it = std::lower_bound(m_vtKeys.begin(), m_vtKeys.end(), key);
-		if (it != m_vtKeys.end() && *it == key) {
+		if (it != m_vtKeys.end() && *it == key) 
+		{
 			int index = it - m_vtKeys.begin();
 			value = m_vtValues[index];
 
@@ -164,13 +166,14 @@ private:
 
 	ErrorCode split(CacheTypePtr ptrCache, std::optional<CacheKeyType>& ptrSiblingNode, int& nSiblingPivot)
 	{
-		std::cout << "LeafNode::split" << std::endl;
+		LOG(INFO) << "Trying to split object.";
 
 		int nOffset = m_vtKeys.size() / 2;
 
 		ptrSiblingNode = ptrCache->template createObjectOfType<LeafNode<KeyType, ValueType, CacheType>>(m_nDegree, this, nOffset);
 		if (!ptrSiblingNode)
 		{
+			LOG(INFO) << "Failed to create object.";
 			return ErrorCode::Error;
 		}
 
@@ -181,9 +184,9 @@ private:
 
 		std::ostringstream oss;
 		std::copy(m_vtKeys.begin(), m_vtKeys.end(), std::ostream_iterator<int>(oss, ","));
-		std::cout << "LeafNode::split - after - current node - pivots: " << oss.str() << std::endl;
+		LOG(INFO) << "Current object after split (" << oss.str() << ").";
 
-		std::cout << "LeafNode::split pivot " << nSiblingPivot << std::endl;
+		LOG(INFO) << "Pivot=" << nSiblingPivot << ").";
 
 		return ErrorCode::Success;
 	}
@@ -201,14 +204,3 @@ public:
 		printf("ich heisse LeafNode.\n");
 	}
 };
-
-//template class LeafNode<int, int, DRAMLRUCache, uintptr_t, DRAMCacheObject>;
-//template class LeafNode<int, std::string, DRAMLRUCache, uintptr_t, DRAMCacheObject>;
-//template class LeafNode<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>;
-//template class LeafNode<int, std::string, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>;
-
-
-//template class LeafNode<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>;
-//template class LeafNode<int, std::string, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>;
-//template class LeafNode<int, int, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>;
-//template class LeafNode<int, std::string, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>;

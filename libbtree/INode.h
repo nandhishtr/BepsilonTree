@@ -6,6 +6,8 @@
 #include "DRAMCacheObject.h"
 #include "NVRAMCacheObject.h"
 
+#include "glog/logging.h"
+
 //template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
 template <typename KeyType, typename ValueType, typename CacheType>
 class INode : public IDRAMCacheObject, public INVRAMCacheObject

@@ -19,7 +19,6 @@
 
 using namespace std;
 
-//template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
 template <typename KeyType, typename ValueType, typename CacheType>
 class InternalNode : public INode<KeyType, ValueType, CacheType>
 {
@@ -42,7 +41,7 @@ public:
 	InternalNode(uint32_t nDegree, int nPivot, CacheKeyType ptrLHSNode, CacheKeyType ptrRHSNode)
 		: m_nDegree(nDegree)
 	{
-		std::cout << "InternalNode::InternalNode(pvt, lhs, rhs)" << std::endl;
+		LOG(INFO) << "Creating InternalNode .. nPivot=" << nPivot << ".";
 
 		m_vtPivots.push_back(nPivot);
 		m_vtChildren.push_back(ptrLHSNode);
@@ -52,14 +51,14 @@ public:
 	InternalNode(uint32_t nDegree, InternalNode<KeyType, ValueType, CacheType>* ptrNodeSource, size_t nOffset)
 		: m_nDegree(nDegree)
 	{
-		std::cout << "InternalNode::InternalNode(..due to split)" << std::endl;
+		LOG(INFO) << "Creating InternalNode .. due to split .., Offset=" << nOffset << ".";
 
 		this->m_vtPivots.assign(ptrNodeSource->m_vtPivots.begin() + nOffset, ptrNodeSource->m_vtPivots.end());
 		this->m_vtChildren.assign(ptrNodeSource->m_vtChildren.begin() + nOffset, ptrNodeSource->m_vtChildren.end());
 
 		std::ostringstream oss;
 		std::copy(m_vtPivots.begin(), m_vtPivots.end(), std::ostream_iterator<int>(oss, ","));
-		std::cout << "InternalNode::split - after - new node - pivots: " << oss.str() << std::endl;
+		LOG(INFO) << "Newly created node details (" << oss.str() << ").";
 
 	}
 
@@ -70,22 +69,36 @@ public:
 	ErrorCode insert(const KeyType& key, const ValueType& value, CacheTypePtr ptrCache, std::optional<CacheKeyType>& ptrSiblingNode, int& nSiblingPivot)
 	{
 		int nChildIdx = 0;
-		while (nChildIdx < m_vtPivots.size() && key > m_vtPivots[nChildIdx]) {
+		while (nChildIdx < m_vtPivots.size() && key > m_vtPivots[nChildIdx]) 
+		{
 			nChildIdx++;
 		}
 
-		std::cout << "InternalNode::insert(" << key << "," << value << ") Idx: " << nChildIdx << std::endl;
+		LOG(INFO) << "Insert (Key=" << key << ", Value=" << value << ") Idx=" << nChildIdx << ".";
 
 		INodePtr ptrParentNode = ptrCache->template getObjectOfType<INode<KeyType, ValueType, CacheType>>(m_vtChildren[nChildIdx]);
 		if (ptrParentNode == NULL)
+		{
+			LOG(ERROR) << "Failed to get object.";
+
 			return ErrorCode::Error;
+		}
 
 		int nChildPivot = 0;
 		std::optional<CacheKeyType> ptrChildNode;
 		ErrorCode retCode = ptrParentNode->insert(key, value, ptrCache, ptrChildNode, nChildPivot);
 
+		if (retCode == ErrorCode::Error)
+		{
+			LOG(ERROR) << "Failed to insert object.";
+
+			return ErrorCode::Error;
+		}
+
 		if (ptrChildNode)
 		{
+			LOG(INFO) << "Insert object due to split at the previous level.";
+
 			return insert(ptrCache, *ptrChildNode, nChildPivot, ptrSiblingNode, nSiblingPivot);
 		}
 
@@ -95,14 +108,16 @@ public:
 	ErrorCode insert(CacheTypePtr ptrCache, CacheKeyType ptrChildNode, int nChildPivot, std::optional<CacheKeyType>& ptrSiblingNode, int& nSiblingPivot)
 	{
 		int nChildIdx = m_vtPivots.size();
-		for (int nIdx = 0; nIdx < m_vtPivots.size(); ++nIdx) {
-			if (nChildPivot < m_vtPivots[nIdx]) {
+		for (int nIdx = 0; nIdx < m_vtPivots.size(); ++nIdx) 
+		{
+			if (nChildPivot < m_vtPivots[nIdx]) 
+			{
 				nChildIdx = nIdx;
 				break;
 			}
 		}
 
-		std::cout << "InternalNode::insert_nodes at " << nChildIdx << std::endl;
+		LOG(INFO) << "Insert object nChildIdx=" << nChildIdx << ".";
 
 		m_vtPivots.insert(m_vtPivots.begin() + nChildIdx, nChildPivot);
 		m_vtChildren.insert(m_vtChildren.begin() + nChildIdx + 1, ptrChildNode);
@@ -124,7 +139,11 @@ public:
 
 		INodePtr ptrChildNode = ptrCache->template getObjectOfType<INode<KeyType, ValueType, CacheType>>(m_vtChildren[nIdx]);
 		if (ptrChildNode == NULL)
+		{
+			LOG(INFO) << "Failed to get object (nIdx=" << nIdx << ").";
+
 			return ErrorCode::Error;
+		}
 
 		return ptrChildNode->search(ptrCache, key, value);
 	}
@@ -149,8 +168,10 @@ private:
 
 	size_t getChildNodeIndex(const KeyType& key)
 	{
-		for (size_t nIdx = 0; nIdx < m_vtPivots.size(); ++nIdx) {
-			if (key < m_vtPivots[nIdx]) {
+		for (size_t nIdx = 0; nIdx < m_vtPivots.size(); ++nIdx) 
+		{
+			if (key < m_vtPivots[nIdx]) 
+			{
 				return nIdx;
 			}
 		}
@@ -160,7 +181,7 @@ private:
 	//ErrorCode rebalance(size_t nChildNodeIdx);
 	ErrorCode split(CacheTypePtr ptrCache, std::optional<CacheKeyType>& ptrSiblingNode, int& nSiblingPivot)
 	{
-		std::cout << "InternalNode::split" << std::endl;
+		LOG(INFO) << "Trying to split object.";
 
 		int nOffset = m_vtPivots.size() / 2;
 
@@ -173,12 +194,11 @@ private:
 		m_vtPivots.resize(nOffset);
 		m_vtChildren.resize(nOffset + 1);
 
-
 		std::ostringstream oss;
 		std::copy(m_vtPivots.begin(), m_vtPivots.end(), std::ostream_iterator<int>(oss, ","));
-		std::cout << "InternalNode::split - after - current node - pivots: " << oss.str() << "child count: " << m_vtChildren.size() << std::endl;
+		LOG(INFO) << "Current object after split (" << oss.str() << ") child count=" << m_vtChildren.size() << ".";
 
-		std::cout << "InternalNode::split pivot " << nSiblingPivot << std::endl;
+		LOG(INFO) << "Pivot=" << nSiblingPivot << ").";
 		return ErrorCode::Success;
 	}
 
@@ -212,13 +232,3 @@ private:
 		}
 	}
 };
-
-//template class InternalNode<int, int, DRAMLRUCache, uintptr_t, DRAMCacheObject>;
-//template class InternalNode<int, std::string, DRAMLRUCache, uintptr_t, DRAMCacheObject>;
-//template class InternalNode<int, int, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>;
-//template class InternalNode<int, std::string, DRAMLRUCache, DRAMCacheObjectKey, DRAMCacheObject>;
-
-//template class InternalNode<int, int, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>;
-//template class InternalNode<int, std::string, NVRAMLRUCache, uintptr_t, NVRAMCacheObject>;
-//template class InternalNode<int, int, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>;
-//template class InternalNode<int, std::string, NVRAMLRUCache, NVRAMCacheObjectKey, NVRAMCacheObject>;
