@@ -4,13 +4,53 @@
 
 #include "UnsortedMapUtil.h"
 #include "ErrorCodes.h"
+//
+//template <typename KeyType, typename ValueType>
+//class NVRAMVolatileStorage
+//{
+//private:
+//	size_t m_nPoolSize;
+//	std::unordered_map<std::shared_ptr<KeyType>, std::shared_ptr<ValueType>, SharedPtrHash<KeyType>, SharedPtrEqual<KeyType>> m_mpObject;
+//
+//public:
+//	NVRAMVolatileStorage(size_t nPoolSize)
+//		: m_nPoolSize(nPoolSize)
+//	{
+//	}
+//
+//	std::shared_ptr<ValueType> getObject(std::shared_ptr<KeyType> ptrKey)
+//	{
+//		if (m_mpObject.find(ptrKey) != m_mpObject.end())
+//		{
+//			return m_mpObject[ptrKey];
+//		}
+//
+//		return nullptr;
+//	}
+//
+//	CacheErrorCode addObject(std::shared_ptr<KeyType> ptrKey, std::shared_ptr<ValueType> ptrValue)
+//	{
+//		if (m_mpObject.size() >= m_nPoolSize)
+//		{
+//			return CacheErrorCode::Error;
+//		}
+//
+//		m_mpObject[ptrKey] = ptrValue;
+//
+//		return CacheErrorCode::Success;
+//	}
+//};
 
-template <typename KeyType, typename ValueType>
+
+template <
+	typename KeyType, 
+	template <typename, typename...> typename ValueType, typename ValueCoreTypeA, typename... ValueCoreTypesZ
+>
 class NVRAMVolatileStorage
 {
 private:
 	size_t m_nPoolSize;
-	std::unordered_map<std::shared_ptr<KeyType>, std::shared_ptr<ValueType>, SharedPtrHash<KeyType>, SharedPtrEqual<KeyType>> m_mpObject;
+	std::unordered_map<std::shared_ptr<KeyType>, std::shared_ptr<ValueType<ValueCoreTypeA, ValueCoreTypesZ...>>, SharedPtrHash<KeyType>, SharedPtrEqual<KeyType>> m_mpObject;
 
 public:
 	NVRAMVolatileStorage(size_t nPoolSize)
@@ -18,7 +58,7 @@ public:
 	{
 	}
 
-	std::shared_ptr<ValueType> getObject(std::shared_ptr<KeyType> ptrKey)
+	std::shared_ptr<ValueType<ValueCoreTypeA, ValueCoreTypesZ...>> getObject(std::shared_ptr<KeyType> ptrKey)
 	{
 		if (m_mpObject.find(ptrKey) != m_mpObject.end())
 		{
@@ -28,7 +68,7 @@ public:
 		return nullptr;
 	}
 
-	CacheErrorCode addObject(std::shared_ptr<KeyType> ptrKey, std::shared_ptr<ValueType> ptrValue)
+	CacheErrorCode addObject(std::shared_ptr<KeyType> ptrKey, std::shared_ptr<ValueType<ValueCoreTypeA, ValueCoreTypesZ...>> ptrValue)
 	{
 		if (m_mpObject.size() >= m_nPoolSize)
 		{
@@ -40,4 +80,3 @@ public:
 		return CacheErrorCode::Success;
 	}
 };
-

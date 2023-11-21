@@ -40,6 +40,14 @@ public:
         m_ptrCache = std::make_shared<CacheType>(CacheArgs...);
         m_cktRootNodeKey = m_ptrCache->template createObjectOfType<LeafNode<KeyType, ValueType, CacheType>>(m_nDegree);
 
+
+        InternalNode<KeyType, ValueType, CacheType>* t0 = new InternalNode<KeyType, ValueType, CacheType>(1);
+        LeafNode<KeyType, ValueType, CacheType>* t1 = new LeafNode<KeyType, ValueType, CacheType>(1);
+
+        std::cout << std::boolalpha;
+        std::cout << "->: " << std::is_standard_layout<InternalNode<KeyType, ValueType, CacheType>>::value << std::endl;
+        std::cout << "->: " << std::is_standard_layout<LeafNode<KeyType, ValueType, CacheType>>::value << std::endl;
+
         LOG(INFO) << "BTree::BTree.";
     }
 

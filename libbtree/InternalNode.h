@@ -38,6 +38,10 @@ public:
 	{
 	}
 
+	InternalNode(uint32_t nDegree) : m_nDegree(nDegree)
+	{
+
+	}
 	InternalNode(uint32_t nDegree, int nPivot, CacheKeyType ptrLHSNode, CacheKeyType ptrRHSNode)
 		: m_nDegree(nDegree)
 	{

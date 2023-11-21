@@ -15,6 +15,6 @@
 int main(int argc, char** argv)
 {
 	::testing::InitGoogleTest(&argc, argv);
-	//::testing::GTEST_FLAG(filter) = "BPlusTree_DRAMLRU_Suite_1*";
+	::testing::GTEST_FLAG(filter) = "BPlusTree_NVRAMLRU_Suite_1*";
 	return RUN_ALL_TESTS();
 }

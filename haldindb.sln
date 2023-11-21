@@ -4,12 +4,21 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.2.32602.215
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "sandbox", "sandbox\sandbox.vcxproj", "{3B34F303-A0FC-42ED-A3DA-F485306A8E3A}"
+	ProjectSection(ProjectDependencies) = postProject
+		{B7D77A87-E759-4504-9788-E94433AB9C0E} = {B7D77A87-E759-4504-9788-E94433AB9C0E}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libbtree", "libbtree\libbtree.vcxproj", "{B7D77A87-E759-4504-9788-E94433AB9C0E}"
+	ProjectSection(ProjectDependencies) = postProject
+		{67717FD6-C251-4DA3-A731-F8E5F031E88D} = {67717FD6-C251-4DA3-A731-F8E5F031E88D}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libcache", "libcache\libcache.vcxproj", "{67717FD6-C251-4DA3-A731-F8E5F031E88D}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "test_all", "test_all\test_all.vcxproj", "{D481BD62-2803-4CD9-89C5-E7F05DF1AC71}"
+	ProjectSection(ProjectDependencies) = postProject
+		{B7D77A87-E759-4504-9788-E94433AB9C0E} = {B7D77A87-E759-4504-9788-E94433AB9C0E}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
