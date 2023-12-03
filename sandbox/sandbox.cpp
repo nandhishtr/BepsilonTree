@@ -224,28 +224,50 @@ int main(int argc, char* argv[])
     //}
     //std::variant<int, float>* _t1 = new std::variant<int, float>();
 
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    BPlusTree<int, int, NoCache<uintptr_t, shared_ptr<LeafNodeEx<int, int>>, shared_ptr<InternalNodeEx<int, int, uintptr_t>>>>* ptrTree =
-        new BPlusTree<int, int, NoCache<uintptr_t, shared_ptr<LeafNodeEx<int, int>>, shared_ptr<InternalNodeEx<int, int, uintptr_t>>>>(5);
 
-    for (size_t nCntr = 0; nCntr < 50000000; nCntr++)
+    typedef int KeyType;
+    typedef int ValueType;
+    typedef uintptr_t CacheKeyType;
+
+    typedef LeafNodeEx<KeyType, ValueType> LeadNodeType;
+    typedef InternalNodeEx<KeyType, ValueType, CacheKeyType> InternalNodeType;
+
+    typedef BPlusTree<KeyType, ValueType, NoCache<CacheKeyType, shared_ptr<LeadNodeType>, shared_ptr<InternalNodeType>>> BPlusTreeType;
+
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    BPlusTreeType* ptrTree = new BPlusTreeType(5);
+
+    ptrTree->template init<LeadNodeType>();
+
+    for (size_t nCntr = 0; nCntr < 5000; nCntr=nCntr+2)
     {
-        ptrTree->insert(nCntr, nCntr); 
+        ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+    }
+    for (size_t nCntr = 1; nCntr < 5000; nCntr = nCntr + 2)
+    {
+        ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
     }
 
-    for (size_t nCntr = 0; nCntr < 50000000; nCntr++)
+    for (size_t nCntr = 0; nCntr < 5000; nCntr++)
     {
         int nValue = 0;
-        ErrorCode code = ptrTree->search(nCntr, nValue);
+        ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
 
         if (nValue != nCntr)
         {
             std::cout << "K: " << nCntr << ", V: " << nValue << std::endl;
         }
     }
+
+    for (size_t nCntr = 0; nCntr < 5000; nCntr++)
+    {
+        ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
+    }
+
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
+    char ch = getchar();
     return 0;
 
 

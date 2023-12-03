@@ -49,13 +49,28 @@ public:
 
 	CacheErrorCode remove(KeyType objKey)
 	{
-		throw std::invalid_argument("missing functionality..");
+		CacheValueTypePtr ptrValue = reinterpret_cast<CacheValueTypePtr>(objKey);
+		delete ptrValue;
+
 		return CacheErrorCode::KeyDoesNotExist;
 	}
 
 	CacheValueTypePtr getObjectOfType(KeyType objKey)
 	{
 		return reinterpret_cast<CacheValueTypePtr>(objKey);
+	}
+
+	template <typename Type>
+	Type getObjectOfType(KeyType objKey)
+	{
+		CacheValueTypePtr ptrValue = reinterpret_cast<CacheValueTypePtr>(objKey);
+
+		if (std::holds_alternative<Type>(*ptrValue))
+		{
+			return std::get<Type>(*ptrValue);
+		}
+
+		return nullptr;
 	}
 
 	template<class Type, typename... ArgsType>
