@@ -3,12 +3,40 @@
 #include <unordered_map>
 
 #include "ICache.h"
+#include <variant>
+#include <typeinfo>
 
-template <typename ObjectType>
+
+template <typename... ValueCoreTypes>
+class NoCacheObject
+{
+public:
+	std::variant<std::shared_ptr<ValueCoreTypes...>> m_objData;
+
+public:
+	NoCacheObject(ValueCoreTypes... args)
+		: m_objData(args)
+	{
+	}
+
+	template <typename CoreValueType>
+	void setData(CoreValueType objData)
+	{
+		m_objData = objData;
+	}
+};
+
+
+template<typename KeyType, typename... ValueCoreTypes>
 class NoCache : public ICoreCache
 {
 public:
-	typedef ObjectType KeyType;
+	typedef KeyType KeyType;
+
+	typedef std::variant<ValueCoreTypes...>* CacheValueType;
+
+private:
+	typedef std::variant<ValueCoreTypes...>* CacheValueTypePtr;
 
 public:
 	~NoCache()
@@ -19,21 +47,31 @@ public:
 	{
 	}
 
-	CacheErrorCode remove(ObjectType objKey)
+	CacheErrorCode remove(KeyType objKey)
 	{
 		throw std::invalid_argument("missing functionality..");
 		return CacheErrorCode::KeyDoesNotExist;
 	}
 
-	template<class Type>
-	std::shared_ptr<Type> getObjectOfType(ObjectType objKey)
+	CacheValueTypePtr getObjectOfType(KeyType objKey)
 	{
-		return std::static_pointer_cast<Type>(objKey);
+		return reinterpret_cast<CacheValueTypePtr>(objKey);
 	}
 
 	template<class Type, typename... ArgsType>
-	ObjectType createObjectOfType(ArgsType ... args)
+	KeyType createObjectOfType(ArgsType ... args)
 	{
-		return std::make_shared<Type>(args...);
+		CacheValueTypePtr ptrValue = new std::variant<ValueCoreTypes...>(std::make_shared<Type>(args...));
+		
+		return reinterpret_cast<KeyType>(ptrValue);
 	}
+
+	//template<class Type, typename... ArgsType>
+	//CacheValueTypePtr createObjectOfType_(ArgsType ... args)
+	//{
+	//	//std::shared_ptr<Type> ptrType = std::make_shared<Type>(args...);
+	//	CacheValueTypePtr ptrValue = std::make_shared<CacheValueType>(args...);
+
+	//	return ptrValue;// reinterpret_cast<KeyType>(ptrValue);
+	//}
 };

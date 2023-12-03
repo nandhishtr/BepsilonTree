@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include "BTree.h"
+#include "BPlusTree.hpp"
 #include "NoCache.h"
 #include "glog/logging.h"
 #include <type_traits>
@@ -15,7 +16,7 @@ public:
     void print() 
     { 
         std::cout << "D" << std::endl; 
-        std::cout << "..." << ptr->print() << std::endl;
+        //std::cout << "..." << ptr->print() << std::endl;
     }
 };
 
@@ -156,8 +157,102 @@ public:
     }
 };
 
+class _0 {
+public: virtual void print() { std::cout << "_0" << std::endl; }
+};
+class _1 :public _0 {
+public: void print() override { std::cout << "_1" << std::endl; }
+};
+class _2 :public _0 {
+public: void print() override { std::cout << "_2" << std::endl; }
+};
 
-int main(int argc, char* argv[]) {
+
+#include <chrono>
+int main(int argc, char* argv[]) 
+{
+    //std::vector<std::variant<shared_ptr<B>, shared_ptr<C>, shared_ptr<D<B>>, shared_ptr<D<C>>>> vtt;
+    //vtt.push_back(make_shared<B>());
+    //vtt.push_back(make_shared < C>());
+    //vtt.push_back(make_shared < D<B>>(new B()));
+    //vtt.push_back(make_shared < D<C>>(new C()));
+    //vtt.push_back(make_shared < B>());
+    //vtt.push_back(make_shared < C>());
+    //vtt.push_back(make_shared < D<B>>(new B()));
+    //vtt.push_back(make_shared < D<C>>(new C()));
+
+    //for (auto i = vtt.begin(); i != vtt.end(); i++)
+    //{
+    //    //std::string typeString;
+    //    //std::visit([&typeString](const auto& value) {
+    //    //    typeString = typeid(value).name();
+    //    //    std::get<B*>(value);
+    //    //    }, *i);
+
+    //    //std::get<std::string>(*i);
+    //    //*i->print();
+
+    //    //D d(new X());
+
+    //    if (std::holds_alternative<shared_ptr<B>>(*i)) {
+    //        
+    //        std::get<shared_ptr<B>>(*i)->print();
+    //        // 
+    //    //    //d = D<B>(std::get<typename std::decay<B*>::type>(*i));
+    //    }
+    //    else if (std::holds_alternative<typename std::decay<shared_ptr<C>>::type>(*i)) {
+    //        std::get<typename std::decay<shared_ptr<C>>::type>(*i)->print();
+    //    }
+    //    else if (std::holds_alternative<typename std::decay<shared_ptr<D<B>>>::type>(*i)) {
+    //        std::get<typename std::decay<shared_ptr<D<B>>>::type>(*i)->print();
+    //    }
+    //    else if (std::holds_alternative<typename std::decay<shared_ptr<D<C>>>::type>(*i)) {
+    //        std::get<typename std::decay<shared_ptr<D<C>>>::type>(*i)->print();
+    //    }
+
+    //    //d->print();
+    //}
+
+    //std::vector<_0*> lst;
+    //lst.push_back(new _1());
+    //lst.push_back(new _2());
+    //lst.push_back(new _0());
+
+    //for (size_t i = 0; i < lst.size(); i++)
+    //{
+    //    lst[i]->print();
+    //}
+    //std::variant<int, float>* _t1 = new std::variant<int, float>();
+
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+    BPlusTree<int, int, NoCache<uintptr_t, shared_ptr<LeafNodeEx<int, int>>, shared_ptr<InternalNodeEx<int, int, uintptr_t>>>>* ptrTree =
+        new BPlusTree<int, int, NoCache<uintptr_t, shared_ptr<LeafNodeEx<int, int>>, shared_ptr<InternalNodeEx<int, int, uintptr_t>>>>(5);
+
+    for (size_t nCntr = 0; nCntr < 50000000; nCntr++)
+    {
+        ptrTree->insert(nCntr, nCntr); 
+    }
+
+    for (size_t nCntr = 0; nCntr < 50000000; nCntr++)
+    {
+        int nValue = 0;
+        ErrorCode code = ptrTree->search(nCntr, nValue);
+
+        if (nValue != nCntr)
+        {
+            std::cout << "K: " << nCntr << ", V: " << nValue << std::endl;
+        }
+    }
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
+    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
+    return 0;
+
+
+    std::vector<int> _t;
+
+    //static_assert(std::is_trivially_copyable<std::vector<int>>::value);
+    //static_assert(std::is_standard_layout<std::vector<int>>::value);
 
     DD<int, CC, int, char, float> xyz(NULL);
     xyz.print();

@@ -16,6 +16,104 @@
 
 using namespace std; 
 
+template <typename KeyType, typename ValueType>
+class LeafNodeEx
+{
+public:
+	struct LeafNodeExData
+	{
+		std::vector<KeyType> m_vtKeys;
+		std::vector<ValueType> m_vtValues;
+
+		//LeafNodeExData()
+	};
+
+	typedef std::shared_ptr<LeafNodeExData> LeafNodeExDataPtr;
+
+private:
+	std::shared_ptr<LeafNodeExData> m_ptrData;
+
+public:
+	~LeafNodeEx()
+	{
+	}
+
+	LeafNodeEx()
+	{
+		m_ptrData = make_shared<LeafNodeExData>();
+	}
+
+	LeafNodeEx(std::vector<KeyType>::const_iterator itBeginKey, std::vector<KeyType>::const_iterator itEndKey,
+		std::vector<ValueType>::const_iterator itBeginValue, std::vector<ValueType>::const_iterator itEndValue)
+		: m_ptrData(make_shared<LeafNodeExData>())
+	{
+		m_ptrData->m_vtKeys.assign(itBeginKey, itEndKey);
+		m_ptrData->m_vtValues.assign(itBeginValue, itEndValue);
+	}
+
+	inline void insert(const KeyType& key, const ValueType& value)
+	{
+		size_t nChildIdx = m_ptrData->m_vtKeys.size();
+		for (int nIdx = 0; nIdx < m_ptrData->m_vtKeys.size(); ++nIdx)
+		{
+			if (key < m_ptrData->m_vtKeys[nIdx])
+			{
+				nChildIdx = nIdx;
+				break;
+			}
+		}
+
+		m_ptrData->m_vtKeys.insert(m_ptrData->m_vtKeys.begin() + nChildIdx, key);
+		m_ptrData->m_vtValues.insert(m_ptrData->m_vtValues.begin() + nChildIdx, value);
+	}
+
+	inline bool requireSplit(size_t nDegree)
+	{
+		return m_ptrData->m_vtKeys.size() > nDegree;
+	}
+
+	template <typename Cache, typename CacheKeyType>
+	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& ptrSibling, KeyType& pivotKey)
+	{
+		size_t nMid = m_ptrData->m_vtKeys.size() / 2;
+
+		ptrSibling = ptrCache->template createObjectOfType<LeafNodeEx<KeyType, ValueType>>(
+			m_ptrData->m_vtKeys.begin() + nMid, m_ptrData->m_vtKeys.end(),
+			m_ptrData->m_vtValues.begin() + nMid, m_ptrData->m_vtValues.end());
+
+		if (!ptrSibling)
+		{
+			return ErrorCode::Error;
+		}
+
+		pivotKey = m_ptrData->m_vtKeys[nMid];
+
+		m_ptrData->m_vtKeys.resize(nMid);
+		m_ptrData->m_vtValues.resize(nMid);
+
+		return ErrorCode::Success;
+	}
+
+	ErrorCode getValue(const KeyType& key, ValueType& value)
+	{
+		auto it = std::lower_bound(m_ptrData->m_vtKeys.begin(), m_ptrData->m_vtKeys.end(), key);
+		if (it != m_ptrData->m_vtKeys.end() && *it == key)
+		{
+			int index = it - m_ptrData->m_vtKeys.begin();
+			value = m_ptrData->m_vtValues[index];
+
+			return ErrorCode::Success;
+		}
+
+		return ErrorCode::KeyDoesNotExist;
+	}
+
+public:
+	void wieHiestDu() {
+		printf("ich heisse LeafNode.\n");
+	}
+};
+
 //template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
 template <typename KeyType, typename ValueType, typename CacheType>
 class LeafNode : public INode<KeyType, ValueType, CacheType>

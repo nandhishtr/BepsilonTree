@@ -19,6 +19,124 @@
 
 using namespace std;
 
+template <typename KeyType, typename ValueType, typename CacheKeyType>
+class InternalNodeEx
+{
+	struct InternalNodeExData
+	{
+		std::vector<KeyType> m_vtPivots;
+		std::vector<CacheKeyType> m_vtChildren;
+	};
+
+	typedef std::shared_ptr<InternalNodeEx<KeyType, ValueType, CacheKeyType>> InternalNodeExPtr;
+
+private:
+	std::shared_ptr<InternalNodeExData> m_ptrData;
+
+public:
+	~InternalNodeEx()
+	{
+	}
+
+	InternalNodeEx()
+	{
+		m_ptrData = make_shared<InternalNodeExData>();
+	}
+
+	InternalNodeEx(std::vector<KeyType>::const_iterator itBeginPivot, std::vector<KeyType>::const_iterator itEndPivot,
+		std::vector<CacheKeyType>::const_iterator itBeginChildren, std::vector<CacheKeyType>::const_iterator itEndChildren)
+		: m_ptrData(make_shared<InternalNodeExData>())
+	{
+		m_ptrData->m_vtPivots.assign(itBeginPivot, itEndPivot);
+		m_ptrData->m_vtChildren.assign(itBeginChildren, itEndChildren);
+	}
+
+	InternalNodeEx(const KeyType& pivotKey, const CacheKeyType& ptrLHSNode, const CacheKeyType& ptrRHSNode)
+		: m_ptrData(make_shared<InternalNodeExData>())
+	{
+		m_ptrData->m_vtPivots.push_back(pivotKey);
+		m_ptrData->m_vtChildren.push_back(ptrLHSNode);
+		m_ptrData->m_vtChildren.push_back(ptrRHSNode);
+
+	}
+
+	inline CacheKeyType getChild(const KeyType& key)
+	{
+		size_t nChildIdx = 0;
+		while (nChildIdx < m_ptrData->m_vtPivots.size() && key > m_ptrData->m_vtPivots[nChildIdx])
+		{
+			nChildIdx++;
+		}
+
+		return m_ptrData->m_vtChildren[nChildIdx];
+	}
+
+	inline size_t getChildNodeIndex(const KeyType& key)
+	{
+		for (size_t nIdx = 0; nIdx < m_ptrData->m_vtPivots.size(); ++nIdx)
+		{
+			if (key < m_ptrData->m_vtPivots[nIdx])
+			{
+				return m_ptrData->m_vtChildren[nIdx];
+			}
+		}
+		return m_ptrData->m_vtChildren[m_ptrData->m_vtPivots.size()];
+	}
+
+	inline bool requireSplit(size_t nDegree)
+	{
+		return m_ptrData->m_vtPivots.size() > nDegree;
+	}
+
+	inline bool canTriggerSplit(size_t nDegree)
+	{
+		return m_ptrData->m_vtPivots.size() + 1 > nDegree;
+	}
+
+	inline void insert(const KeyType& pivotKey, const CacheKeyType& ptrSibling)
+	{
+		size_t nChildIdx = m_ptrData->m_vtPivots.size();
+		for (int nIdx = 0; nIdx < m_ptrData->m_vtPivots.size(); ++nIdx)
+		{
+			if (pivotKey < m_ptrData->m_vtPivots[nIdx])
+			{
+				nChildIdx = nIdx;
+				break;
+			}
+		}
+
+		m_ptrData->m_vtPivots.insert(m_ptrData->m_vtPivots.begin() + nChildIdx, pivotKey);
+		m_ptrData->m_vtChildren.insert(m_ptrData->m_vtChildren.begin() + nChildIdx + 1, ptrSibling);
+	}
+
+	template <typename Cache>
+	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& ptrSibling, KeyType& pivotKey)
+	{
+		size_t nMid = m_ptrData->m_vtPivots.size() / 2;
+
+		ptrSibling = ptrCache->template createObjectOfType<InternalNodeEx<KeyType, ValueType, CacheKeyType>>(
+			m_ptrData->m_vtPivots.begin() + nMid, m_ptrData->m_vtPivots.end(),
+			m_ptrData->m_vtChildren.begin() + nMid, m_ptrData->m_vtChildren.end());
+
+		if (!ptrSibling)
+		{
+			return ErrorCode::Error;
+		}
+
+		pivotKey = m_ptrData->m_vtPivots[nMid];
+
+		m_ptrData->m_vtPivots.resize(nMid);
+		m_ptrData->m_vtChildren.resize(nMid + 1);
+
+		return ErrorCode::Success;
+	}
+
+public:
+	void wieHiestDu() {
+		printf("ich heisse InternalNode.\n");
+	}
+};
+
 template <typename KeyType, typename ValueType, typename CacheType>
 class InternalNode : public INode<KeyType, ValueType, CacheType>
 {
