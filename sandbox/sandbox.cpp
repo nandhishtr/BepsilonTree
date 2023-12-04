@@ -239,31 +239,71 @@ int main(int argc, char* argv[])
 
     ptrTree->template init<LeadNodeType>();
 
-    for (size_t nCntr = 0; nCntr < 5000; nCntr=nCntr+2)
-    {
-        ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
-    }
-    for (size_t nCntr = 1; nCntr < 5000; nCntr = nCntr + 2)
-    {
-        ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
-    }
+    int i = 0;
 
-    for (size_t nCntr = 0; nCntr < 5000; nCntr++)
-    {
-        int nValue = 0;
-        ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
-
-        if (nValue != nCntr)
+    while (i++ < 10) {
+        std::cout << i << std::endl;
+        for (size_t nCntr = 0; nCntr < 50000; nCntr = nCntr + 2)
         {
-            std::cout << "K: " << nCntr << ", V: " << nValue << std::endl;
+            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+        }
+        for (size_t nCntr = 1; nCntr < 50000; nCntr = nCntr + 2)
+        {
+            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+        }
+
+        for (size_t nCntr = 0; nCntr < 50000; nCntr++)
+        {
+            int nValue = 0;
+            ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+
+            if (nValue != nCntr)
+            {
+                std::cout << "K: " << nCntr << ", V: " << nValue << std::endl;
+            }
+        }
+
+        for (size_t nCntr = 0; nCntr < 50000; nCntr = nCntr + 2)
+        {
+            ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
+        }
+        for (size_t nCntr = 1; nCntr < 50000; nCntr = nCntr + 2)
+        {
+            ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
         }
     }
+    i = 0;
+    while (i++ < 10) {
+        std::cout << "rev:" <<i << std::endl;
+        for (int nCntr = 4999; nCntr >= 0; nCntr = nCntr - 2)
+        {
+            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+        }
+        for (int nCntr = 5000; nCntr >= 0; nCntr = nCntr - 2)
+        {
+            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+        }
 
-    for (size_t nCntr = 0; nCntr < 5000; nCntr++)
-    {
-        ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
+        for (int nCntr = 0; nCntr < 5000; nCntr++)
+        {
+            int nValue = 0;
+            ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+
+            if (nValue != nCntr)
+            {
+                std::cout << "K: " << nCntr << ", V: " << nValue << std::endl;
+            }
+        }
+
+        for (int nCntr = 5000; nCntr >= 0; nCntr = nCntr - 2)
+        {
+            ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
+        }
+        for (int nCntr = 4999; nCntr >= 0; nCntr = nCntr - 2)
+        {
+            ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
+        }
     }
-
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;

@@ -65,7 +65,7 @@ public:
 	inline CacheKeyType getChild(const KeyType& key)
 	{
 		size_t nChildIdx = 0;
-		while (nChildIdx < m_ptrData->m_vtPivots.size() && key > m_ptrData->m_vtPivots[nChildIdx])
+		while (nChildIdx < m_ptrData->m_vtPivots.size() && key >= m_ptrData->m_vtPivots[nChildIdx])
 		{
 			nChildIdx++;
 		}
@@ -73,16 +73,23 @@ public:
 		return m_ptrData->m_vtChildren[nChildIdx];
 	}
 
-	inline size_t getChildNodeIndex(const KeyType& key)
+	inline CacheKeyType getChildNodeIndex(const KeyType& key)
 	{
-		for (size_t nIdx = 0; nIdx < m_ptrData->m_vtPivots.size(); ++nIdx)
+		/*for (size_t nIdx = 0; nIdx < m_ptrData->m_vtPivots.size(); ++nIdx)
 		{
 			if (key < m_ptrData->m_vtPivots[nIdx])
 			{
 				return m_ptrData->m_vtChildren[nIdx];
 			}
 		}
-		return m_ptrData->m_vtChildren[m_ptrData->m_vtPivots.size()];
+		return m_ptrData->m_vtChildren[m_ptrData->m_vtPivots.size()];*/
+		size_t nChildIdx = 0;
+		while (nChildIdx < m_ptrData->m_vtPivots.size() && key >= m_ptrData->m_vtPivots[nChildIdx])
+		{
+			nChildIdx++;
+		}
+
+		return m_ptrData->m_vtChildren[nChildIdx];
 	}
 
 	inline bool requireSplit(size_t nDegree)
@@ -179,7 +186,7 @@ public:
 		CacheValueType ptrRHSNode = nullptr;
 
 		size_t nChildIdx = 0;
-		while (nChildIdx < m_ptrData->m_vtPivots.size() && ktChild > m_ptrData->m_vtPivots[nChildIdx])
+		while (nChildIdx < m_ptrData->m_vtPivots.size() && ktChild >= m_ptrData->m_vtPivots[nChildIdx])
 		{
 			nChildIdx++;
 		}
@@ -192,12 +199,12 @@ public:
 		if (nChildIdx > 0)
 		{
 			ptrLHSNode = ptrCache->template getObjectOfType<CacheValueType>(m_ptrData->m_vtChildren[nChildIdx - 1]);    //TODO: lock
-			if (ptrLHSNode->getKeysSize() > std::ceil(nDegree / 2.0f) + 1)
+			if (ptrLHSNode->getKeysSize() > std::ceil(nDegree / 2.0f))
 			{
 				KeyType key;
-				ptrChildPtr->moveAnEntityFromLHSSibling(ptrLHSNode, m_ptrData->m_vtPivots[nChildIdx], key);
+				ptrChildPtr->moveAnEntityFromLHSSibling(ptrLHSNode, m_ptrData->m_vtPivots[nChildIdx - 1], key);
 
-				m_ptrData->m_vtPivots[nChildIdx] = key;
+				m_ptrData->m_vtPivots[nChildIdx - 1] = key;
 				return ErrorCode::Success;
 			}
 		}
@@ -205,7 +212,7 @@ public:
 		if (nChildIdx < m_ptrData->m_vtPivots.size())
 		{
 			ptrRHSNode = ptrCache->template getObjectOfType<CacheValueType>(m_ptrData->m_vtChildren[nChildIdx + 1]);    //TODO: lock
-			if (ptrRHSNode->getKeysSize() > std::ceil(nDegree / 2.0f) + 1)
+			if (ptrRHSNode->getKeysSize() > std::ceil(nDegree / 2.0f))
 			{
 				KeyType key;
 				ptrChildPtr->moveAnEntityFromRHSSibling(ptrRHSNode, m_ptrData->m_vtPivots[nChildIdx], key);
@@ -217,12 +224,12 @@ public:
 
 		if (nChildIdx > 0)
 		{
-			ptrLHSNode->mergeNodes(ptrChildPtr, m_ptrData->m_vtPivots[nChildIdx]);
+			ptrLHSNode->mergeNodes(ptrChildPtr, m_ptrData->m_vtPivots[nChildIdx - 1]);
 
 			//ptrCache->remove(ptrChildptr);
 
-			m_ptrData->m_vtPivots.erase(m_ptrData->m_vtPivots.begin() + nChildIdx);
-			m_ptrData->m_vtChildren.erase(m_ptrData->m_vtChildren.begin() + nChildIdx + 1);
+			m_ptrData->m_vtPivots.erase(m_ptrData->m_vtPivots.begin() + nChildIdx - 1);
+			m_ptrData->m_vtChildren.erase(m_ptrData->m_vtChildren.begin() + nChildIdx);
 
 			dlt = cktChild;
 
@@ -250,7 +257,7 @@ public:
 		CacheValueType ptrRHSNode = nullptr;
 
 		size_t nChildIdx = 0;
-		while (nChildIdx < m_ptrData->m_vtPivots.size() && ktChild > m_ptrData->m_vtPivots[nChildIdx])
+		while (nChildIdx < m_ptrData->m_vtPivots.size() && ktChild >= m_ptrData->m_vtPivots[nChildIdx])
 		{
 			nChildIdx++;
 		}
@@ -263,7 +270,7 @@ public:
 				KeyType key;
 				ptrChildPtr->moveAnEntityFromLHSSibling(ptrLHSNode, key);
 
-				m_ptrData->m_vtPivots[nChildIdx] = key;
+				m_ptrData->m_vtPivots[nChildIdx - 1] = key;
 				return ErrorCode::Success;
 			}
 		}
@@ -326,11 +333,11 @@ public:
 	inline void moveAnEntityFromRHSSibling(shared_ptr<SelfType> ptrRHSSibling, KeyType& keytoassign, KeyType& ktPivot)
 	{
 		KeyType key = ptrRHSSibling->m_ptrData->m_vtPivots.front();
-		
+		CacheKeyType value = ptrRHSSibling->m_ptrData->m_vtChildren.front();
 
 		ptrRHSSibling->m_ptrData->m_vtPivots.erase(ptrRHSSibling->m_ptrData->m_vtPivots.begin());
 		ptrRHSSibling->m_ptrData->m_vtChildren.erase(ptrRHSSibling->m_ptrData->m_vtChildren.begin());
-		CacheKeyType value = ptrRHSSibling->m_ptrData->m_vtChildren.front();
+		
 		m_ptrData->m_vtPivots.push_back(keytoassign);
 		m_ptrData->m_vtChildren.push_back(value);
 
