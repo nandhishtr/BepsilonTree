@@ -235,7 +235,7 @@ int main(int argc, char* argv[])
     typedef BPlusTree<KeyType, ValueType, NoCache<CacheKeyType, shared_ptr<LeadNodeType>, shared_ptr<InternalNodeType>>> BPlusTreeType;
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    BPlusTreeType* ptrTree = new BPlusTreeType(5);
+    BPlusTreeType* ptrTree = new BPlusTreeType(3);
 
     ptrTree->template init<LeadNodeType>();
 

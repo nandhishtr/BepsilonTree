@@ -6,6 +6,7 @@
 #include <sstream>
 #include <iterator>
 #include <iostream>
+#include <cmath>
 
 #include "INode.h"
 #include "ICacheObjectKey.h"
@@ -96,13 +97,13 @@ public:
 
 	inline bool canTriggerMerge(size_t nDegree)
 	{
-		return m_ptrData->m_vtPivots.size() - 1 <= nDegree / 2;
+		return m_ptrData->m_vtPivots.size() - 1 <= std::ceil(nDegree / 2.0f);
 
 	}
 
 	inline bool requireMerge(size_t nDegree)
 	{
-		return m_ptrData->m_vtPivots.size() <= nDegree / 2;
+		return m_ptrData->m_vtPivots.size() <= std::ceil(nDegree / 2.0f);
 	}
 
 	inline void insert(const KeyType& pivotKey, const CacheKeyType& ptrSibling)
@@ -127,8 +128,8 @@ public:
 		size_t nMid = m_ptrData->m_vtPivots.size() / 2;
 
 		ptrSibling = ptrCache->template createObjectOfType<InternalNodeEx<KeyType, ValueType, CacheKeyType>>(
-			m_ptrData->m_vtPivots.begin() + nMid, m_ptrData->m_vtPivots.end(),
-			m_ptrData->m_vtChildren.begin() + nMid, m_ptrData->m_vtChildren.end());
+			m_ptrData->m_vtPivots.begin() + nMid + 1, m_ptrData->m_vtPivots.end(),
+			m_ptrData->m_vtChildren.begin() + nMid + 1, m_ptrData->m_vtChildren.end());
 
 		if (!ptrSibling)
 		{
@@ -191,7 +192,73 @@ public:
 		if (nChildIdx > 0)
 		{
 			ptrLHSNode = ptrCache->template getObjectOfType<CacheValueType>(m_ptrData->m_vtChildren[nChildIdx - 1]);    //TODO: lock
-			if (ptrLHSNode->getKeysSize() > (nDegree / 2) + 1)
+			if (ptrLHSNode->getKeysSize() > std::ceil(nDegree / 2.0f) + 1)
+			{
+				KeyType key;
+				ptrChildPtr->moveAnEntityFromLHSSibling(ptrLHSNode, m_ptrData->m_vtPivots[nChildIdx], key);
+
+				m_ptrData->m_vtPivots[nChildIdx] = key;
+				return ErrorCode::Success;
+			}
+		}
+
+		if (nChildIdx < m_ptrData->m_vtPivots.size())
+		{
+			ptrRHSNode = ptrCache->template getObjectOfType<CacheValueType>(m_ptrData->m_vtChildren[nChildIdx + 1]);    //TODO: lock
+			if (ptrRHSNode->getKeysSize() > std::ceil(nDegree / 2.0f) + 1)
+			{
+				KeyType key;
+				ptrChildPtr->moveAnEntityFromRHSSibling(ptrRHSNode, m_ptrData->m_vtPivots[nChildIdx], key);
+
+				m_ptrData->m_vtPivots[nChildIdx] = key;
+				return ErrorCode::Success;
+			}
+		}		
+
+		if (nChildIdx > 0)
+		{
+			ptrLHSNode->mergeNodes(ptrChildPtr, m_ptrData->m_vtPivots[nChildIdx]);
+
+			//ptrCache->remove(ptrChildptr);
+
+			m_ptrData->m_vtPivots.erase(m_ptrData->m_vtPivots.begin() + nChildIdx);
+			m_ptrData->m_vtChildren.erase(m_ptrData->m_vtChildren.begin() + nChildIdx + 1);
+
+			dlt = cktChild;
+
+			return ErrorCode::Success;
+		}
+
+		if (nChildIdx < m_ptrData->m_vtPivots.size())
+		{
+			ptrChildPtr->mergeNodes(ptrRHSNode, m_ptrData->m_vtPivots[nChildIdx]);
+
+			dlt = m_ptrData->m_vtChildren[nChildIdx + 1];
+
+			m_ptrData->m_vtPivots.erase(m_ptrData->m_vtPivots.begin() + nChildIdx);
+			m_ptrData->m_vtChildren.erase(m_ptrData->m_vtChildren.begin() + nChildIdx + 1);
+
+			return ErrorCode::Success;
+		}
+		throw new exception("should not occur!");
+	}
+
+	template <typename Cache, typename CacheValueType>
+	inline ErrorCode rebalance_(Cache ptrCache, CacheValueType ptrChildPtr, CacheKeyType cktChild, const KeyType& ktChild, size_t nDegree, std::optional<CacheKeyType>& dlt)
+	{
+		CacheValueType ptrLHSNode = nullptr;
+		CacheValueType ptrRHSNode = nullptr;
+
+		size_t nChildIdx = 0;
+		while (nChildIdx < m_ptrData->m_vtPivots.size() && ktChild > m_ptrData->m_vtPivots[nChildIdx])
+		{
+			nChildIdx++;
+		}
+
+		if (nChildIdx > 0)
+		{
+			ptrLHSNode = ptrCache->template getObjectOfType<CacheValueType>(m_ptrData->m_vtChildren[nChildIdx - 1]);    //TODO: lock
+			if (ptrLHSNode->getKeysSize() > std::ceil(nDegree / 2.0f))
 			{
 				KeyType key;
 				ptrChildPtr->moveAnEntityFromLHSSibling(ptrLHSNode, key);
@@ -201,10 +268,10 @@ public:
 			}
 		}
 
-		if (nChildIdx < m_ptrData->m_vtPivots.size() - 1)
+		if (nChildIdx < m_ptrData->m_vtPivots.size())
 		{
 			ptrRHSNode = ptrCache->template getObjectOfType<CacheValueType>(m_ptrData->m_vtChildren[nChildIdx + 1]);    //TODO: lock
-			if (ptrRHSNode->getKeysSize() > (nDegree / 2) + 1)
+			if (ptrRHSNode->getKeysSize() > std::ceil(nDegree / 2.0f))
 			{
 				KeyType key;
 				ptrChildPtr->moveAnEntityFromRHSSibling(ptrRHSNode, key);
@@ -212,7 +279,7 @@ public:
 				m_ptrData->m_vtPivots[nChildIdx] = key;
 				return ErrorCode::Success;
 			}
-		}		
+		}
 
 		if (nChildIdx > 0)
 		{
@@ -228,7 +295,7 @@ public:
 			return ErrorCode::Success;
 		}
 
-		if (nChildIdx < m_ptrData->m_vtPivots.size() - 1)
+		if (nChildIdx < m_ptrData->m_vtPivots.size())
 		{
 			ptrChildPtr->mergeNodes(ptrRHSNode);
 
@@ -239,10 +306,10 @@ public:
 
 			return ErrorCode::Success;
 		}
-
+		throw new exception("should not occur!");
 	}
 
-	inline void moveAnEntityFromLHSSibling(shared_ptr<SelfType> ptrLHSSibling, KeyType& ktPivot)
+	inline void moveAnEntityFromLHSSibling(shared_ptr<SelfType> ptrLHSSibling, KeyType& keytoassign, KeyType& ktPivot)
 	{
 		KeyType key = ptrLHSSibling->m_ptrData->m_vtPivots.back();
 		CacheKeyType value = ptrLHSSibling->m_ptrData->m_vtChildren.back();
@@ -250,13 +317,13 @@ public:
 		ptrLHSSibling->m_ptrData->m_vtPivots.pop_back();
 		ptrLHSSibling->m_ptrData->m_vtChildren.pop_back();
 
-		m_ptrData->m_vtPivots.insert(m_ptrData->m_vtPivots.begin(), key);
+		m_ptrData->m_vtPivots.insert(m_ptrData->m_vtPivots.begin(), keytoassign);
 		m_ptrData->m_vtChildren.insert(m_ptrData->m_vtChildren.begin(), value);
 
 		ktPivot = key;
 	}
 
-	inline void moveAnEntityFromRHSSibling(shared_ptr<SelfType> ptrRHSSibling, KeyType& ktPivot)
+	inline void moveAnEntityFromRHSSibling(shared_ptr<SelfType> ptrRHSSibling, KeyType& keytoassign, KeyType& ktPivot)
 	{
 		KeyType key = ptrRHSSibling->m_ptrData->m_vtPivots.front();
 		
@@ -264,16 +331,17 @@ public:
 		ptrRHSSibling->m_ptrData->m_vtPivots.erase(ptrRHSSibling->m_ptrData->m_vtPivots.begin());
 		ptrRHSSibling->m_ptrData->m_vtChildren.erase(ptrRHSSibling->m_ptrData->m_vtChildren.begin());
 		CacheKeyType value = ptrRHSSibling->m_ptrData->m_vtChildren.front();
-		m_ptrData->m_vtPivots.push_back(key);
+		m_ptrData->m_vtPivots.push_back(keytoassign);
 		m_ptrData->m_vtChildren.push_back(value);
 
-		ktPivot = ptrRHSSibling->m_ptrData->m_vtPivots.front();
+		ktPivot = key;// ptrRHSSibling->m_ptrData->m_vtPivots.front();
 	}
 
-	inline void mergeNodes(shared_ptr<SelfType> ptrSibling)
+	inline void mergeNodes(shared_ptr<SelfType> ptrSibling, KeyType& keytoassign)
 	{
+		m_ptrData->m_vtPivots.push_back(keytoassign);
 		m_ptrData->m_vtPivots.insert(m_ptrData->m_vtPivots.end(), ptrSibling->m_ptrData->m_vtPivots.begin(), ptrSibling->m_ptrData->m_vtPivots.end());
-		m_ptrData->m_vtChildren.insert(m_ptrData->m_vtChildren.end(), ptrSibling->m_ptrData->m_vtChildren.begin() + 1, ptrSibling->m_ptrData->m_vtChildren.end());
+		m_ptrData->m_vtChildren.insert(m_ptrData->m_vtChildren.end(), ptrSibling->m_ptrData->m_vtChildren.begin(), ptrSibling->m_ptrData->m_vtChildren.end());
 	}
 
 public:

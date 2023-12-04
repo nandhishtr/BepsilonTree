@@ -74,7 +74,7 @@ public:
 
 	inline bool requireMerge(size_t nDegree)
 	{
-		return m_ptrData->m_vtKeys.size() <= nDegree / 2;
+		return m_ptrData->m_vtKeys.size() <= std::ceil(nDegree / 2.0f);
 	}
 
 	template <typename Cache, typename CacheKeyType>

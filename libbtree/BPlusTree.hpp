@@ -181,7 +181,7 @@ public:
     {
         std::vector<std::pair<CacheKeyType, CacheValueType>> vtNodes;
         CacheValueType ptrLastNode = nullptr, ptrCurrentNode = nullptr;
-        CacheKeyType ptrLastNodeKey, ptrCurrentNodeKey = m_cktRootNodeKey.value();
+        CacheKeyType ptrLastNodeKey = NULL, ptrCurrentNodeKey = m_cktRootNodeKey.value();
 
         do
         {
@@ -266,6 +266,12 @@ public:
                         {
                             m_ptrCache->remove(*dlt);
                         }
+
+                        if (ptrParentNodeData->m_ptrData->m_vtPivots.size() == 0)
+                        {
+                            m_cktRootNodeKey = ptrParentNodeData->m_ptrData->m_vtChildren[0];
+                            //throw new exception("should not occur!");
+                        }
                     }
                 }
                 else if (std::holds_alternative<shared_ptr<LeadNodeType>>(*ptrChildValue))
@@ -273,11 +279,17 @@ public:
                     std::optional<CacheKeyType> dlt = std::nullopt;
 
                     shared_ptr<LeadNodeType> ptrNodeData = std::get<shared_ptr<LeadNodeType>>(*ptrChildValue);
-                    ptrParentNodeData->template rebalance<std::shared_ptr<CacheType>, shared_ptr<LeadNodeType>>(m_ptrCache, ptrNodeData, childKey, key, m_nDegree, dlt);
+                    ptrParentNodeData->template rebalance_<std::shared_ptr<CacheType>, shared_ptr<LeadNodeType>>(m_ptrCache, ptrNodeData, childKey, key, m_nDegree, dlt);
 
                     if (dlt)
                     {
                         m_ptrCache->remove(*dlt);
+                    }
+
+                    if (ptrParentNodeData->m_ptrData->m_vtPivots.size() == 0)
+                    {
+                        m_cktRootNodeKey = ptrParentNodeData->m_ptrData->m_vtChildren[0];
+                        //throw new exception("should not occur!");
                     }
                 }
 
