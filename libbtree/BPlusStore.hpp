@@ -19,7 +19,7 @@ private:
     uint32_t m_nDegree;
     std::shared_ptr<CacheType> m_ptrCache;
     std::optional<CacheKeyType> m_cktRootNodeKey;
-
+    mutable std::shared_mutex mutex;
 public:
     ~BPlusStore()
     {
@@ -44,61 +44,62 @@ public:
         std::vector<std::unique_lock<std::shared_mutex>> vtLocks;
         std::vector<std::pair<CacheKeyType, CacheValueType>> vtNodes;
         CacheValueType ptrLastNode = nullptr, ptrCurrentNode = nullptr;
-        CacheKeyType ckLastNode, ckCurrentNode = m_cktRootNodeKey.value();
+        CacheKeyType ckLastNode = NULL, ckCurrentNode = NULL;
+
+        vtLocks.push_back(std::unique_lock<std::shared_mutex>(mutex));
+
+        ckCurrentNode = m_cktRootNodeKey.value();
 
         do
         {
             ptrCurrentNode = m_ptrCache->getObjectOfType(ckCurrentNode);    //TODO: lock
 
+            vtLocks.push_back(std::unique_lock<std::shared_mutex>(ptrCurrentNode->mutex));
+
+            if (ptrCurrentNode == nullptr)
             {
-                std::unique_lock<std::shared_mutex> wlock(ptrCurrentNode->mutex);
+                throw new exception("should not occur!");   // TODO: critical log.
+            }
 
-                if (ptrCurrentNode == nullptr)
+            if (std::holds_alternative<shared_ptr<IndexNodeType>>(*ptrCurrentNode->data))
+            {
+                shared_ptr<IndexNodeType> ptrIndexNode = std::get<shared_ptr<IndexNodeType>>(*ptrCurrentNode->data);
+
+                if (ptrIndexNode->canTriggerSplit(m_nDegree))
                 {
-                    throw new exception("should not occur!");   // TODO: critical log.
+                    vtNodes.push_back(std::pair<CacheKeyType, CacheValueType>(ckLastNode, ptrLastNode));
+                }
+                else
+                {
+                    vtLocks.erase(vtLocks.begin(), vtLocks.begin() + vtLocks.size() - 1);
+                    vtNodes.clear(); //TODO: release locks
                 }
 
-                if (std::holds_alternative<shared_ptr<IndexNodeType>>(*ptrCurrentNode->data))
+                ckLastNode = ckCurrentNode;
+                ptrLastNode = ptrCurrentNode;
+
+                ckCurrentNode = ptrIndexNode->getChild(key); // fid it.. there are two kinds of methods..
+            }
+            else if (std::holds_alternative<shared_ptr<DataNodeType>>(*ptrCurrentNode->data))
+            {
+                shared_ptr<DataNodeType> ptrDataNode = std::get<shared_ptr<DataNodeType>>(*ptrCurrentNode->data);
+
+                ptrDataNode->insert(key, value);
+
+                if (ptrDataNode->requireSplit(m_nDegree))
                 {
-                    shared_ptr<IndexNodeType> ptrIndexNode = std::get<shared_ptr<IndexNodeType>>(*ptrCurrentNode->data);
+                    //vtLocks.push_back(std::move(wlock));
 
-                    if (ptrIndexNode->canTriggerSplit(m_nDegree))
-                    {
-                        vtLocks.push_back(std::move(wlock));
-                        vtNodes.push_back(std::pair<CacheKeyType, CacheValueType>(ckLastNode, ptrLastNode));
-                    }
-                    else
-                    {
-                        vtLocks.clear();
-                        vtNodes.clear(); //TODO: release locks
-                    }
-
-                    ckLastNode = ckCurrentNode;
-                    ptrLastNode = ptrCurrentNode;
-
-                    ckCurrentNode = ptrIndexNode->getChild(key); // fid it.. there are two kinds of methods..
+                    vtNodes.push_back(std::pair<CacheKeyType, CacheValueType>(ckLastNode, ptrLastNode));
+                    vtNodes.push_back(std::pair<CacheKeyType, CacheValueType>(ckCurrentNode, ptrCurrentNode));
                 }
-                else if (std::holds_alternative<shared_ptr<DataNodeType>>(*ptrCurrentNode->data))
+                else
                 {
-                    shared_ptr<DataNodeType> ptrDataNode = std::get<shared_ptr<DataNodeType>>(*ptrCurrentNode->data);
-
-                    ptrDataNode->insert(key, value);
-
-                    if (ptrDataNode->requireSplit(m_nDegree))
-                    {
-                        vtLocks.push_back(std::move(wlock));
-
-                        vtNodes.push_back(std::pair<CacheKeyType, CacheValueType>(ckLastNode, ptrLastNode));
-                        vtNodes.push_back(std::pair<CacheKeyType, CacheValueType>(ckCurrentNode, ptrCurrentNode));
-                    }
-                    else
-                    {
-                        vtLocks.clear();
-                        vtNodes.clear(); //TODO: release locks
-                    }
-
-                    break;
+                    vtLocks.clear();
+                    vtNodes.clear(); //TODO: release locks
                 }
+
+                break;
             }
         } while (true);
 

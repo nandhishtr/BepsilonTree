@@ -23,12 +23,14 @@ typedef IndexNode<KeyType, ValueType, CacheKeyType> InternalNodeType;
 
 typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<LeadNodeType>, shared_ptr<InternalNodeType>>> BPlusStoreType;
 
+std::condition_variable cv;
 
 void insert(BPlusStoreType* ptrTree, int start, int end) {
     for (size_t nCntr = start; nCntr < end; nCntr ++)
     {
         ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
     }
+    std::cout << ".";
 }
 
 int main(int argc, char* argv[])
@@ -41,15 +43,29 @@ int main(int argc, char* argv[])
 
     int i = 0;
 
-    std::thread threads[10];
+    const int _t_count = 25;
 
-    for (int i = 0; i < 1000; i++) {
-        int total = 1000 / 10;
+    std::thread threads[_t_count];
+
+    for (int i = 0; i < _t_count; i++) {
+        int total = 100000 / _t_count;
         threads[i] = std::thread(insert, ptrTree, i*total, i*total + total);
     }
 
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < _t_count; i++) {
         threads[i].join();
+    }
+
+   
+    for (size_t nCntr = 0; nCntr < 100000; nCntr++)
+    {
+        int nValue = 0;
+        ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+
+        if (nValue != nCntr)
+        {
+            std::cout << "K: " << nCntr << ", V: " << nValue << std::endl;
+        }
     }
     return 0;
 
