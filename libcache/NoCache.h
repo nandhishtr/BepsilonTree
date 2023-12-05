@@ -1,42 +1,50 @@
 #pragma once
 #include <iostream>
-#include <unordered_map>
-
-#include "ICache.h"
+#include <mutex>
+#include <shared_mutex>
+#include <syncstream>
+#include <thread>
 #include <variant>
 #include <typeinfo>
 
+#include "ErrorCodes.h"
 
 template <typename... ValueCoreTypes>
 class NoCacheObject
 {
 public:
-	std::variant<std::shared_ptr<ValueCoreTypes...>> m_objData;
+	typedef std::variant<ValueCoreTypes...>* CacheValueTypePtr;
+
+	CacheValueTypePtr data;
+	mutable std::shared_mutex mutex;
 
 public:
-	NoCacheObject(ValueCoreTypes... args)
-		: m_objData(args)
+	NoCacheObject(CacheValueTypePtr ptrValue)
 	{
+		data = ptrValue;
 	}
 
-	template <typename CoreValueType>
-	void setData(CoreValueType objData)
+	template<class Type, typename... ArgsType>
+	static NoCacheObject* createObjectOfType(ArgsType... args)
 	{
-		m_objData = objData;
+		CacheValueTypePtr ptrValue = new std::variant<ValueCoreTypes...>(std::make_shared<Type>(args...));
+
+		NoCacheObject* ptr = new NoCacheObject(ptrValue);
+
+		return ptr;
 	}
 };
 
 
-template<typename KeyType, typename... ValueCoreTypes>
-class NoCache : public ICoreCache
+template<typename KeyType, template <typename...> typename ValueType, typename... ValueCoreTypes>
+class NoCache
 {
 public:
 	typedef KeyType KeyType;
-
-	typedef std::variant<ValueCoreTypes...>* CacheValueType;
+	typedef ValueType<ValueCoreTypes...>* CacheValueType;
 
 private:
-	typedef std::variant<ValueCoreTypes...>* CacheValueTypePtr;
+	typedef ValueType<ValueCoreTypes...>* CacheValueTypePtr;
 
 public:
 	~NoCache()
@@ -65,19 +73,21 @@ public:
 	{
 		CacheValueTypePtr ptrValue = reinterpret_cast<CacheValueTypePtr>(objKey);
 
-		if (std::holds_alternative<Type>(*ptrValue))
+		if (std::holds_alternative<Type>(*ptrValue->data))
 		{
-			return std::get<Type>(*ptrValue);
+			return std::get<Type>(*ptrValue->data);
 		}
 
 		return nullptr;
 	}
 
 	template<class Type, typename... ArgsType>
-	KeyType createObjectOfType(ArgsType ... args)
+	KeyType createObjectOfType(ArgsType... args)
 	{
-		CacheValueTypePtr ptrValue = new std::variant<ValueCoreTypes...>(std::make_shared<Type>(args...));
+		//CacheValueTypePtr ptrValue = new std::variant<ValueCoreTypes...>(std::make_shared<Type>(args...));
 		
+		NoCacheObject<ValueCoreTypes...>* ptrValue = NoCacheObject<ValueCoreTypes...>::template createObjectOfType<Type>(args...);
+
 		return reinterpret_cast<KeyType>(ptrValue);
 	}
 

@@ -313,14 +313,14 @@ public:
 			std::cout << std::string(nLevel, '.').c_str() << " ==> child: " << std::endl;
 
 			CacheValueType ptrNode = ptrCache->getObjectOfType(m_ptrData->m_vtChildren[nIndex]);
-			if (std::holds_alternative<shared_ptr<SelfType>>(*ptrNode))
+			if (std::holds_alternative<shared_ptr<SelfType>>(*ptrNode->data))
 			{
-				shared_ptr<SelfType> ptrIndexNode = std::get<shared_ptr<SelfType>>(*ptrNode);
+				shared_ptr<SelfType> ptrIndexNode = std::get<shared_ptr<SelfType>>(*ptrNode->data);
 				ptrIndexNode->template print<CacheType, CacheValueType, DataNodeType>(ptrCache, nLevel + 1);
 			}
-			else if (std::holds_alternative<shared_ptr<DataNodeType>>(*ptrNode))
+			else if (std::holds_alternative<shared_ptr<DataNodeType>>(*ptrNode->data))
 			{
-				shared_ptr<DataNodeType> ptrDataNode = std::get<shared_ptr<DataNodeType>>(*ptrNode);
+				shared_ptr<DataNodeType> ptrDataNode = std::get<shared_ptr<DataNodeType>>(*ptrNode->data);
 				ptrDataNode->print(nLevel + 1);
 			}
 		}

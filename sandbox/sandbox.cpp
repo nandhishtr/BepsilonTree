@@ -13,38 +13,61 @@
 #include "IndexNode.hpp"
 
 #include <chrono>
+
+typedef int KeyType;
+typedef int ValueType;
+typedef uintptr_t CacheKeyType;
+
+typedef DataNode<KeyType, ValueType> LeadNodeType;
+typedef IndexNode<KeyType, ValueType, CacheKeyType> InternalNodeType;
+
+typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<LeadNodeType>, shared_ptr<InternalNodeType>>> BPlusStoreType;
+
+
+void insert(BPlusStoreType* ptrTree, int start, int end) {
+    for (size_t nCntr = start; nCntr < end; nCntr ++)
+    {
+        ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+    }
+}
+
 int main(int argc, char* argv[])
 {
-    typedef int KeyType;
-    typedef int ValueType;
-    typedef uintptr_t CacheKeyType;
-
-    typedef DataNode<KeyType, ValueType> LeadNodeType;
-    typedef IndexNode<KeyType, ValueType, CacheKeyType> InternalNodeType;
-
-    typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, shared_ptr<LeadNodeType>, shared_ptr<InternalNodeType>>> BPlusStoreType;
-
+   
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    BPlusStoreType* ptrTree = new BPlusStoreType(3);
+    BPlusStoreType* ptrTree = new BPlusStoreType(6);
 
     ptrTree->template init<LeadNodeType>();
 
     int i = 0;
 
+    std::thread threads[10];
+
+    for (int i = 0; i < 1000; i++) {
+        int total = 1000 / 10;
+        threads[i] = std::thread(insert, ptrTree, i*total, i*total + total);
+    }
+
+    for (int i = 0; i < 10; i++) {
+        threads[i].join();
+    }
+    return 0;
+
+
     while (i++ < 10) {
         std::cout << i << std::endl;
-        for (size_t nCntr = 0; nCntr < 5000; nCntr = nCntr + 2)
+        for (size_t nCntr = 0; nCntr < 50000; nCntr = nCntr + 2)
         {
             ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
         }
-        for (size_t nCntr = 1; nCntr < 5000; nCntr = nCntr + 2)
+        for (size_t nCntr = 1; nCntr < 50000; nCntr = nCntr + 2)
         {
             ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
         }
 
-        ptrTree->template print<InternalNodeType, LeadNodeType>();
+        //ptrTree->template print<InternalNodeType, LeadNodeType>();
 
-        for (size_t nCntr = 0; nCntr < 5000; nCntr++)
+        for (size_t nCntr = 0; nCntr < 50000; nCntr++)
         {
             int nValue = 0;
             ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
@@ -55,11 +78,11 @@ int main(int argc, char* argv[])
             }
         }
 
-        for (size_t nCntr = 0; nCntr < 5000; nCntr = nCntr + 2)
+        for (size_t nCntr = 0; nCntr < 50000; nCntr = nCntr + 2)
         {
             ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
         }
-        for (size_t nCntr = 1; nCntr < 5000; nCntr = nCntr + 2)
+        for (size_t nCntr = 1; nCntr < 50000; nCntr = nCntr + 2)
         {
             ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
         }
@@ -75,6 +98,8 @@ int main(int argc, char* argv[])
         {
             ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
         }
+
+        //ptrTree->print<InternalNodeType, LeadNodeType>();
 
         for (int nCntr = 0; nCntr < 5000; nCntr++)
         {
