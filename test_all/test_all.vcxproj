@@ -36,6 +36,7 @@
     <ClInclude Include="pch.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BPlusStore_NoCache_Suite_3.cpp" />
     <ClCompile Include="BPlusTree_DRAMLRU_Suite_2.cpp" />
     <ClCompile Include="BPlusStore_NoCache_Suite_1.cpp" />
     <ClCompile Include="BPlusStore_NoCache_Suite_2.cpp" />
