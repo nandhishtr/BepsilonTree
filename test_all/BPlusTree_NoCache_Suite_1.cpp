@@ -3,17 +3,17 @@
 #include <iostream>
 
 #include "gtest/gtest.h"
-#include "BPlusTree.hpp"
+#include "BPlusStore.hpp"
 #include "NoCache.h"
 
-class BPlusTree_NoCache_Suite_1 : public ::testing::Test
+class BPlusStore_NoCache_Suite_1 : public ::testing::Test
 {
 protected:
-    BPlusTree<int, int, NoCache<uintptr_t, shared_ptr<LeafNodeEx<int, int>>, shared_ptr<InternalNodeEx<int, int, uintptr_t>>>>* m_ptrTree;
+    BPlusStore<int, int, NoCache<uintptr_t, shared_ptr<DataNode<int, int>>, shared_ptr<IndexNode<int, int, uintptr_t>>>>* m_ptrTree;
 
     void SetUp() override 
     {
-        m_ptrTree = new BPlusTree<int, int, NoCache<uintptr_t, shared_ptr<LeafNodeEx<int, int>>, shared_ptr<InternalNodeEx<int, int, uintptr_t>>>>(5);
+        m_ptrTree = new BPlusStore<int, int, NoCache<uintptr_t, shared_ptr<DataNode<int, int>>, shared_ptr<IndexNode<int, int, uintptr_t>>>>(5);
     }
 
     void TearDown() override {
@@ -21,7 +21,7 @@ protected:
     }
 };
 
-TEST_F(BPlusTree_NoCache_Suite_1, Insert_1_Element) {
+TEST_F(BPlusStore_NoCache_Suite_1, Insert_1_Element) {
     m_ptrTree->insert(1, 1);
 
     int nValue;
@@ -30,7 +30,7 @@ TEST_F(BPlusTree_NoCache_Suite_1, Insert_1_Element) {
     ASSERT_EQ(nValue, 1);
 }
 
-TEST_F(BPlusTree_NoCache_Suite_1, Insert_100_Elements_v1) {
+TEST_F(BPlusStore_NoCache_Suite_1, Insert_100_Elements_v1) {
     for (size_t nCntr = 0; nCntr < 1000; nCntr++)
     {
         m_ptrTree->insert(nCntr, nCntr);
@@ -45,7 +45,7 @@ TEST_F(BPlusTree_NoCache_Suite_1, Insert_100_Elements_v1) {
     }
 }
 
-TEST_F(BPlusTree_NoCache_Suite_1, Insert_100_Elements_v2) {
+TEST_F(BPlusStore_NoCache_Suite_1, Insert_100_Elements_v2) {
     for (size_t nCntr = 50; nCntr < 100; nCntr++)
     {
         m_ptrTree->insert(nCntr, nCntr);
@@ -73,7 +73,7 @@ TEST_F(BPlusTree_NoCache_Suite_1, Insert_100_Elements_v2) {
     }
 }
 
-TEST_F(BPlusTree_NoCache_Suite_1, Insert_100_Elements_v3) {
+TEST_F(BPlusStore_NoCache_Suite_1, Insert_100_Elements_v3) {
     for (size_t nCntr = 0; nCntr < 1000; nCntr++)
     {
         m_ptrTree->insert(nCntr, nCntr * 2);
@@ -88,7 +88,7 @@ TEST_F(BPlusTree_NoCache_Suite_1, Insert_100_Elements_v3) {
     }
 }
 
-TEST_F(BPlusTree_NoCache_Suite_1, Insert_100_Elements_v4) {
+TEST_F(BPlusStore_NoCache_Suite_1, Insert_100_Elements_v4) {
     for (size_t nCntr = 0; nCntr < 1000; nCntr+=2)
     {
         m_ptrTree->insert(nCntr, nCntr * 2);

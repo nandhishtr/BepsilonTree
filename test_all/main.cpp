@@ -15,6 +15,6 @@
 int main(int argc, char** argv)
 {
 	::testing::InitGoogleTest(&argc, argv);
-	//::testing::GTEST_FLAG(filter) = "BPlusTree_NoCache_Suite_1*";
+	//::testing::GTEST_FLAG(filter) = "BPlusStore_NoCache_Suite_1*";
 	return RUN_ALL_TESTS();
 }

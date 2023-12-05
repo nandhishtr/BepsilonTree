@@ -16,161 +16,161 @@
 
 using namespace std; 
 
-template <typename KeyType, typename ValueType>
-class LeafNodeEx
-{
-public:
-	struct LeafNodeExData
-	{
-		std::vector<KeyType> m_vtKeys;
-		std::vector<ValueType> m_vtValues;
-
-		//LeafNodeExData()
-	};
-
-	typedef std::shared_ptr<LeafNodeExData> LeafNodeExDataPtr;
-	typedef LeafNodeEx<KeyType, ValueType> SelfType;
-public:
-	std::shared_ptr<LeafNodeExData> m_ptrData;
-
-public:
-	~LeafNodeEx()
-	{
-	}
-
-	LeafNodeEx()
-	{
-		m_ptrData = make_shared<LeafNodeExData>();
-	}
-
-	LeafNodeEx(std::vector<KeyType>::const_iterator itBeginKey, std::vector<KeyType>::const_iterator itEndKey,
-		std::vector<ValueType>::const_iterator itBeginValue, std::vector<ValueType>::const_iterator itEndValue)
-		: m_ptrData(make_shared<LeafNodeExData>())
-	{
-		m_ptrData->m_vtKeys.assign(itBeginKey, itEndKey);
-		m_ptrData->m_vtValues.assign(itBeginValue, itEndValue);
-	}
-
-	inline void insert(const KeyType& key, const ValueType& value)
-	{
-		size_t nChildIdx = m_ptrData->m_vtKeys.size();
-		for (int nIdx = 0; nIdx < m_ptrData->m_vtKeys.size(); ++nIdx)
-		{
-			if (key < m_ptrData->m_vtKeys[nIdx])
-			{
-				nChildIdx = nIdx;
-				break;
-			}
-		}
-
-		m_ptrData->m_vtKeys.insert(m_ptrData->m_vtKeys.begin() + nChildIdx, key);
-		m_ptrData->m_vtValues.insert(m_ptrData->m_vtValues.begin() + nChildIdx, value);
-	}
-
-	inline bool requireSplit(size_t nDegree)
-	{
-		return m_ptrData->m_vtKeys.size() > nDegree;
-	}
-
-	inline bool requireMerge(size_t nDegree)
-	{
-		return m_ptrData->m_vtKeys.size() <= std::ceil(nDegree / 2.0f);
-	}
-
-	template <typename Cache, typename CacheKeyType>
-	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& ptrSibling, KeyType& pivotKey)
-	{
-		size_t nMid = m_ptrData->m_vtKeys.size() / 2;
-
-		ptrSibling = ptrCache->template createObjectOfType<LeafNodeEx<KeyType, ValueType>>(
-			m_ptrData->m_vtKeys.begin() + nMid, m_ptrData->m_vtKeys.end(),
-			m_ptrData->m_vtValues.begin() + nMid, m_ptrData->m_vtValues.end());
-
-		if (!ptrSibling)
-		{
-			return ErrorCode::Error;
-		}
-
-		pivotKey = m_ptrData->m_vtKeys[nMid];
-
-		m_ptrData->m_vtKeys.resize(nMid);
-		m_ptrData->m_vtValues.resize(nMid);
-
-		return ErrorCode::Success;
-	}
-
-	ErrorCode getValue(const KeyType& key, ValueType& value)
-	{
-		auto it = std::lower_bound(m_ptrData->m_vtKeys.begin(), m_ptrData->m_vtKeys.end(), key);
-		if (it != m_ptrData->m_vtKeys.end() && *it == key)
-		{
-			int index = it - m_ptrData->m_vtKeys.begin();
-			value = m_ptrData->m_vtValues[index];
-
-			return ErrorCode::Success;
-		}
-
-		return ErrorCode::KeyDoesNotExist;
-	}
-
-	inline ErrorCode remove(const KeyType& key)
-	{
-		auto it = std::lower_bound(m_ptrData->m_vtKeys.begin(), m_ptrData->m_vtKeys.end(), key);
-
-		if (it != m_ptrData->m_vtKeys.end() && *it == key)
-		{
-			int index = it - m_ptrData->m_vtKeys.begin();
-			m_ptrData->m_vtKeys.erase(it);
-			m_ptrData->m_vtValues.erase(m_ptrData->m_vtValues.begin() + index);
-
-			return ErrorCode::Success;
-		}
-
-		return ErrorCode::KeyDoesNotExist;
-	}
-
-	inline void moveAnEntityFromLHSSibling(shared_ptr<SelfType> ptrLHSSibling, KeyType& ktPivot)
-	{
-		KeyType key = ptrLHSSibling->m_ptrData->m_vtKeys.back();
-		ValueType value = ptrLHSSibling->m_ptrData->m_vtValues.back();
-
-		ptrLHSSibling->m_ptrData->m_vtKeys.pop_back();
-		ptrLHSSibling->m_ptrData->m_vtValues.pop_back();
-
-		m_ptrData->m_vtKeys.insert(m_ptrData->m_vtKeys.begin(), key);
-		m_ptrData->m_vtValues.insert(m_ptrData->m_vtValues.begin(), value);
-
-		ktPivot = key;
-	}
-
-	inline void moveAnEntityFromRHSSibling(shared_ptr<SelfType> ptrRHSSibling, KeyType& ktPivot)
-	{
-		KeyType key = ptrRHSSibling->m_ptrData->m_vtKeys.front();
-		ValueType value = ptrRHSSibling->m_ptrData->m_vtValues.front();
-
-		ptrRHSSibling->m_ptrData->m_vtKeys.erase(ptrRHSSibling->m_ptrData->m_vtKeys.begin());
-		ptrRHSSibling->m_ptrData->m_vtValues.erase(ptrRHSSibling->m_ptrData->m_vtValues.begin());
-
-		m_ptrData->m_vtKeys.push_back(key);
-		m_ptrData->m_vtValues.push_back(value);
-
-		ktPivot = ptrRHSSibling->m_ptrData->m_vtKeys.front();
-	}
-
-	inline void mergeNodes(shared_ptr<SelfType> ptrSibling)
-	{
-		m_ptrData->m_vtKeys.insert(m_ptrData->m_vtKeys.end(), ptrSibling->m_ptrData->m_vtKeys.begin(), ptrSibling->m_ptrData->m_vtKeys.end());
-		m_ptrData->m_vtValues.insert(m_ptrData->m_vtValues.end(), ptrSibling->m_ptrData->m_vtValues.begin(), ptrSibling->m_ptrData->m_vtValues.end());
-	}
-
-	inline size_t getKeysSize() {
-		return m_ptrData->m_vtKeys.size();
-	}
-public:
-	void wieHiestDu() {
-		printf("ich heisse LeafNode.\n");
-	}
-};
+//template <typename KeyType, typename ValueType>
+//class DataNode
+//{
+//public:
+//	struct DATANODESTRUCT
+//	{
+//		std::vector<KeyType> m_vtKeys;
+//		std::vector<ValueType> m_vtValues;
+//
+//		//DATANODESTRUCT()
+//	};
+//
+//	typedef std::shared_ptr<DATANODESTRUCT> DATANODESTRUCTPtr;
+//	typedef DataNode<KeyType, ValueType> SelfType;
+//public:
+//	std::shared_ptr<DATANODESTRUCT> m_ptrData;
+//
+//public:
+//	~DataNode()
+//	{
+//	}
+//
+//	DataNode()
+//	{
+//		m_ptrData = make_shared<DATANODESTRUCT>();
+//	}
+//
+//	DataNode(std::vector<KeyType>::const_iterator itBeginKey, std::vector<KeyType>::const_iterator itEndKey,
+//		std::vector<ValueType>::const_iterator itBeginValue, std::vector<ValueType>::const_iterator itEndValue)
+//		: m_ptrData(make_shared<DATANODESTRUCT>())
+//	{
+//		m_ptrData->m_vtKeys.assign(itBeginKey, itEndKey);
+//		m_ptrData->m_vtValues.assign(itBeginValue, itEndValue);
+//	}
+//
+//	inline void insert(const KeyType& key, const ValueType& value)
+//	{
+//		size_t nChildIdx = m_ptrData->m_vtKeys.size();
+//		for (int nIdx = 0; nIdx < m_ptrData->m_vtKeys.size(); ++nIdx)
+//		{
+//			if (key < m_ptrData->m_vtKeys[nIdx])
+//			{
+//				nChildIdx = nIdx;
+//				break;
+//			}
+//		}
+//
+//		m_ptrData->m_vtKeys.insert(m_ptrData->m_vtKeys.begin() + nChildIdx, key);
+//		m_ptrData->m_vtValues.insert(m_ptrData->m_vtValues.begin() + nChildIdx, value);
+//	}
+//
+//	inline bool requireSplit(size_t nDegree)
+//	{
+//		return m_ptrData->m_vtKeys.size() > nDegree;
+//	}
+//
+//	inline bool requireMerge(size_t nDegree)
+//	{
+//		return m_ptrData->m_vtKeys.size() <= std::ceil(nDegree / 2.0f);
+//	}
+//
+//	template <typename Cache, typename CacheKeyType>
+//	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& ptrSibling, KeyType& pivotKey)
+//	{
+//		size_t nMid = m_ptrData->m_vtKeys.size() / 2;
+//
+//		ptrSibling = ptrCache->template createObjectOfType<DataNode<KeyType, ValueType>>(
+//			m_ptrData->m_vtKeys.begin() + nMid, m_ptrData->m_vtKeys.end(),
+//			m_ptrData->m_vtValues.begin() + nMid, m_ptrData->m_vtValues.end());
+//
+//		if (!ptrSibling)
+//		{
+//			return ErrorCode::Error;
+//		}
+//
+//		pivotKey = m_ptrData->m_vtKeys[nMid];
+//
+//		m_ptrData->m_vtKeys.resize(nMid);
+//		m_ptrData->m_vtValues.resize(nMid);
+//
+//		return ErrorCode::Success;
+//	}
+//
+//	ErrorCode getValue(const KeyType& key, ValueType& value)
+//	{
+//		auto it = std::lower_bound(m_ptrData->m_vtKeys.begin(), m_ptrData->m_vtKeys.end(), key);
+//		if (it != m_ptrData->m_vtKeys.end() && *it == key)
+//		{
+//			int index = it - m_ptrData->m_vtKeys.begin();
+//			value = m_ptrData->m_vtValues[index];
+//
+//			return ErrorCode::Success;
+//		}
+//
+//		return ErrorCode::KeyDoesNotExist;
+//	}
+//
+//	inline ErrorCode remove(const KeyType& key)
+//	{
+//		auto it = std::lower_bound(m_ptrData->m_vtKeys.begin(), m_ptrData->m_vtKeys.end(), key);
+//
+//		if (it != m_ptrData->m_vtKeys.end() && *it == key)
+//		{
+//			int index = it - m_ptrData->m_vtKeys.begin();
+//			m_ptrData->m_vtKeys.erase(it);
+//			m_ptrData->m_vtValues.erase(m_ptrData->m_vtValues.begin() + index);
+//
+//			return ErrorCode::Success;
+//		}
+//
+//		return ErrorCode::KeyDoesNotExist;
+//	}
+//
+//	inline void moveAnEntityFromLHSSibling(shared_ptr<SelfType> ptrLHSSibling, KeyType& ktPivot)
+//	{
+//		KeyType key = ptrLHSSibling->m_ptrData->m_vtKeys.back();
+//		ValueType value = ptrLHSSibling->m_ptrData->m_vtValues.back();
+//
+//		ptrLHSSibling->m_ptrData->m_vtKeys.pop_back();
+//		ptrLHSSibling->m_ptrData->m_vtValues.pop_back();
+//
+//		m_ptrData->m_vtKeys.insert(m_ptrData->m_vtKeys.begin(), key);
+//		m_ptrData->m_vtValues.insert(m_ptrData->m_vtValues.begin(), value);
+//
+//		ktPivot = key;
+//	}
+//
+//	inline void moveAnEntityFromRHSSibling(shared_ptr<SelfType> ptrRHSSibling, KeyType& ktPivot)
+//	{
+//		KeyType key = ptrRHSSibling->m_ptrData->m_vtKeys.front();
+//		ValueType value = ptrRHSSibling->m_ptrData->m_vtValues.front();
+//
+//		ptrRHSSibling->m_ptrData->m_vtKeys.erase(ptrRHSSibling->m_ptrData->m_vtKeys.begin());
+//		ptrRHSSibling->m_ptrData->m_vtValues.erase(ptrRHSSibling->m_ptrData->m_vtValues.begin());
+//
+//		m_ptrData->m_vtKeys.push_back(key);
+//		m_ptrData->m_vtValues.push_back(value);
+//
+//		ktPivot = ptrRHSSibling->m_ptrData->m_vtKeys.front();
+//	}
+//
+//	inline void mergeNodes(shared_ptr<SelfType> ptrSibling)
+//	{
+//		m_ptrData->m_vtKeys.insert(m_ptrData->m_vtKeys.end(), ptrSibling->m_ptrData->m_vtKeys.begin(), ptrSibling->m_ptrData->m_vtKeys.end());
+//		m_ptrData->m_vtValues.insert(m_ptrData->m_vtValues.end(), ptrSibling->m_ptrData->m_vtValues.begin(), ptrSibling->m_ptrData->m_vtValues.end());
+//	}
+//
+//	inline size_t getKeysCount() {
+//		return m_ptrData->m_vtKeys.size();
+//	}
+//public:
+//	void wieHiestDu() {
+//		printf("ich heisse LeafNode.\n");
+//	}
+//};
 
 //template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
 template <typename KeyType, typename ValueType, typename CacheType>

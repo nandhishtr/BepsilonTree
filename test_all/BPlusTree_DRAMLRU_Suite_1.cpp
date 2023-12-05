@@ -10,7 +10,7 @@
 #include "NVRAMCacheObjectKey.h"
 using namespace std;
 
-//class BPlusTree_DRAMLRU_Suite_1 : public ::testing::Test 
+//class BPlusStore_DRAMLRU_Suite_1 : public ::testing::Test 
 //{
 //protected:
 //    BTree<int, string, DRAMLRUCache<DRAMVolatileStorage, uintptr_t, IDRAMCacheObject, DRAMCacheObject>>* m_ptrTree;
@@ -24,7 +24,7 @@ using namespace std;
 //    }
 //};
 //
-//TEST_F(BPlusTree_DRAMLRU_Suite_1, Insert_1_Element) {
+//TEST_F(BPlusStore_DRAMLRU_Suite_1, Insert_1_Element) {
 //    m_ptrTree->insert(1, "1");
 //
 //    string nValue;
@@ -33,7 +33,7 @@ using namespace std;
 //    ASSERT_EQ(nValue, "1");
 //}
 //
-//TEST_F(BPlusTree_DRAMLRU_Suite_1, Insert_100_Elements_v1) {
+//TEST_F(BPlusStore_DRAMLRU_Suite_1, Insert_100_Elements_v1) {
 //    for (size_t nCntr = 0; nCntr < 1000; nCntr++)
 //    {
 //        m_ptrTree->insert(nCntr, to_string(nCntr));
@@ -48,7 +48,7 @@ using namespace std;
 //    }
 //}
 //
-//TEST_F(BPlusTree_DRAMLRU_Suite_1, Insert_100_Elements_v2) {
+//TEST_F(BPlusStore_DRAMLRU_Suite_1, Insert_100_Elements_v2) {
 //    for (size_t nCntr = 50; nCntr < 100; nCntr++)
 //    {
 //        m_ptrTree->insert(nCntr, to_string(nCntr));
@@ -76,7 +76,7 @@ using namespace std;
 //    }
 //}
 //
-//TEST_F(BPlusTree_DRAMLRU_Suite_1, Insert_100_Elements_v3) {
+//TEST_F(BPlusStore_DRAMLRU_Suite_1, Insert_100_Elements_v3) {
 //    for (size_t nCntr = 0; nCntr < 1000; nCntr++)
 //    {
 //        m_ptrTree->insert(nCntr, to_string(nCntr * 2));
@@ -91,7 +91,7 @@ using namespace std;
 //    }
 //}
 //
-//TEST_F(BPlusTree_DRAMLRU_Suite_1, Insert_100_Elements_v4) {
+//TEST_F(BPlusStore_DRAMLRU_Suite_1, Insert_100_Elements_v4) {
 //    for (size_t nCntr = 0; nCntr < 1000; nCntr += 2)
 //    {
 //        m_ptrTree->insert(nCntr, to_string(nCntr * 2));

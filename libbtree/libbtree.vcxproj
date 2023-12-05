@@ -149,11 +149,13 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="BPlusTree.hpp" />
+    <ClInclude Include="BPlusStore.hpp" />
     <ClInclude Include="BTree.h" />
+    <ClInclude Include="DataNode.hpp" />
     <ClInclude Include="ErrorCodes.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="ICacheManager.h" />
+    <ClInclude Include="IndexNode.hpp" />
     <ClInclude Include="INode.h" />
     <ClInclude Include="InternalNode.h" />
     <ClInclude Include="LeafNode.h" />

@@ -38,6 +38,7 @@
   <ItemGroup>
     <ClCompile Include="BPlusTree_DRAMLRU_Suite_2.cpp" />
     <ClCompile Include="BPlusTree_NoCache_Suite_1.cpp" />
+    <ClCompile Include="BPlusTree_NoCache_Suite_2.cpp" />
     <ClCompile Include="BPlusTree_NVRAMLRU_Suite_1.cpp" />
     <ClCompile Include="BPlusTree_DRAMLRU_Suite_1.cpp" />
     <ClCompile Include="main.cpp" />
@@ -124,7 +125,7 @@
       <SubSystem>Console</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
-      <AdditionalDependencies>..\x64\Debug\libbtree.lib;..\x64\Debug\libcache.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>..\x64\Debug\libbtree.lib;..\libglog\lib\glog.lib;..\x64\Debug\libcache.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
