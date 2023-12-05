@@ -157,16 +157,23 @@ public:
             vtNodes.pop_back();
         }
 
+        vtLocks.clear();
+
         return ErrorCode::Success;
     }
 
     template <typename IndexNodeType, typename DataNodeType>
     ErrorCode search(const KeyType& key, ValueType& value)
     {
+        std::vector<std::shared_lock<std::shared_mutex>> vtLocks;
+        vtLocks.push_back(std::shared_lock<std::shared_mutex>(mutex));
+
         CacheKeyType ckCurrentNode = m_cktRootNodeKey.value();
         do
         {
             CacheValueType prNodeDetails = m_ptrCache->getObjectOfType(ckCurrentNode);    //TODO: lock
+            vtLocks.push_back(std::shared_lock<std::shared_mutex>(prNodeDetails->mutex));
+            vtLocks.erase(vtLocks.begin());
 
             if (prNodeDetails == nullptr)
             {
@@ -188,18 +195,27 @@ public:
                 break;
             }
         } while (true);
+
+        vtLocks.clear();
     }
 
     template <typename IndexNodeType, typename DataNodeType>
     ErrorCode remove(const KeyType& key)
     {
+        std::vector<std::unique_lock<std::shared_mutex>> vtLocks;
         std::vector<std::pair<CacheKeyType, CacheValueType>> vtNodes;
         CacheValueType ptrLastNode = nullptr, ptrCurrentNode = nullptr;
-        CacheKeyType ckLastNode = NULL, ckCurrentNode = m_cktRootNodeKey.value();
+        CacheKeyType ckLastNode = NULL, ckCurrentNode = NULL;
+
+        vtLocks.push_back(std::unique_lock<std::shared_mutex>(mutex));
+
+        ckCurrentNode = m_cktRootNodeKey.value();
 
         do
         {
             ptrCurrentNode = m_ptrCache->getObjectOfType(ckCurrentNode);    //TODO: lock
+            
+            vtLocks.push_back(std::unique_lock<std::shared_mutex>(ptrCurrentNode->mutex));
 
             if (ptrCurrentNode == nullptr)
             {
@@ -216,6 +232,10 @@ public:
                 }
                 else
                 {
+                    if (vtLocks.size() > 3) //TODO: 3 seems to be working.. but how and why.. investiage when have time!
+                    {
+                        vtLocks.erase(vtLocks.begin());
+                    }
                     vtNodes.clear(); //TODO: release locks
                 }
 
@@ -237,6 +257,7 @@ public:
                 }
                 else
                 {
+                    vtLocks.clear();
                     vtNodes.clear(); //TODO: release locks
                 }
 
@@ -313,6 +334,7 @@ public:
             vtNodes.pop_back();
         }
 
+        vtLocks.clear();
         return ErrorCode::Success;
     }
 

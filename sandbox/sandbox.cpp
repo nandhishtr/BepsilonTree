@@ -30,7 +30,29 @@ void insert(BPlusStoreType* ptrTree, int start, int end) {
     {
         ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
     }
-    std::cout << ".";
+    std::cout << start << ",";
+}
+
+void search_(BPlusStoreType* ptrTree, int start, int end) {
+    for (size_t nCntr = start; nCntr < end; nCntr++)
+    {
+        int nValue = 0;
+        ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+
+        if (nValue != nCntr)
+        {
+            std::cout << "K: " << nCntr << ", V: " << nValue << std::endl;
+        }
+    }
+    std::cout << start << ",";
+}
+
+void _remove_(BPlusStoreType* ptrTree, int start, int end) {
+    for (size_t nCntr = start; nCntr < end; nCntr++)
+    {
+        ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
+    }
+    std::cout << start << "<-removed->";
 }
 
 int main(int argc, char* argv[])
@@ -43,30 +65,45 @@ int main(int argc, char* argv[])
 
     int i = 0;
 
-    const int _t_count = 25;
+    const int _t_count = 10;
 
-    std::thread threads[_t_count];
+    std::thread i_threads[_t_count];
 
     for (int i = 0; i < _t_count; i++) {
         int total = 100000 / _t_count;
-        threads[i] = std::thread(insert, ptrTree, i*total, i*total + total);
+        i_threads[i] = std::thread(insert, ptrTree, i*total, i*total + total);
     }
 
     for (int i = 0; i < _t_count; i++) {
-        threads[i].join();
+        i_threads[i].join();
+    }
+
+    std::thread s_threads[_t_count];
+
+    for (int i = 0; i < _t_count; i++) {
+        int total = 100000 / _t_count;
+        s_threads[i] = std::thread(search_, ptrTree, i * total, i * total + total);
     }
 
    
-    for (size_t nCntr = 0; nCntr < 100000; nCntr++)
-    {
-        int nValue = 0;
-        ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
 
-        if (nValue != nCntr)
-        {
-            std::cout << "K: " << nCntr << ", V: " << nValue << std::endl;
-        }
+    for (int i = 0; i < _t_count; i++) {
+        s_threads[i].join();
     }
+
+    std::thread r_threads[_t_count];
+
+    for (int i = 0; i < _t_count; i++) {
+        int total = 100000 / _t_count;
+        r_threads[i] = std::thread(_remove_, ptrTree, i * total, i * total + total);
+    }
+
+
+
+    for (int i = 0; i < _t_count; i++) {
+        r_threads[i].join();
+    }
+
     return 0;
 
 
