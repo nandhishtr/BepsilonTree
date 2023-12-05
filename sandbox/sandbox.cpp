@@ -25,86 +25,86 @@ typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shar
 
 std::condition_variable cv;
 
-void insert(BPlusStoreType* ptrTree, int start, int end) {
-    for (size_t nCntr = start; nCntr < end; nCntr ++)
-    {
-        ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
-    }
-    std::cout << start << ",";
-}
-
-void search_(BPlusStoreType* ptrTree, int start, int end) {
-    for (size_t nCntr = start; nCntr < end; nCntr++)
-    {
-        int nValue = 0;
-        ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
-
-        if (nValue != nCntr)
-        {
-            std::cout << "K: " << nCntr << ", V: " << nValue << std::endl;
-        }
-    }
-    std::cout << start << ",";
-}
-
-void _remove_(BPlusStoreType* ptrTree, int start, int end) {
-    for (size_t nCntr = start; nCntr < end; nCntr++)
-    {
-        ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
-    }
-    std::cout << start << "<-removed->";
-}
+//void insert(BPlusStoreType* ptrTree, int start, int end) {
+//    for (size_t nCntr = start; nCntr < end; nCntr ++)
+//    {
+//        ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+//    }
+//    std::cout << start << ",";
+//}
+//
+//void search_(BPlusStoreType* ptrTree, int start, int end) {
+//    for (size_t nCntr = start; nCntr < end; nCntr++)
+//    {
+//        int nValue = 0;
+//        ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+//
+//        if (nValue != nCntr)
+//        {
+//            std::cout << "K: " << nCntr << ", V: " << nValue << std::endl;
+//        }
+//    }
+//    std::cout << start << ",";
+//}
+//
+//void _remove_(BPlusStoreType* ptrTree, int start, int end) {
+//    for (size_t nCntr = start; nCntr < end; nCntr++)
+//    {
+//        ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
+//    }
+//    std::cout << start << "<-removed->";
+//}
 
 int main(int argc, char* argv[])
 {
-   
+   /*
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    BPlusStoreType* ptrTree = new BPlusStoreType(6);
+    BPlusStoreType* ptrTree = new BPlusStoreType(3);
 
     ptrTree->template init<LeadNodeType>();
 
     int i = 0;
 
-    const int _t_count = 10;
+    //const int _t_count = 10;
 
-    std::thread i_threads[_t_count];
+    //std::thread i_threads[_t_count];
 
-    for (int i = 0; i < _t_count; i++) {
-        int total = 100000 / _t_count;
-        i_threads[i] = std::thread(insert, ptrTree, i*total, i*total + total);
-    }
+    //for (int i = 0; i < _t_count; i++) {
+    //    int total = 100000 / _t_count;
+    //    i_threads[i] = std::thread(insert, ptrTree, i*total, i*total + total);
+    //}
 
-    for (int i = 0; i < _t_count; i++) {
-        i_threads[i].join();
-    }
+    //for (int i = 0; i < _t_count; i++) {
+    //    i_threads[i].join();
+    //}
 
-    std::thread s_threads[_t_count];
+    //std::thread s_threads[_t_count];
 
-    for (int i = 0; i < _t_count; i++) {
-        int total = 100000 / _t_count;
-        s_threads[i] = std::thread(search_, ptrTree, i * total, i * total + total);
-    }
+    //for (int i = 0; i < _t_count; i++) {
+    //    int total = 100000 / _t_count;
+    //    s_threads[i] = std::thread(search_, ptrTree, i * total, i * total + total);
+    //}
 
    
 
-    for (int i = 0; i < _t_count; i++) {
-        s_threads[i].join();
-    }
+    //for (int i = 0; i < _t_count; i++) {
+    //    s_threads[i].join();
+    //}
 
-    std::thread r_threads[_t_count];
+    //std::thread r_threads[_t_count];
 
-    for (int i = 0; i < _t_count; i++) {
-        int total = 100000 / _t_count;
-        r_threads[i] = std::thread(_remove_, ptrTree, i * total, i * total + total);
-    }
+    //for (int i = 0; i < _t_count; i++) {
+    //    int total = 100000 / _t_count;
+    //    r_threads[i] = std::thread(_remove_, ptrTree, i * total, i * total + total);
+    //}
 
 
 
-    for (int i = 0; i < _t_count; i++) {
-        r_threads[i].join();
-    }
+    //for (int i = 0; i < _t_count; i++) {
+    //    r_threads[i].join();
+    //}
 
-    return 0;
+    //return 0;
 
 
     while (i++ < 10) {
@@ -178,16 +178,16 @@ int main(int argc, char* argv[])
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
     char ch = getchar();
+    */
 
-
-    /*typedef string KeyType;
+    typedef string KeyType;
     typedef string ValueType;
     typedef uintptr_t CacheKeyType;
 
     typedef DataNode<KeyType, ValueType> LeadNodeType;
     typedef IndexNode<KeyType, ValueType, CacheKeyType> InternalNodeType;
 
-    typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, shared_ptr<LeadNodeType>, shared_ptr<InternalNodeType>>> BPlusStoreType;
+    typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<LeadNodeType>, shared_ptr<InternalNodeType>>> BPlusStoreType;
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
     BPlusStoreType* ptrTree = new BPlusStoreType(3);
@@ -262,6 +262,6 @@ int main(int argc, char* argv[])
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
-    char ch = getchar();*/
+    char ch = getchar();
     return 0;
 }

@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 #include <vector>
 #include <string>
 #include <map>
@@ -6,6 +7,9 @@
 #include <iterator>
 #include <iostream>
 #include <cmath>
+#include <optional>
+
+#include "ErrorCodes.h"
 
 using namespace std;
 

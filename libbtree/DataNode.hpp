@@ -1,7 +1,12 @@
 #pragma once
+#include <memory>
 #include <vector>
 #include <string>
 #include <map>
+#include <cmath>
+#include <optional>
+
+#include "ErrorCodes.h"
 
 template <typename KeyType, typename ValueType>
 class DataNode

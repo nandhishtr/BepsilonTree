@@ -1,14 +1,14 @@
 #include "pch.h"
 
-#include "gtest/gtest.h"
-#include "BTree.h"
-#include "DRAMLRUCache.h"
-#include "DRAMCacheObject.h"
-
-#include "NVRAMLRUCache.h"
-#include "NVRAMCacheObject.h"
-#include "NVRAMCacheObjectKey.h"
-using namespace std;
+//#include "gtest/gtest.h"
+//#include "BTree.h"
+//#include "DRAMLRUCache.h"
+//#include "DRAMCacheObject.h"
+//
+//#include "NVRAMLRUCache.h"
+//#include "NVRAMCacheObject.h"
+//#include "NVRAMCacheObjectKey.h"
+//using namespace std;
 
 //class BPlusStore_DRAMLRU_Suite_1 : public ::testing::Test 
 //{

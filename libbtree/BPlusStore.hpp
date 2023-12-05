@@ -2,12 +2,14 @@
 
 #include <iostream>
 #include <stack>
-
-#include "ErrorCodes.h"
+#include <optional>
 #include <mutex>
 #include <shared_mutex>
 #include <syncstream>
 #include <thread>
+#include <cmath>
+
+#include "ErrorCodes.h"
 
 template <typename KeyType, typename ValueType, typename CacheType>
 class BPlusStore
@@ -165,6 +167,8 @@ public:
     template <typename IndexNodeType, typename DataNodeType>
     ErrorCode search(const KeyType& key, ValueType& value)
     {
+        ErrorCode errCode = ErrorCode::Error;
+
         std::vector<std::shared_lock<std::shared_mutex>> vtLocks;
         vtLocks.push_back(std::shared_lock<std::shared_mutex>(mutex));
 
@@ -190,13 +194,15 @@ public:
             {
                 shared_ptr<DataNodeType> ptrDataNode = std::get<shared_ptr<DataNodeType>>(*prNodeDetails->data);
 
-                ErrorCode errCode = ptrDataNode->getValue(key, value);
+                errCode = ptrDataNode->getValue(key, value);
 
                 break;
             }
         } while (true);
 
         vtLocks.clear();
+
+        return errCode;
     }
 
     template <typename IndexNodeType, typename DataNodeType>
@@ -298,6 +304,21 @@ public:
 
                         if (dlt)
                         {
+                            if (*dlt == ckChildNode)
+                            {
+                                auto it = vtLocks.begin();
+                                while (it != vtLocks.end()) {
+                                    if ((*it).mutex() == &ptrChildNode->mutex)
+                                    {
+                                        break;
+                                    }
+                                    it++;
+                                }
+
+                                if (it != vtLocks.end())
+                                    vtLocks.erase(it);
+                            }
+
                             m_ptrCache->remove(*dlt);
                         }
 
@@ -317,6 +338,21 @@ public:
 
                     if (dlt)
                     {
+                        if (*dlt == ckChildNode)
+                        {
+                            auto it = vtLocks.begin();
+                            while (it != vtLocks.end()) {
+                                if ((*it).mutex() == &ptrChildNode->mutex)
+                                {
+                                    break;
+                                }
+                                it++;
+                            }
+
+                            if (it != vtLocks.end())
+                                vtLocks.erase(it);
+                        }
+
                         m_ptrCache->remove(*dlt);
                     }
 
@@ -334,7 +370,7 @@ public:
             vtNodes.pop_back();
         }
 
-        vtLocks.clear();
+        //vtLocks.clear();
         return ErrorCode::Success;
     }
 
