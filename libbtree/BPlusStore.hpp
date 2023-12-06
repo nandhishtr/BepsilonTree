@@ -43,12 +43,17 @@ public:
     template <typename IndexNodeType, typename DataNodeType>
     ErrorCode insert(const KeyType& key, const ValueType& value)
     {
+#ifdef __CONCURRENT__
         std::vector<std::unique_lock<std::shared_mutex>> vtLocks;
+#endif // __CONCURRENT__
+
         std::vector<std::pair<CacheKeyType, CacheValueType>> vtNodes;
         CacheValueType ptrLastNode = nullptr, ptrCurrentNode = nullptr;
         CacheKeyType ckLastNode = NULL, ckCurrentNode = NULL;
 
+#ifdef __CONCURRENT__
         vtLocks.push_back(std::unique_lock<std::shared_mutex>(mutex));
+#endif // __CONCURRENT__
 
         ckCurrentNode = m_cktRootNodeKey.value();
 
@@ -56,7 +61,9 @@ public:
         {
             ptrCurrentNode = m_ptrCache->getObject(ckCurrentNode);    //TODO: lock
 
+#ifdef __CONCURRENT__
             vtLocks.push_back(std::unique_lock<std::shared_mutex>(ptrCurrentNode->mutex));
+#endif __CONCURRENT__
 
             if (ptrCurrentNode == nullptr)
             {
@@ -73,7 +80,9 @@ public:
                 }
                 else
                 {
+#ifdef __CONCURRENT__
                     vtLocks.erase(vtLocks.begin(), vtLocks.begin() + vtLocks.size() - 1);
+#endif __CONCURRENT__
                     vtNodes.clear(); //TODO: release locks
                 }
 
@@ -90,14 +99,14 @@ public:
 
                 if (ptrDataNode->requireSplit(m_nDegree))
                 {
-                    //vtLocks.push_back(std::move(wlock));
-
                     vtNodes.push_back(std::pair<CacheKeyType, CacheValueType>(ckLastNode, ptrLastNode));
                     vtNodes.push_back(std::pair<CacheKeyType, CacheValueType>(ckCurrentNode, ptrCurrentNode));
                 }
                 else
                 {
+#ifdef __CONCURRENT__
                     vtLocks.clear();
+#endif __CONCURRENT__
                     vtNodes.clear(); //TODO: release locks
                 }
 
@@ -159,8 +168,6 @@ public:
             vtNodes.pop_back();
         }
 
-        vtLocks.clear();
-
         return ErrorCode::Success;
     }
 
@@ -169,15 +176,20 @@ public:
     {
         ErrorCode errCode = ErrorCode::Error;
 
+#ifdef __CONCURRENT__
         std::vector<std::shared_lock<std::shared_mutex>> vtLocks;
         vtLocks.push_back(std::shared_lock<std::shared_mutex>(mutex));
+#endif __CONCURRENT__
 
         CacheKeyType ckCurrentNode = m_cktRootNodeKey.value();
         do
         {
             CacheValueType prNodeDetails = m_ptrCache->getObject(ckCurrentNode);    //TODO: lock
+
+#ifdef __CONCURRENT__
             vtLocks.push_back(std::shared_lock<std::shared_mutex>(prNodeDetails->mutex));
             vtLocks.erase(vtLocks.begin());
+#endif __CONCURRENT__
 
             if (prNodeDetails == nullptr)
             {
@@ -200,20 +212,23 @@ public:
             }
         } while (true);
 
-        vtLocks.clear();
-
         return errCode;
     }
 
     template <typename IndexNodeType, typename DataNodeType>
     ErrorCode remove(const KeyType& key)
     {
+#ifdef __CONCURRENT__
         std::vector<std::unique_lock<std::shared_mutex>> vtLocks;
+#endif __CONCURRENT__
+
         std::vector<std::pair<CacheKeyType, CacheValueType>> vtNodes;
         CacheValueType ptrLastNode = nullptr, ptrCurrentNode = nullptr;
         CacheKeyType ckLastNode = NULL, ckCurrentNode = NULL;
 
+#ifdef __CONCURRENT__
         vtLocks.push_back(std::unique_lock<std::shared_mutex>(mutex));
+#endif __CONCURRENT__
 
         ckCurrentNode = m_cktRootNodeKey.value();
 
@@ -221,7 +236,9 @@ public:
         {
             ptrCurrentNode = m_ptrCache->getObject(ckCurrentNode);    //TODO: lock
             
+#ifdef __CONCURRENT__
             vtLocks.push_back(std::unique_lock<std::shared_mutex>(ptrCurrentNode->mutex));
+#endif __CONCURRENT__
 
             if (ptrCurrentNode == nullptr)
             {
@@ -238,10 +255,12 @@ public:
                 }
                 else
                 {
+#ifdef __CONCURRENT__
                     if (vtLocks.size() > 3) //TODO: 3 seems to be working.. but how and why.. investiage when have time!
                     {
                         vtLocks.erase(vtLocks.begin());
                     }
+#endif __CONCURRENT__
                     vtNodes.clear(); //TODO: release locks
                 }
 
@@ -263,7 +282,9 @@ public:
                 }
                 else
                 {
+#ifdef __CONCURRENT__
                     vtLocks.clear();
+#endif __CONCURRENT__
                     vtNodes.clear(); //TODO: release locks
                 }
 
@@ -304,6 +325,7 @@ public:
 
                         if (dlt)
                         {
+#ifdef __CONCURRENT__
                             if (*dlt == ckChildNode)
                             {
                                 auto it = vtLocks.begin();
@@ -318,6 +340,7 @@ public:
                                 if (it != vtLocks.end())
                                     vtLocks.erase(it);
                             }
+#endif __CONCURRENT__
 
                             m_ptrCache->remove(*dlt);
                         }
@@ -338,6 +361,7 @@ public:
 
                     if (dlt)
                     {
+#ifdef __CONCURRENT__
                         if (*dlt == ckChildNode)
                         {
                             auto it = vtLocks.begin();
@@ -352,6 +376,7 @@ public:
                             if (it != vtLocks.end())
                                 vtLocks.erase(it);
                         }
+#endif __CONCURRENT__
 
                         m_ptrCache->remove(*dlt);
                     }
@@ -370,7 +395,6 @@ public:
             vtNodes.pop_back();
         }
 
-        //vtLocks.clear();
         return ErrorCode::Success;
     }
 

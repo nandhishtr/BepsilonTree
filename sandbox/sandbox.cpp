@@ -28,7 +28,9 @@ typedef uintptr_t CacheKeyType;
 typedef DataNode<KeyType, ValueType> DataNodeType;
 typedef IndexNode<KeyType, ValueType, CacheKeyType> IndexNodeType;
 
-typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
+//typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
+
+typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, CacheKeyType, LRUCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
 
 void insert_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
     for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
@@ -90,11 +92,13 @@ void threaded_test(int degree, int total_entries, int thread_count)
     typedef DataNode<KeyType, ValueType> DataNodeType;
     typedef IndexNode<KeyType, ValueType, CacheKeyType> IndexNodeType;
 
-    typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
+    //typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
+    //BPlusStoreType* ptrTree = new BPlusStoreType(degree);
+
+    typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, CacheKeyType, LRUCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
+    BPlusStoreType* ptrTree = new BPlusStoreType(degree, 10, 100000);
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-
-    BPlusStoreType* ptrTree = new BPlusStoreType(degree);
 
     ptrTree->template init<DataNodeType>();
 
@@ -176,11 +180,13 @@ void int_test(int degree, int total_entries)
     typedef DataNode<KeyType, ValueType> DataNodeType;
     typedef IndexNode<KeyType, ValueType, CacheKeyType> IndexNodeType;
 
-    typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
+    //typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
+    //BPlusStoreType* ptrTree = new BPlusStoreType(degree);
+
+    typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, CacheKeyType, LRUCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
+    BPlusStoreType* ptrTree = new BPlusStoreType(degree, 10, 100000);
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-
-    BPlusStoreType* ptrTree = new BPlusStoreType(degree);
 
     ptrTree->template init<DataNodeType>();
 
@@ -273,10 +279,13 @@ void string_test(int degree, int total_entries)
     typedef DataNode<KeyType, ValueType> DataNodeType;
     typedef IndexNode<KeyType, ValueType, CacheKeyType> IndexNodeType;
 
-    typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
+    //typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
+    //BPlusStoreType* ptrTree = new BPlusStoreType(degree);
+
+    typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, CacheKeyType, LRUCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
+    BPlusStoreType* ptrTree = new BPlusStoreType(degree, 10, 100000);
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    BPlusStoreType* ptrTree = new BPlusStoreType(degree);
 
     ptrTree->template init<DataNodeType>();
 
@@ -375,13 +384,12 @@ int main(int argc, char* argv[])
     typedef IndexNode<KeyType, ValueType, CacheKeyType> IndexNodeType;
 
     //typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
+    //BPlusStoreType* ptrTree = new BPlusStoreType(3);
 
     typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, CacheKeyType, LRUCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
-
+    BPlusStoreType* ptrTree = new BPlusStoreType(3, 10, 100000);
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-
-    BPlusStoreType* ptrTree = new BPlusStoreType(3);
 
     ptrTree->template init<DataNodeType>();
 
@@ -415,8 +423,8 @@ int main(int argc, char* argv[])
     for (int idx = 3; idx < 8; idx++) {
         std::cout << "iteration.." << idx << std::endl;
         int_test(idx, 10000);
-        string_test(idx, 10000);
-        threaded_test(idx, 10000, 10);
+        //string_test(idx, 10000);
+        //threaded_test(idx, 10000, 10);
     }
 
     char ch = getchar();
