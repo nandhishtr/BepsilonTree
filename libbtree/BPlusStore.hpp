@@ -11,6 +11,8 @@
 
 #include "ErrorCodes.h"
 
+#define __CONCURRENT__
+
 template <typename KeyType, typename ValueType, typename CacheType>
 class BPlusStore
 {
@@ -256,7 +258,7 @@ public:
                 else
                 {
 #ifdef __CONCURRENT__
-                    if (vtLocks.size() > 3) //TODO: 3 seems to be working.. but how and why.. investiage when have time!
+                    if (vtLocks.size() > 3) //TODO: 3 seems to be working.. but how and why.. investiage....!
                     {
                         vtLocks.erase(vtLocks.begin());
                     }

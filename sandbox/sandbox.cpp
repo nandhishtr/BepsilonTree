@@ -96,7 +96,7 @@ void threaded_test(int degree, int total_entries, int thread_count)
     //BPlusStoreType* ptrTree = new BPlusStoreType(degree);
 
     typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, CacheKeyType, LRUCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
-    BPlusStoreType* ptrTree = new BPlusStoreType(degree, 10, 100000);
+    BPlusStoreType* ptrTree = new BPlusStoreType(degree, 10000, 10000000);
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
@@ -184,7 +184,7 @@ void int_test(int degree, int total_entries)
     //BPlusStoreType* ptrTree = new BPlusStoreType(degree);
 
     typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, CacheKeyType, LRUCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
-    BPlusStoreType* ptrTree = new BPlusStoreType(degree, 10, 100000);
+    BPlusStoreType* ptrTree = new BPlusStoreType(degree, 10, 10000000);
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
@@ -283,7 +283,7 @@ void string_test(int degree, int total_entries)
     //BPlusStoreType* ptrTree = new BPlusStoreType(degree);
 
     typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, CacheKeyType, LRUCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
-    BPlusStoreType* ptrTree = new BPlusStoreType(degree, 10, 100000);
+    BPlusStoreType* ptrTree = new BPlusStoreType(degree, 10, 10000000);
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
@@ -387,10 +387,8 @@ int main(int argc, char* argv[])
     //BPlusStoreType* ptrTree = new BPlusStoreType(3);
 
     typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, CacheKeyType, LRUCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
-    BPlusStoreType* ptrTree = new BPlusStoreType(3, 10, 100000);
-
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-
+    BPlusStoreType* ptrTree = new BPlusStoreType(3, 100000, 100000);
+/*
     ptrTree->template init<DataNodeType>();
 
     for (size_t nCntr = 0; nCntr < 10000; nCntr++)
@@ -418,13 +416,13 @@ int main(int argc, char* argv[])
 
         assert(code == ErrorCode::KeyDoesNotExist);
     }
-    
+  */  
 
-    for (int idx = 3; idx < 8; idx++) {
+    for (int idx = 3; idx < 20; idx++) {
         std::cout << "iteration.." << idx << std::endl;
-        int_test(idx, 10000);
+        //int_test(idx, 10000);
         //string_test(idx, 10000);
-        //threaded_test(idx, 10000, 10);
+        threaded_test(idx, 10000, 10);
     }
 
     char ch = getchar();

@@ -45,6 +45,7 @@ private:
 	std::shared_ptr<Item> m_ptrHead;
 	std::shared_ptr<Item> m_ptrTail;
 
+	mutable std::shared_mutex mutex;
 	std::unique_ptr<StorageType<KeyType, ValueType, ValueCoreTypes...>> m_ptrStorage;
 
 public:
@@ -52,16 +53,19 @@ public:
 	{
 	}
 
-	LRUCache(size_t nCapacity = 10000)
+	template <typename... StorageArgs>
+	LRUCache(size_t nCapacity, StorageArgs... args)
 		: m_nCapacity(nCapacity)
 		, m_ptrHead(nullptr)
 		, m_ptrTail(nullptr)
 	{
-		m_ptrStorage = std::make_unique<StorageType<KeyType, ValueType, ValueCoreTypes...>>(m_nCapacity);
+		m_ptrStorage = std::make_unique<StorageType<KeyType, ValueType, ValueCoreTypes...>>(args...);
 	}
 
 	CacheErrorCode remove(KeyType objKey)
 	{
+		std::unique_lock<std::shared_mutex>  lock_storage(mutex);
+
 		auto it = m_mpObject.find(objKey);
 		if (it != m_mpObject.end()) 
 		{
@@ -75,6 +79,8 @@ public:
 
 	CacheValueType getObject(KeyType key)
 	{
+		std::unique_lock<std::shared_mutex> lock_storage(mutex);
+
 		if (m_mpObject.find(key) != m_mpObject.end())
 		{
 			std::shared_ptr<Item> ptrItem = m_mpObject[key];
@@ -95,6 +101,8 @@ public:
 	template <typename Type>
 	Type getObjectOfType(KeyType key)
 	{
+		std::unique_lock<std::shared_mutex> lock_storage(mutex);
+
 		if (m_mpObject.find(key) != m_mpObject.end())
 		{
 			std::shared_ptr<Item> ptrItem = m_mpObject[key];
@@ -127,6 +135,8 @@ public:
 	template<class Type, typename... ArgsType>
 	KeyType createObjectOfType(ArgsType... args)
 	{
+		std::unique_lock<std::shared_mutex> lock_storage(mutex);
+
 		//TODO .. do we really need these much objects? ponder!
 		KeyType key;
 		std::shared_ptr<ValueType<ValueCoreTypes...>> ptrValue = ValueType<ValueCoreTypes...>::template createObjectOfType<Type>(args...);
@@ -192,7 +202,7 @@ private:
 		{
 			if (m_ptrTail->m_ptrValue.use_count() > 1)
 			{
-				throw std::invalid_argument("reached an invalid state..");
+				//throw std::invalid_argument("reached an invalid state..");
 			}
 
 			m_ptrStorage->addObject(m_ptrTail->m_oKey, m_ptrTail->m_ptrValue);
