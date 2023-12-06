@@ -153,7 +153,10 @@
     <ClInclude Include="ICacheObjectKey.h" />
     <ClInclude Include="IDRAMCacheObject.h" />
     <ClInclude Include="INVRAMCacheObject.h" />
+    <ClInclude Include="LRUCache.hpp" />
+    <ClInclude Include="LRUCacheObject.hpp" />
     <ClInclude Include="NoCache.h" />
+    <ClInclude Include="NoCacheObject.hpp" />
     <ClInclude Include="NVRAMCacheObject.h" />
     <ClInclude Include="NVRAMCacheObjectKey.h" />
     <ClInclude Include="NVRAMLRUCache.h" />
@@ -162,6 +165,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="NVRAMDAXStorage.h" />
     <ClInclude Include="UnsortedMapUtil.h" />
+    <ClInclude Include="VolatileStorage.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DRAMCacheObject.cpp" />

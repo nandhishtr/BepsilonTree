@@ -13,255 +13,412 @@
 #include "IndexNode.hpp"
 
 #include <chrono>
+#include <cassert>
+
+#include "LRUCache.hpp"
+#include "VolatileStorage.hpp"
+#include "NoCacheObject.hpp"
+#include "LRUCacheObject.hpp"
+
 
 typedef int KeyType;
 typedef int ValueType;
 typedef uintptr_t CacheKeyType;
 
-typedef DataNode<KeyType, ValueType> LeadNodeType;
-typedef IndexNode<KeyType, ValueType, CacheKeyType> InternalNodeType;
+typedef DataNode<KeyType, ValueType> DataNodeType;
+typedef IndexNode<KeyType, ValueType, CacheKeyType> IndexNodeType;
 
-typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<LeadNodeType>, shared_ptr<InternalNodeType>>> BPlusStoreType;
+typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
 
-std::condition_variable cv;
+void insert_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
+    for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
+    {
+        ptrTree->template insert<IndexNodeType, DataNodeType>(nCntr, nCntr);
+    }
+}
 
-//void insert(BPlusStoreType* ptrTree, int start, int end) {
-//    for (size_t nCntr = start; nCntr < end; nCntr ++)
-//    {
-//        ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
-//    }
-//    std::cout << start << ",";
-//}
-//
-//void search_(BPlusStoreType* ptrTree, int start, int end) {
-//    for (size_t nCntr = start; nCntr < end; nCntr++)
-//    {
-//        int nValue = 0;
-//        ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
-//
-//        if (nValue != nCntr)
-//        {
-//            std::cout << "K: " << nCntr << ", V: " << nValue << std::endl;
-//        }
-//    }
-//    std::cout << start << ",";
-//}
-//
-//void _remove_(BPlusStoreType* ptrTree, int start, int end) {
-//    for (size_t nCntr = start; nCntr < end; nCntr++)
-//    {
-//        ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
-//    }
-//    std::cout << start << "<-removed->";
-//}
+void reverse_insert_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
+    for (int nCntr = nRangeEnd - 1; nCntr >= nRangeStart; nCntr--)
+    {
+        ptrTree->template insert<IndexNodeType, DataNodeType>(nCntr, nCntr);
+    }
+}
 
-int main(int argc, char* argv[])
+void search_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
+    for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
+    {
+        int nValue = 0;
+        ErrorCode code = ptrTree->template search<IndexNodeType, DataNodeType>(nCntr, nValue);
+
+        assert(nCntr == nValue);
+    }
+}
+
+void search_not_found_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
+    for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
+    {
+        int nValue = 0;
+        ErrorCode errCode = ptrTree->template search<IndexNodeType, DataNodeType>(nCntr, nValue);
+
+        assert(errCode == ErrorCode::KeyDoesNotExist);
+    }
+}
+
+void delete_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
+    for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
+    {
+        ErrorCode code = ptrTree->template remove<IndexNodeType, DataNodeType>(nCntr);
+    }
+}
+
+void reverse_delete_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
+    for (int nCntr = nRangeEnd - 1; nCntr >= nRangeStart; nCntr--)
+    {
+        ErrorCode code = ptrTree->template remove<IndexNodeType, DataNodeType>(nCntr);
+    }
+}
+
+
+void threaded_test(int degree, int total_entries, int thread_count)
 {
-   /*
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    BPlusStoreType* ptrTree = new BPlusStoreType(3);
+    vector<std::thread> vtThreads;
 
-    ptrTree->template init<LeadNodeType>();
+    typedef int KeyType;
+    typedef int ValueType;
+    typedef uintptr_t CacheKeyType;
+
+    typedef DataNode<KeyType, ValueType> DataNodeType;
+    typedef IndexNode<KeyType, ValueType, CacheKeyType> IndexNodeType;
+
+    typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
+
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
+    BPlusStoreType* ptrTree = new BPlusStoreType(degree);
+
+    ptrTree->template init<DataNodeType>();
 
     int i = 0;
-
-    //const int _t_count = 10;
-
-    //std::thread i_threads[_t_count];
-
-    //for (int i = 0; i < _t_count; i++) {
-    //    int total = 100000 / _t_count;
-    //    i_threads[i] = std::thread(insert, ptrTree, i*total, i*total + total);
-    //}
-
-    //for (int i = 0; i < _t_count; i++) {
-    //    i_threads[i].join();
-    //}
-
-    //std::thread s_threads[_t_count];
-
-    //for (int i = 0; i < _t_count; i++) {
-    //    int total = 100000 / _t_count;
-    //    s_threads[i] = std::thread(search_, ptrTree, i * total, i * total + total);
-    //}
-
-   
-
-    //for (int i = 0; i < _t_count; i++) {
-    //    s_threads[i].join();
-    //}
-
-    //std::thread r_threads[_t_count];
-
-    //for (int i = 0; i < _t_count; i++) {
-    //    int total = 100000 / _t_count;
-    //    r_threads[i] = std::thread(_remove_, ptrTree, i * total, i * total + total);
-    //}
-
-
-
-    //for (int i = 0; i < _t_count; i++) {
-    //    r_threads[i].join();
-    //}
-
-    //return 0;
-
-
     while (i++ < 10) {
         std::cout << i << std::endl;
-        for (size_t nCntr = 0; nCntr < 50000; nCntr = nCntr + 2)
+
+        for (int nIdx = 0; nIdx < thread_count; nIdx++)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
-        }
-        for (size_t nCntr = 1; nCntr < 50000; nCntr = nCntr + 2)
-        {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+            int nTotal = total_entries / thread_count;
+            vtThreads.push_back(std::thread(insert_concurent, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
         }
 
-        //ptrTree->template print<InternalNodeType, LeadNodeType>();
+        auto it = vtThreads.begin();
+        while (it != vtThreads.end())
+        {
+            (*it).join();
+            it++;
+        }
 
-        for (size_t nCntr = 0; nCntr < 50000; nCntr++)
+        vtThreads.clear();
+
+        for (int nIdx = 0; nIdx < thread_count; nIdx++)
+        {
+            int nTotal = total_entries / thread_count;
+            vtThreads.push_back(std::thread(search_concurent, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
+        }
+
+        it = vtThreads.begin();
+        while (it != vtThreads.end())
+        {
+            (*it).join();
+            it++;
+        }
+
+        vtThreads.clear();
+
+        for (int nIdx = 0; nIdx < thread_count; nIdx++)
+        {
+            int nTotal = total_entries / thread_count;
+            vtThreads.push_back(std::thread(delete_concurent, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
+        }
+
+        it = vtThreads.begin();
+        while (it != vtThreads.end())
+        {
+            (*it).join();
+            it++;
+        }
+
+        vtThreads.clear();
+
+        for (int nIdx = 0; nIdx < thread_count; nIdx++)
+        {
+            int nTotal = total_entries / thread_count;
+            vtThreads.push_back(std::thread(search_not_found_concurent, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
+        }
+
+        it = vtThreads.begin();
+        while (it != vtThreads.end())
+        {
+            (*it).join();
+            it++;
+        }
+
+        vtThreads.clear();
+    }
+    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
+    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
+    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
+}
+
+void int_test(int degree, int total_entries)
+{
+    typedef int KeyType;
+    typedef int ValueType;
+    typedef uintptr_t CacheKeyType;
+
+    typedef DataNode<KeyType, ValueType> DataNodeType;
+    typedef IndexNode<KeyType, ValueType, CacheKeyType> IndexNodeType;
+
+    typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
+
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
+    BPlusStoreType* ptrTree = new BPlusStoreType(degree);
+
+    ptrTree->template init<DataNodeType>();
+
+    int i = 0;
+    while (i++ < 10) {
+        std::cout << i << std::endl;
+        for (size_t nCntr = 0; nCntr < total_entries; nCntr = nCntr + 2)
+        {
+            ptrTree->template insert<IndexNodeType, DataNodeType>(nCntr, nCntr);
+        }
+        for (size_t nCntr = 1; nCntr < total_entries; nCntr = nCntr + 2)
+        {
+            ptrTree->template insert<IndexNodeType, DataNodeType>(nCntr, nCntr);
+        }
+
+        for (size_t nCntr = 0; nCntr < total_entries; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+            ErrorCode code = ptrTree->template search<IndexNodeType, DataNodeType>(nCntr, nValue);
 
-            if (nValue != nCntr)
-            {
-                std::cout << "K: " << nCntr << ", V: " << nValue << std::endl;
-            }
+            assert(nValue == nCntr);
         }
 
-        for (size_t nCntr = 0; nCntr < 50000; nCntr = nCntr + 2)
+        for (size_t nCntr = 0; nCntr < total_entries; nCntr = nCntr + 2)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
+            ErrorCode code = ptrTree->template remove<IndexNodeType, DataNodeType>(nCntr);
         }
-        for (size_t nCntr = 1; nCntr < 50000; nCntr = nCntr + 2)
+        for (size_t nCntr = 1; nCntr < total_entries; nCntr = nCntr + 2)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
+            ErrorCode code = ptrTree->template remove<IndexNodeType, DataNodeType>(nCntr);
+        }
+
+        for (int nCntr = 0; nCntr < total_entries; nCntr++)
+        {
+            int nValue = 0;
+            ErrorCode code = ptrTree->template search<IndexNodeType, DataNodeType>(nCntr, nValue);
+
+            assert(code == ErrorCode::KeyDoesNotExist);
         }
     }
     i = 0;
     while (i++ < 10) {
         std::cout << "rev:" << i << std::endl;
-        for (int nCntr = 4999; nCntr >= 0; nCntr = nCntr - 2)
+        for (int nCntr = total_entries; nCntr >= 0; nCntr = nCntr - 2)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+            ptrTree->template insert<IndexNodeType, DataNodeType>(nCntr, nCntr);
         }
-        for (int nCntr = 5000; nCntr >= 0; nCntr = nCntr - 2)
+        for (int nCntr = total_entries - 1; nCntr >= 0; nCntr = nCntr - 2)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+            ptrTree->template insert<IndexNodeType, DataNodeType>(nCntr, nCntr);
         }
 
-        //ptrTree->print<InternalNodeType, LeadNodeType>();
-
-        for (int nCntr = 0; nCntr < 5000; nCntr++)
+        for (int nCntr = 0; nCntr < total_entries; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+            ErrorCode code = ptrTree->template search<IndexNodeType, DataNodeType>(nCntr, nValue);
 
-            if (nValue != nCntr)
-            {
-                std::cout << "K: " << nCntr << ", V: " << nValue << std::endl;
-            }
+            assert(nValue == nCntr);
         }
 
-        for (int nCntr = 5000; nCntr >= 0; nCntr = nCntr - 2)
+        for (int nCntr = total_entries; nCntr >= 0; nCntr = nCntr - 2)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
+            ErrorCode code = ptrTree->template remove<IndexNodeType, DataNodeType>(nCntr);
         }
-        for (int nCntr = 4999; nCntr >= 0; nCntr = nCntr - 2)
+        for (int nCntr = total_entries - 1; nCntr >= 0; nCntr = nCntr - 2)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
+            ErrorCode code = ptrTree->template remove<IndexNodeType, DataNodeType>(nCntr);
         }
+
+        for (int nCntr = 0; nCntr < total_entries; nCntr++)
+        {
+            int nValue = 0;
+            ErrorCode code = ptrTree->template search<IndexNodeType, DataNodeType>(nCntr, nValue);
+
+            assert(code == ErrorCode::KeyDoesNotExist);
+        }
+
     }
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
-    char ch = getchar();
-    */
+}
 
+void string_test(int degree, int total_entries)
+{
     typedef string KeyType;
     typedef string ValueType;
     typedef uintptr_t CacheKeyType;
 
-    typedef DataNode<KeyType, ValueType> LeadNodeType;
-    typedef IndexNode<KeyType, ValueType, CacheKeyType> InternalNodeType;
+    typedef DataNode<KeyType, ValueType> DataNodeType;
+    typedef IndexNode<KeyType, ValueType, CacheKeyType> IndexNodeType;
 
-    typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<LeadNodeType>, shared_ptr<InternalNodeType>>> BPlusStoreType;
+    typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-    BPlusStoreType* ptrTree = new BPlusStoreType(3);
+    BPlusStoreType* ptrTree = new BPlusStoreType(degree);
 
-    ptrTree->template init<LeadNodeType>();
+    ptrTree->template init<DataNodeType>();
 
     int i = 0;
 
     while (i++ < 10) {
         std::cout << i << std::endl;
-        for (size_t nCntr = 0; nCntr < 50000; nCntr = nCntr + 2)
+        for (size_t nCntr = 0; nCntr < total_entries; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->template insert<IndexNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
         }
-        for (size_t nCntr = 1; nCntr < 50000; nCntr = nCntr + 2)
+        for (size_t nCntr = 1; nCntr < total_entries; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->template insert<IndexNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
         }
 
-        for (size_t nCntr = 0; nCntr < 50000; nCntr++)
+        for (size_t nCntr = 0; nCntr < total_entries; nCntr++)
         {
             string nValue = "";
-            ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->template search<IndexNodeType, DataNodeType>(to_string(nCntr), nValue);
 
-            if (nValue != to_string(nCntr))
-            {
-                std::cout << "K: " << nCntr << ", V: " << nValue << std::endl;
-            }
+            assert(nValue == to_string(nCntr));
         }
 
-        for (size_t nCntr = 0; nCntr < 50000; nCntr = nCntr + 2)
+        for (size_t nCntr = 0; nCntr < total_entries; nCntr = nCntr + 2)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(to_string(nCntr));
+            ErrorCode code = ptrTree->template remove<IndexNodeType, DataNodeType>(to_string(nCntr));
         }
-        for (size_t nCntr = 1; nCntr < 50000; nCntr = nCntr + 2)
+        for (size_t nCntr = 1; nCntr < total_entries; nCntr = nCntr + 2)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(to_string(nCntr));
+            ErrorCode code = ptrTree->template remove<IndexNodeType, DataNodeType>(to_string(nCntr));
         }
+
+        for (size_t nCntr = 0; nCntr < total_entries; nCntr++)
+        {
+            string nValue = "";
+            ErrorCode code = ptrTree->template search<IndexNodeType, DataNodeType>(to_string(nCntr), nValue);
+
+            assert(code == ErrorCode::KeyDoesNotExist);
+        }
+
     }
+
     i = 0;
     while (i++ < 10) {
         std::cout << "rev:" << i << std::endl;
-        for (int nCntr = 4999; nCntr >= 0; nCntr = nCntr - 2)
+        for (int nCntr = total_entries - 1; nCntr >= 0; nCntr = nCntr - 2)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->template insert<IndexNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
         }
-        for (int nCntr = 5000; nCntr >= 0; nCntr = nCntr - 2)
+        for (int nCntr = total_entries; nCntr >= 0; nCntr = nCntr - 2)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->template insert<IndexNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
         }
 
-        for (int nCntr = 0; nCntr < 5000; nCntr++)
+        for (int nCntr = 0; nCntr < total_entries; nCntr++)
         {
             string nValue = "";
-            ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->template search<IndexNodeType, DataNodeType>(to_string(nCntr), nValue);
 
-            if (nValue != to_string(nCntr))
-            {
-                std::cout << "K: " << nCntr << ", V: " << nValue << std::endl;
-            }
+            assert(nValue == to_string(nCntr));
         }
 
-        for (int nCntr = 5000; nCntr >= 0; nCntr = nCntr - 2)
+        for (int nCntr = total_entries; nCntr >= 0; nCntr = nCntr - 2)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(to_string(nCntr));
+            ErrorCode code = ptrTree->template remove<IndexNodeType, DataNodeType>(to_string(nCntr));
         }
-        for (int nCntr = 4999; nCntr >= 0; nCntr = nCntr - 2)
+        for (int nCntr = total_entries - 1; nCntr >= 0; nCntr = nCntr - 2)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(to_string(nCntr));
+            ErrorCode code = ptrTree->template remove<IndexNodeType, DataNodeType>(to_string(nCntr));
         }
+
+        for (int nCntr = 0; nCntr < total_entries; nCntr++)
+        {
+            string nValue = "";
+            ErrorCode code = ptrTree->template search<IndexNodeType, DataNodeType>(to_string(nCntr), nValue);
+
+            assert(code == ErrorCode::KeyDoesNotExist);
+        }
+
     }
+
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
+}
+
+int main(int argc, char* argv[])
+{
+    
+    typedef int KeyType;
+    typedef int ValueType;
+    typedef uintptr_t CacheKeyType;
+
+    typedef DataNode<KeyType, ValueType> DataNodeType;
+    typedef IndexNode<KeyType, ValueType, CacheKeyType> IndexNodeType;
+
+    //typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
+
+    typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, CacheKeyType, LRUCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
+
+
+    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+
+    BPlusStoreType* ptrTree = new BPlusStoreType(3);
+
+    ptrTree->template init<DataNodeType>();
+
+    for (size_t nCntr = 0; nCntr < 10000; nCntr++)
+    {
+        ptrTree->template insert<IndexNodeType, DataNodeType>(nCntr, nCntr);
+    }
+
+    for (size_t nCntr = 0; nCntr < 10000; nCntr++)
+    {
+        int nValue = 0;
+        ErrorCode code = ptrTree->template search<IndexNodeType, DataNodeType>(nCntr, nValue);
+
+        assert(nValue == nCntr);
+    }
+
+    for (size_t nCntr = 0; nCntr < 10000; nCntr++)
+    {
+        ErrorCode code = ptrTree->template remove<IndexNodeType, DataNodeType>(nCntr);
+    }
+
+    for (size_t nCntr = 0; nCntr < 10000; nCntr++)
+    {
+        int nValue = 0;
+        ErrorCode code = ptrTree->template search<IndexNodeType, DataNodeType>(nCntr, nValue);
+
+        assert(code == ErrorCode::KeyDoesNotExist);
+    }
+    
+
+    for (int idx = 3; idx < 8; idx++) {
+        std::cout << "iteration.." << idx << std::endl;
+        int_test(idx, 10000);
+        string_test(idx, 10000);
+        threaded_test(idx, 10000, 10);
+    }
+
     char ch = getchar();
     return 0;
 }

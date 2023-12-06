@@ -54,7 +54,7 @@ public:
 
         do
         {
-            ptrCurrentNode = m_ptrCache->getObjectOfType(ckCurrentNode);    //TODO: lock
+            ptrCurrentNode = m_ptrCache->getObject(ckCurrentNode);    //TODO: lock
 
             vtLocks.push_back(std::unique_lock<std::shared_mutex>(ptrCurrentNode->mutex));
 
@@ -175,7 +175,7 @@ public:
         CacheKeyType ckCurrentNode = m_cktRootNodeKey.value();
         do
         {
-            CacheValueType prNodeDetails = m_ptrCache->getObjectOfType(ckCurrentNode);    //TODO: lock
+            CacheValueType prNodeDetails = m_ptrCache->getObject(ckCurrentNode);    //TODO: lock
             vtLocks.push_back(std::shared_lock<std::shared_mutex>(prNodeDetails->mutex));
             vtLocks.erase(vtLocks.begin());
 
@@ -219,7 +219,7 @@ public:
 
         do
         {
-            ptrCurrentNode = m_ptrCache->getObjectOfType(ckCurrentNode);    //TODO: lock
+            ptrCurrentNode = m_ptrCache->getObject(ckCurrentNode);    //TODO: lock
             
             vtLocks.push_back(std::unique_lock<std::shared_mutex>(ptrCurrentNode->mutex));
 
