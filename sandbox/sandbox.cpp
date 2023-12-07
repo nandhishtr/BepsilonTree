@@ -227,7 +227,7 @@ void int_test(int degree, int total_entries)
             assert(code == ErrorCode::KeyDoesNotExist);
         }
     }
-    i = 0;
+/*    i = 0;
     while (i++ < 10) {
         std::cout << "rev:" << i << std::endl;
         for (int nCntr = total_entries; nCntr >= 0; nCntr = nCntr - 2)
@@ -264,7 +264,7 @@ void int_test(int degree, int total_entries)
             assert(code == ErrorCode::KeyDoesNotExist);
         }
 
-    }
+    }*/
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
@@ -388,7 +388,7 @@ int main(int argc, char* argv[])
 
     typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, CacheKeyType, LRUCacheObject, shared_ptr<DataNodeType>, shared_ptr<IndexNodeType>>> BPlusStoreType;
     BPlusStoreType* ptrTree = new BPlusStoreType(3, 100000, 100000);
-/*
+
     ptrTree->template init<DataNodeType>();
 
     for (size_t nCntr = 0; nCntr < 10000; nCntr++)
@@ -416,11 +416,11 @@ int main(int argc, char* argv[])
 
         assert(code == ErrorCode::KeyDoesNotExist);
     }
-  */  
+    
 
     for (int idx = 3; idx < 20; idx++) {
         std::cout << "iteration.." << idx << std::endl;
-        //int_test(idx, 10000);
+        int_test(idx, 10000);
         //string_test(idx, 10000);
         threaded_test(idx, 10000, 10);
     }
