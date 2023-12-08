@@ -11,7 +11,7 @@
 
 #include "ErrorCodes.h"
 
-#define __CONCURRENT__
+//#define __CONCURRENT__
 
 template <typename KeyType, typename ValueType, typename CacheType>
 class BPlusStore

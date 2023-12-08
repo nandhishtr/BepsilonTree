@@ -9,16 +9,18 @@
 
 #include "glog/logging.h"
 
-#include "NoCache.h"
+#include "LRUCache.hpp"
 #include "IndexNode.hpp"
 #include "DataNode.hpp"
 #include "BPlusStore.hpp"
-#include "NoCacheObject.hpp"
+#include "LRUCacheObject.hpp"
+#include "FileStorage.hpp"
+#include "TypeMarshaller.hpp"
 
-namespace BPlusStore_NoCache_Suite
+namespace BPlusStore_LRUCache_FileStorage_Suite
 {
 
-    class BPlusStore_NoCache_Suite_1 : public ::testing::TestWithParam<std::tuple<int, int, int>>
+    class BPlusStore_LRUCache_FileStorage_Suite_1 : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, int, string>>
     {
     protected:
         typedef int KeyType;
@@ -28,13 +30,13 @@ namespace BPlusStore_NoCache_Suite
         typedef DataNode<KeyType, ValueType> LeadNodeType;
         typedef IndexNode<KeyType, ValueType, CacheKeyType> InternalNodeType;
 
-        typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, LeadNodeType, InternalNodeType>> BPlusStoreType;
+        typedef BPlusStore<KeyType, ValueType, LRUCache<FileStorage, CacheKeyType, LRUCacheObject, TypeMarshaller, LeadNodeType, InternalNodeType>> BPlusStoreType;
 
         BPlusStoreType* m_ptrTree;
 
         void SetUp() override
         {
-            std::tie(nDegree, nBegin_BulkInsert, nEnd_BulkInsert) = GetParam();
+            std::tie(nDegree, nBegin_BulkInsert, nEnd_BulkInsert, nCacheSize, nBlockSize, nFileSize, stFileName) = GetParam();
 
             //m_ptrTree = new BPlusStoreType(3);
             //m_ptrTree->template init<LeadNodeType>();
@@ -47,11 +49,15 @@ namespace BPlusStore_NoCache_Suite
         int nDegree;
         int nBegin_BulkInsert;
         int nEnd_BulkInsert;
+        int nCacheSize;
+        int nBlockSize;
+        int nFileSize;
+        string stFileName;
     };
 
-    TEST_P(BPlusStore_NoCache_Suite_1, Bulk_Insert_v1) {
+    TEST_P(BPlusStore_LRUCache_FileStorage_Suite_1, Bulk_Insert_v1) {
 
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree);
+        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
         ptrTree->template init<LeadNodeType>();
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
@@ -62,9 +68,9 @@ namespace BPlusStore_NoCache_Suite
         delete ptrTree;
     }
 
-    TEST_P(BPlusStore_NoCache_Suite_1, Bulk_Insert_v2) {
+    TEST_P(BPlusStore_LRUCache_FileStorage_Suite_1, Bulk_Insert_v2) {
 
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree);
+        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
         ptrTree->template init<LeadNodeType>();
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
@@ -80,9 +86,9 @@ namespace BPlusStore_NoCache_Suite
         delete ptrTree;
     }
 
-    TEST_P(BPlusStore_NoCache_Suite_1, Bulk_Insert_v3) {
+    TEST_P(BPlusStore_LRUCache_FileStorage_Suite_1, Bulk_Insert_v3) {
 
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree);
+        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
         ptrTree->template init<LeadNodeType>();
 
         for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
@@ -93,9 +99,9 @@ namespace BPlusStore_NoCache_Suite
         delete ptrTree;
     }
 
-    TEST_P(BPlusStore_NoCache_Suite_1, Bulk_Search_v1) {
+    TEST_P(BPlusStore_LRUCache_FileStorage_Suite_1, Bulk_Search_v1) {
 
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree);
+        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
         ptrTree->template init<LeadNodeType>();
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
@@ -114,9 +120,9 @@ namespace BPlusStore_NoCache_Suite
         delete ptrTree;
     }
 
-    TEST_P(BPlusStore_NoCache_Suite_1, Bulk_Search_v2) {
+    TEST_P(BPlusStore_LRUCache_FileStorage_Suite_1, Bulk_Search_v2) {
 
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree);
+        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
         ptrTree->template init<LeadNodeType>();
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
@@ -140,9 +146,9 @@ namespace BPlusStore_NoCache_Suite
         delete ptrTree;
     }
 
-    TEST_P(BPlusStore_NoCache_Suite_1, Bulk_Search_v3) {
+    TEST_P(BPlusStore_LRUCache_FileStorage_Suite_1, Bulk_Search_v3) {
 
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree);
+        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
         ptrTree->template init<LeadNodeType>();
 
         for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
@@ -161,9 +167,9 @@ namespace BPlusStore_NoCache_Suite
         delete ptrTree;
     }
 
-    TEST_P(BPlusStore_NoCache_Suite_1, Bulk_Delete_v1) {
+    TEST_P(BPlusStore_LRUCache_FileStorage_Suite_1, Bulk_Delete_v1) {
 
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree);
+        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
         ptrTree->template init<LeadNodeType>();
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
@@ -197,9 +203,9 @@ namespace BPlusStore_NoCache_Suite
         delete ptrTree;
     }
 
-    TEST_P(BPlusStore_NoCache_Suite_1, Bulk_Delete_v2) {
+    TEST_P(BPlusStore_LRUCache_FileStorage_Suite_1, Bulk_Delete_v2) {
 
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree);
+        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
         ptrTree->template init<LeadNodeType>();
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
@@ -238,9 +244,9 @@ namespace BPlusStore_NoCache_Suite
         delete ptrTree;
     }
 
-    TEST_P(BPlusStore_NoCache_Suite_1, Bulk_Delete_v3) {
+    TEST_P(BPlusStore_LRUCache_FileStorage_Suite_1, Bulk_Delete_v3) {
 
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree);
+        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
         ptrTree->template init<LeadNodeType>();
 
         for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
@@ -275,18 +281,18 @@ namespace BPlusStore_NoCache_Suite
         delete ptrTree;
     }
 
-    INSTANTIATE_TEST_CASE_P(
-        Bulk_Insert_Search_Delete,
-        BPlusStore_NoCache_Suite_1,
-        ::testing::Values(
-            std::make_tuple(3, 0, 99999),
-            std::make_tuple(4, 0, 99999),
-            std::make_tuple(5, 0, 99999),
-            std::make_tuple(6, 0, 99999),
-            std::make_tuple(7, 0, 99999),
-            std::make_tuple(8, 0, 99999),
-            std::make_tuple(15, 0, 199999),
-            std::make_tuple(16, 0, 199999),
-            std::make_tuple(32, 0, 199999),
-            std::make_tuple(64, 0, 199999)));   
+    //INSTANTIATE_TEST_CASE_P(
+    //    Bulk_Insert_Search_Delete,
+    //    BPlusStore_LRUCache_FileStorage_Suite_1,
+    //    ::testing::Values(
+    //        std::make_tuple(3, 0, 99999, 100, 1024, 1024, ""),
+    //        std::make_tuple(4, 0, 99999, 100, 1024, 1024, ""),
+    //        std::make_tuple(5, 0, 99999, 100, 1024, 1024, ""),
+    //        std::make_tuple(6, 0, 99999, 100, 1024, 1024, ""),
+    //        std::make_tuple(7, 0, 99999, 100, 1024, 1024, ""),
+    //        std::make_tuple(8, 0, 99999, 100, 1024, 1024, ""),
+    //        std::make_tuple(15, 0, 199999, 100, 1024, 1024, ""),
+    //        std::make_tuple(16, 0, 199999, 100, 1024, 1024, ""),
+    //        std::make_tuple(32, 0, 199999, 100, 1024, 1024, ""),
+    //        std::make_tuple(64, 0, 199999, 100, 1024, 1024, "")));    
 }

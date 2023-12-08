@@ -42,6 +42,12 @@ public:
 	{	
 	}
 
+	IndexNode(const std::vector<std::byte>& bytes)
+	{
+		INDEXNODESTRUCT ptrData = reinterpret_cast<INDEXNODESTRUCT>(bytes);
+		m_ptrData(ptrData);
+	}
+
 	IndexNode(KeyTypeIterator itBeginPivots, KeyTypeIterator itEndPivots, CacheKeyTypeIterator itBeginChildren, CacheKeyTypeIterator itEndChildren)
 		: m_ptrData(make_shared<INDEXNODESTRUCT>())
 	{
@@ -299,6 +305,19 @@ public:
 		m_ptrData->m_vtPivots.push_back(pivotKey);
 		m_ptrData->m_vtPivots.insert(m_ptrData->m_vtPivots.end(), ptrSibling->m_ptrData->m_vtPivots.begin(), ptrSibling->m_ptrData->m_vtPivots.end());
 		m_ptrData->m_vtChildren.insert(m_ptrData->m_vtChildren.end(), ptrSibling->m_ptrData->m_vtChildren.begin(), ptrSibling->m_ptrData->m_vtChildren.end());
+	}
+
+public:
+	std::tuple<const std::byte*, size_t> getSerializedBytes()
+	{
+		const std::byte* bytes = reinterpret_cast<const std::byte*>(m_ptrData.get());
+		return std::tuple<const std::byte*, size_t>(bytes, sizeof(INDEXNODESTRUCT));
+
+	}
+
+	void instantiateSelf(std::byte* bytes)
+	{
+		//return make_shared<SelfType>(reinterpret_cast<INDEXNODESTRUCT*>(bytes));
 	}
 
 public:

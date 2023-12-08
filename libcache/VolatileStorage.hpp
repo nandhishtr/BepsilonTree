@@ -5,10 +5,10 @@
 #include "UnsortedMapUtil.h"
 #include "ErrorCodes.h"
 
-template<typename KeyType, template <typename...> typename ValueType, typename... ValueCoreTypes>
+template<typename KeyType, template <typename, typename...> typename ValueType, typename TypeMarshaller, typename... ValueCoreTypes>
 class VolatileStorage
 {
-	typedef ValueType<ValueCoreTypes...> StorageValueType;
+	typedef ValueType<TypeMarshaller, ValueCoreTypes...> StorageValueType;
 
 private:
 	size_t m_nPoolSize;

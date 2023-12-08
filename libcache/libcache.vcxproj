@@ -146,6 +146,7 @@
     <ClInclude Include="DRAMLRUCache.h" />
     <ClInclude Include="DRAMVolatileStorage.h" />
     <ClInclude Include="ErrorCodes.h" />
+    <ClInclude Include="FileStorage.hpp" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="IBufferCacheObject.h" />
     <ClInclude Include="ICache.h" />

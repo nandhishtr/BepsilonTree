@@ -20,6 +20,20 @@ private:
 	{
 		std::vector<KeyType> m_vtKeys;
 		std::vector<ValueType> m_vtValues;
+
+/*		DATANODESTRUCT()
+		{}
+
+		DATANODESTRUCT(DATANODESTRUCT&& o)
+			: m_vtKeys(std::move(o.m_vtKeys))
+			, m_vtValues(std::move(o.m_vtValuesk))
+		{}
+
+		DATANODESTRUCT(DATANODESTRUCT* o)
+			: m_vtKeys(std::move(o->m_vtKeys))
+			, m_vtValues(std::move(o->m_vtValuesk))
+		{}
+*/
 	};
 
 private:
@@ -35,6 +49,11 @@ public:
 	DataNode()
 		: m_ptrData(make_shared<DATANODESTRUCT>())
 	{
+	}
+
+	DataNode(DATANODESTRUCT* bytes)
+	{
+		//m_ptrData(ptrData);
 	}
 
 	DataNode(KeyTypeIterator itBeginKeys, KeyTypeIterator itEndKeys, ValueTypeIterator itBeginValues, ValueTypeIterator itEndValues)
@@ -158,6 +177,23 @@ public:
 	{
 		m_ptrData->m_vtKeys.insert(m_ptrData->m_vtKeys.end(), ptrSibling->m_ptrData->m_vtKeys.begin(), ptrSibling->m_ptrData->m_vtKeys.end());
 		m_ptrData->m_vtValues.insert(m_ptrData->m_vtValues.end(), ptrSibling->m_ptrData->m_vtValues.begin(), ptrSibling->m_ptrData->m_vtValues.end());
+	}
+
+public:
+	std::tuple<const std::byte*, size_t> getSerializedBytes()
+	{
+		const std::byte* bytes = reinterpret_cast<const std::byte*>(m_ptrData.get());
+
+		std::byte* _bytes = reinterpret_cast<std::byte*>(m_ptrData.get());
+		DATANODESTRUCT* o = reinterpret_cast<DATANODESTRUCT*>(_bytes);
+
+		return std::tuple<const std::byte*, size_t>(bytes, sizeof(DATANODESTRUCT));
+
+	}
+
+	void instantiateSelf(std::byte* bytes)
+	{
+		m_ptrData.reset(reinterpret_cast<DATANODESTRUCT*>(bytes));
 	}
 
 public:

@@ -13,19 +13,19 @@
 #include "ErrorCodes.h"
 #include "UnsortedMapUtil.h"
 
-#define __CONCURRENT__
+//#define __CONCURRENT__
 
 template <
-	template <typename, template <typename> typename, typename> typename StorageType, typename KeyType,
-	template <typename...> typename ValueType, typename... ValueCoreTypes
+	template <typename, template <typename, typename> typename, typename, typename> typename StorageType, typename KeyType,
+	template <typename, typename...> typename ValueType, typename ValueCoreTypesMarshaller, typename... ValueCoreTypes
 >
 class LRUCache
 {
-	typedef LRUCache<StorageType, KeyType, ValueType, ValueCoreTypes...> SelfType;
+	typedef LRUCache<StorageType, KeyType, ValueType, ValueCoreTypesMarshaller, ValueCoreTypes...> SelfType;
 
 public:
 	typedef KeyType KeyType;
-	typedef std::shared_ptr<ValueType<ValueCoreTypes...>> CacheValueType;
+	typedef std::shared_ptr<ValueType<ValueCoreTypesMarshaller, ValueCoreTypes...>> CacheValueType;
 
 private:
 	struct Item
@@ -64,7 +64,7 @@ private:
 	std::queue<std::shared_ptr<Item>> m_qLRUItems;
 #endif __CONCURRENT__
 
-	std::unique_ptr<StorageType<KeyType, ValueType, ValueCoreTypes...>> m_ptrStorage;
+	std::unique_ptr<StorageType<KeyType, ValueType, ValueCoreTypesMarshaller, ValueCoreTypes...>> m_ptrStorage;
 
 public:
 	~LRUCache()
@@ -77,7 +77,7 @@ public:
 		, m_ptrHead(nullptr)
 		, m_ptrTail(nullptr)
 	{
-		m_ptrStorage = std::make_unique<StorageType<KeyType, ValueType, ValueCoreTypes...>>(args...);
+		m_ptrStorage = std::make_unique<StorageType<KeyType, ValueType, ValueCoreTypesMarshaller, ValueCoreTypes...>>(args...);
 
 #ifdef __CONCURRENT__
 		m_bStop = false;
@@ -127,7 +127,7 @@ public:
 			return ptrItem->m_ptrValue;
 		}
 
-		std::shared_ptr<ValueType<ValueCoreTypes...>> ptrValue = m_ptrStorage->getObject(key);
+		std::shared_ptr<ValueType<ValueCoreTypesMarshaller, ValueCoreTypes...>> ptrValue = m_ptrStorage->getObject(key);
 		if (ptrValue != nullptr)
 		{
 			std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue);
@@ -142,6 +142,7 @@ public:
 			m_qLRUItems.push(ptrItem);
 #else
 			moveToFront(ptrItem);
+			flushItemsToStorage();
 #endif __CONCURRENT__
 
 			return ptrValue;
@@ -180,7 +181,7 @@ public:
 			return nullptr;
 		}
 
-		std::shared_ptr<ValueType<ValueCoreTypes...>> ptrValue = m_ptrStorage->getObject(key);
+		std::shared_ptr<ValueType<ValueCoreTypesMarshaller, ValueCoreTypes...>> ptrValue = m_ptrStorage->getObject(key);
 		if (ptrValue != nullptr)
 		{
 			std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue);
@@ -197,6 +198,7 @@ public:
 			lock_lru_queue.unlock();
 #else
 			moveToFront(ptrItem);
+			flushItemsToStorage();
 #endif __CONCURRENT__
 
 
@@ -220,7 +222,7 @@ public:
 
 		//TODO .. do we really need these much objects? ponder!
 		KeyType key;
-		std::shared_ptr<ValueType<ValueCoreTypes...>> ptrValue = ValueType<ValueCoreTypes...>::template createObjectOfType<Type>(args...);
+		std::shared_ptr<ValueType<ValueCoreTypesMarshaller, ValueCoreTypes...>> ptrValue = ValueType<ValueCoreTypesMarshaller, ValueCoreTypes...>::template createObjectOfType<Type>(args...);
 
 		this->generateKey(key, ptrValue);
 
@@ -260,13 +262,38 @@ private:
 		{
 			m_ptrHead = ptrItem;
 			m_ptrTail = ptrItem;
+
+			ptrItem->m_ptrNext = nullptr;
+			ptrItem->m_ptrPrev = nullptr;
+
+			return;
 		}
-		else 
+
+
+		if (ptrItem == m_ptrTail)
 		{
+			m_ptrTail = ptrItem->m_ptrPrev;
+			m_ptrTail->m_ptrNext = nullptr;
+			
+			ptrItem->m_ptrPrev = nullptr;
 			ptrItem->m_ptrNext = m_ptrHead;
+			
 			m_ptrHead->m_ptrPrev = ptrItem;
 			m_ptrHead = ptrItem;
+
+			return;
 		}
+
+		if (ptrItem->m_ptrPrev != nullptr && ptrItem->m_ptrNext != nullptr)
+		{
+			ptrItem->m_ptrPrev->m_ptrNext = ptrItem->m_ptrNext;
+			ptrItem->m_ptrNext->m_ptrPrev = ptrItem->m_ptrPrev;
+		}
+
+		ptrItem->m_ptrPrev = nullptr;
+		ptrItem->m_ptrNext = m_ptrHead;
+		m_ptrHead->m_ptrPrev = ptrItem;
+		m_ptrHead = ptrItem;
 	}
 
 	inline void flushItemsToStorage()
@@ -281,6 +308,9 @@ private:
 			return;
 
 		lock_store.unlock();
+
+		// !!! Address following!!
+		//m_ptrStorage->addObject(m_ptrTail->m_oKey, m_ptrTail->m_ptrValue);
 
 		std::unique_lock<std::shared_mutex> lock_lru_queue(m_mtxLRUQueue);
 
@@ -315,23 +345,26 @@ private:
 			m_mpObject.erase(*it);
 		}
 #else
-		m_ptrStorage->addObject(m_ptrTail->m_oKey, m_ptrTail->m_ptrValue);
-		m_mpObject.erase(m_ptrTail->m_oKey);
+		while (m_mpObject.size() >= m_nCapacity)
+		{
+			m_ptrStorage->addObject(m_ptrTail->m_oKey, m_ptrTail->m_ptrValue);
+			m_mpObject.erase(m_ptrTail->m_oKey);
 
-		std::shared_ptr<Item> ptrTemp = m_ptrTail;
-		m_ptrTail = m_ptrTail->m_ptrPrev;
-		if (m_ptrTail)
-		{
-			m_ptrTail->m_ptrNext = nullptr;
-		}
-		else
-		{
-			m_ptrHead = nullptr;
+			std::shared_ptr<Item> ptrTemp = m_ptrTail;
+			m_ptrTail = m_ptrTail->m_ptrPrev;
+			if (m_ptrTail)
+			{
+				m_ptrTail->m_ptrNext = nullptr;
+			}
+			else
+			{
+				m_ptrHead = nullptr;
+			}
 		}
 #endif __CONCURRENT__
 	}
 
-	inline void generateKey(uintptr_t& key, std::shared_ptr<ValueType<ValueCoreTypes...>> ptrValue)
+	inline void generateKey(uintptr_t& key, std::shared_ptr<ValueType<ValueCoreTypesMarshaller, ValueCoreTypes...>> ptrValue)
 	{
 		key = reinterpret_cast<uintptr_t>(&(*ptrValue.get()));
 	}
@@ -358,7 +391,7 @@ private:
 
 			std::this_thread::sleep_for(100ms);
 
-		} while (ptrSelf->m_bStop);
+		} while (!ptrSelf->m_bStop);
 	}
 
 	static void handlerCacheFlush(SelfType* ptrSelf)
@@ -369,7 +402,7 @@ private:
 
 			std::this_thread::sleep_for(100ms);
 
-		} while (ptrSelf->m_bStop);
+		} while (!ptrSelf->m_bStop);
 	}
 #endif __CONCURRENT__
 };

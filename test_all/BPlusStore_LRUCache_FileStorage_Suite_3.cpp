@@ -9,15 +9,16 @@
 
 #include "glog/logging.h"
 
-#include "NoCache.h"
+#include "LRUCache.hpp"
 #include "IndexNode.hpp"
 #include "DataNode.hpp"
 #include "BPlusStore.hpp"
-#include "NoCacheObject.hpp"
+#include "LRUCacheObject.hpp"
+#include "FileStorage.hpp"
+#include "TypeMarshaller.hpp"
 
-namespace BPlusStore_NoCache_Suite
+namespace BPlusStore_LRUCache_FileStorage_Suite
 {
-
     typedef int KeyType;
     typedef int ValueType;
     typedef uintptr_t CacheKeyType;
@@ -25,16 +26,16 @@ namespace BPlusStore_NoCache_Suite
     typedef DataNode<KeyType, ValueType> LeadNodeType;
     typedef IndexNode<KeyType, ValueType, CacheKeyType> InternalNodeType;
 
-    typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, LeadNodeType, InternalNodeType>> BPlusStoreType;
+    typedef BPlusStore<KeyType, ValueType, LRUCache<FileStorage, CacheKeyType, LRUCacheObject, TypeMarshaller, LeadNodeType, InternalNodeType>> BPlusStoreType;
 
-    class BPlusStore_NoCache_Suite_3 : public ::testing::TestWithParam<std::tuple<int, int, int>>
+    class BPlusStore_LRUCache_FileStorage_Suite_3 : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, int, string>>
     {
     protected:
         BPlusStoreType* m_ptrTree;
 
         void SetUp() override
         {
-            std::tie(nDegree, nThreadCount, nTotalEntries) = GetParam();
+            std::tie(nDegree, nThreadCount, nTotalEntries, nCacheSize, nBlockSize, nFileSize, stFileName) = GetParam();
 
             //m_ptrTree = new BPlusStoreType(3);
             //m_ptrTree->template init<LeadNodeType>();
@@ -47,6 +48,10 @@ namespace BPlusStore_NoCache_Suite
         int nDegree;
         int nThreadCount;
         int nTotalEntries;
+        int nCacheSize;
+        int nBlockSize;
+        int nFileSize;
+        string stFileName;
     };
 
     void insert_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
@@ -97,9 +102,9 @@ namespace BPlusStore_NoCache_Suite
         }
     }
 
-    TEST_P(BPlusStore_NoCache_Suite_3, Bulk_Insert_v1) {
+    TEST_P(BPlusStore_LRUCache_FileStorage_Suite_3, Bulk_Insert_v1) {
 
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree);
+        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
         ptrTree->template init<LeadNodeType>();
 
         std::vector<std::thread> vtThreads;
@@ -120,9 +125,9 @@ namespace BPlusStore_NoCache_Suite
         delete ptrTree;
     }
 
-    TEST_P(BPlusStore_NoCache_Suite_3, Bulk_Insert_v2) {
+    TEST_P(BPlusStore_LRUCache_FileStorage_Suite_3, Bulk_Insert_v2) {
 
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree);
+        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
         ptrTree->template init<LeadNodeType>();
 
         std::vector<std::thread> vtThreads;
@@ -143,9 +148,9 @@ namespace BPlusStore_NoCache_Suite
         delete ptrTree;
     }
 
-    TEST_P(BPlusStore_NoCache_Suite_3, Bulk_Search_v1) {
+    TEST_P(BPlusStore_LRUCache_FileStorage_Suite_3, Bulk_Search_v1) {
 
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree);
+        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
         ptrTree->template init<LeadNodeType>();
 
         std::vector<std::thread> vtThreads;
@@ -182,9 +187,9 @@ namespace BPlusStore_NoCache_Suite
     }
 
 
-    TEST_P(BPlusStore_NoCache_Suite_3, Bulk_Search_v2) {
+    TEST_P(BPlusStore_LRUCache_FileStorage_Suite_3, Bulk_Search_v2) {
 
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree);
+        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
         ptrTree->template init<LeadNodeType>();
 
         std::vector<std::thread> vtThreads;
@@ -220,9 +225,9 @@ namespace BPlusStore_NoCache_Suite
         delete ptrTree;
     }
 
-    TEST_P(BPlusStore_NoCache_Suite_3, Bulk_Delete_v1) {
+    TEST_P(BPlusStore_LRUCache_FileStorage_Suite_3, Bulk_Delete_v1) {
 
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree);
+        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
         ptrTree->template init<LeadNodeType>();
 
         std::vector<std::thread> vtThreads;
@@ -273,9 +278,9 @@ namespace BPlusStore_NoCache_Suite
         delete ptrTree;
     }
 
-    TEST_P(BPlusStore_NoCache_Suite_3, Bulk_Delete_v2) {
+    TEST_P(BPlusStore_LRUCache_FileStorage_Suite_3, Bulk_Delete_v2) {
 
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree);
+        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
         ptrTree->template init<LeadNodeType>();
 
         std::vector<std::thread> vtThreads;
@@ -328,16 +333,16 @@ namespace BPlusStore_NoCache_Suite
 
     //INSTANTIATE_TEST_CASE_P(
     //    Bulk_Insert_Search_Delete,
-    //    BPlusStore_NoCache_Suite_3,
+    //    BPlusStore_LRUCache_FileStorage_Suite_3,
     //    ::testing::Values(
-    //        std::make_tuple(3, 10, 99999),
-    //        std::make_tuple(4, 10, 99999),
-    //        std::make_tuple(5, 10, 99999),
-    //        std::make_tuple(6, 10, 99999),
-    //        std::make_tuple(7, 10, 99999),
-    //        std::make_tuple(8, 10, 99999),
-    //        std::make_tuple(15, 10, 199999),
-    //        std::make_tuple(16, 10, 199999),
-    //        std::make_tuple(32, 10, 199999),
-    //        std::make_tuple(64, 10, 199999)));
+    //        std::make_tuple(3, 10, 99999, 100, 1024, 1024, ""),
+    //        std::make_tuple(4, 10, 99999, 100, 1024, 1024, ""),
+    //        std::make_tuple(5, 10, 99999, 100, 1024, 1024, ""),
+    //        std::make_tuple(6, 10, 99999, 100, 1024, 1024, ""),
+    //        std::make_tuple(7, 10, 99999, 100, 1024, 1024, ""),
+    //        std::make_tuple(8, 10, 99999, 100, 1024, 1024, ""),
+    //        std::make_tuple(15, 10, 199999, 100, 1024, 1024, ""),
+    //        std::make_tuple(16, 10, 199999, 100, 1024, 1024, ""),
+    //        std::make_tuple(32, 10, 199999, 100, 1024, 1024, ""),
+    //        std::make_tuple(64, 10, 199999, 100, 1024, 1024, "")));
 }

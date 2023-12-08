@@ -9,15 +9,19 @@
 
 #include "ErrorCodes.h"
 
-template <typename... ValueCoreTypes>
+template <typename ValueCoreTypesMarshaller, typename... ValueCoreTypes>
 class LRUCacheObject
 {
-public:
-	mutable std::shared_mutex mutex;
-	std::shared_ptr<std::variant<ValueCoreTypes...>> data;
+	typedef std::variant<ValueCoreTypes...> CacheValueType_;
+	typedef std::variant<std::shared_ptr<ValueCoreTypes>...> CacheValueType;
+	typedef std::shared_ptr<std::variant<std::shared_ptr<ValueCoreTypes>...>> CacheValueTypePtr;
 
 public:
-	LRUCacheObject(std::shared_ptr<std::variant<ValueCoreTypes...>> ptrValue)
+	CacheValueTypePtr data;
+	mutable std::shared_mutex mutex;
+
+public:
+	LRUCacheObject(CacheValueTypePtr ptrValue)
 	{
 		data = ptrValue;
 	}
@@ -25,8 +29,23 @@ public:
 	template<class Type, typename... ArgsType>
 	static std::shared_ptr<LRUCacheObject> createObjectOfType(ArgsType... args)
 	{
-		std::shared_ptr<std::variant<ValueCoreTypes...>> ptrValue = std::make_shared<std::variant<ValueCoreTypes...>>(std::make_shared<Type>(args...));
+		CacheValueTypePtr ptrValue = std::make_shared<CacheValueType>(std::make_shared<Type>(args...));
 
 		return std::make_shared<LRUCacheObject>(ptrValue);
 	}
+
+	std::tuple<const std::byte*, size_t> serialize()
+	{
+		return ValueCoreTypesMarshaller::template serialize<ValueCoreTypes...>(*data);
+	}
+
+	void deserialize(std::byte* bytes) 
+	{
+
+		CacheValueType_ deserializedVariant;
+
+		ValueCoreTypesMarshaller::template deserialize<ValueCoreTypes...>(bytes, deserializedVariant);
+
+	}
+
 };
