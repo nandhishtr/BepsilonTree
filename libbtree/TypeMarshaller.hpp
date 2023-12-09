@@ -2,8 +2,8 @@
 
 enum Types
 {
-	DataNode_Id = 0,
-	IndexNode_Type = 0
+	//DataNode = 0,
+	//IndexNode = 0
 } typedef TYPES_ID;
 
 struct TypeMarshaller 
@@ -20,8 +20,8 @@ private:
 	//}
 public:
 	template <typename... Types>
-	static std::tuple<const std::byte*, size_t> serialize(const std::variant<std::shared_ptr<Types>...>& myVariant) {
-		std::tuple<const std::byte*, size_t> result;
+	static std::tuple<uint8_t, const std::byte*, size_t> serialize(const std::variant<std::shared_ptr<Types>...>& myVariant) {
+		std::tuple<uint8_t, const std::byte*, size_t> result;
 
 		// Use std::visit to serialize each type
 		std::visit([&result](const auto& value) {
@@ -32,9 +32,29 @@ public:
 	}
 
 	template <typename... Types>
-	static void deserialize(std::byte* bytes, std::variant<Types...>& variant) {
-		//std::variant<std::shared_ptr<Types>...> _t;
+	static void deserialize(uint8_t uid, std::byte* bytes, std::variant<Types...>& variant) {
+		DataNode<string, float, __COUNTER__> f;
+		DataNode<int, float, __COUNTER__> b;
+		DataNode<double, float, __COUNTER__> c;
+		DataNode<uint64_t, float, __COUNTER__> d;
 
+		if (uid == DataNode<string, string, __COUNTER__>::UID)
+		{
+		std::cout << __COUNTER__;
+
+		}
+		if ( uid == DataNode<int, int, 1000>::UID)
+		{
+			std::cout << __COUNTER__;
+		}
+		if ( uid == DataNode<float, float, __COUNTER__>::UID)
+		{
+			std::cout << __COUNTER__;
+
+		}
+
+		//std::variant<std::shared_ptr<Types>...> _t;
+			
 		// Use std::visit to deserialize each type in the variant
 		std::visit([&bytes](auto& value) {
 			value.instantiateSelf(bytes);

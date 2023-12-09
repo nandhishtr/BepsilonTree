@@ -87,14 +87,14 @@ public:
 	CacheErrorCode addObject(KeyType ptrKey, std::shared_ptr<StorageValueType> ptrValue)
 	{
 		
-		std::tuple<const std::byte*, size_t> _bytes = ptrValue->serialize();
+		std::tuple<uint8_t, const std::byte*, size_t> _bytes = ptrValue->serialize();
 		//std::string serializedValue = std::visit(ValueCoreTypesMarshaller{}, ptrValue);
 
-		std::byte* __ = new std::byte[std::get<1>(_bytes)];
+		std::byte* __ = new std::byte[std::get<2>(_bytes)];
 
-		memcpy(__, std::get<0>(_bytes), std::get<1>(_bytes));
+		memcpy(__, std::get<1>(_bytes), std::get<2>(_bytes));
 
-		ptrValue->deserialize(__);
+		ptrValue->deserialize(std::get<0>(_bytes), __);
 
 		std::variant<int, double, std::string> myVariant;
 

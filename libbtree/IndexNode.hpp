@@ -13,9 +13,12 @@
 
 using namespace std;
 
-template <typename KeyType, typename ValueType, typename CacheKeyType>
+template <typename KeyType, typename ValueType, typename CacheKeyType, uint8_t TYPE_UID = 0>
 class IndexNode
 {
+public:
+	static const uint8_t UID = __COUNTER__;
+
 private:
 	typedef IndexNode<KeyType, ValueType, CacheKeyType> SelfType;
 	typedef std::vector<KeyType>::const_iterator KeyTypeIterator;
@@ -308,10 +311,10 @@ public:
 	}
 
 public:
-	std::tuple<const std::byte*, size_t> getSerializedBytes()
+	std::tuple<uint8_t, const std::byte*, size_t> getSerializedBytes()
 	{
 		const std::byte* bytes = reinterpret_cast<const std::byte*>(m_ptrData.get());
-		return std::tuple<const std::byte*, size_t>(bytes, sizeof(INDEXNODESTRUCT));
+		return std::tuple<uint8_t, const std::byte*, size_t>(UID, bytes, sizeof(INDEXNODESTRUCT));
 
 	}
 

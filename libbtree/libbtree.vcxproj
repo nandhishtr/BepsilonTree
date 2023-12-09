@@ -160,6 +160,7 @@
     <ClInclude Include="InternalNode.h" />
     <ClInclude Include="LeafNode.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="TypeId.h" />
     <ClInclude Include="TypeMarshaller.hpp" />
   </ItemGroup>
   <ItemGroup>

@@ -26,7 +26,7 @@ typedef int KeyType;
 typedef int ValueType;
 typedef uintptr_t CacheKeyType;
 
-typedef DataNode<KeyType, ValueType> DataNodeType;
+typedef DataNode<KeyType, ValueType, 2000> DataNodeType;
 typedef IndexNode<KeyType, ValueType, CacheKeyType> IndexNodeType;
 
 typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
@@ -103,7 +103,7 @@ void threaded_test(int degree, int total_entries, int thread_count)
     typedef int ValueType;
     typedef uintptr_t CacheKeyType;
 
-    typedef DataNode<KeyType, ValueType> DataNodeType;
+    typedef DataNode<KeyType, ValueType, 2000> DataNodeType;
     typedef IndexNode<KeyType, ValueType, CacheKeyType> IndexNodeType;
 
     typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
@@ -191,7 +191,7 @@ void int_test(int degree, int total_entries)
     typedef int ValueType;
     typedef uintptr_t CacheKeyType;
 
-    typedef DataNode<KeyType, ValueType> DataNodeType;
+    typedef DataNode<KeyType, ValueType, __COUNTER__> DataNodeType;
     typedef IndexNode<KeyType, ValueType, CacheKeyType> IndexNodeType;
 
     typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
@@ -290,7 +290,7 @@ void string_test(int degree, int total_entries)
     typedef string ValueType;
     typedef uintptr_t CacheKeyType;
 
-    typedef DataNode<KeyType, ValueType> DataNodeType;
+    typedef DataNode<KeyType, ValueType, __COUNTER__> DataNodeType;
     typedef IndexNode<KeyType, ValueType, CacheKeyType> IndexNodeType;
 
     typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
@@ -447,13 +447,14 @@ int main(int argc, char* argv[])
     typedef int ValueType;
     typedef uintptr_t CacheKeyType;
 
-    typedef DataNode<KeyType, ValueType> DataNodeType;
+    typedef DataNode<KeyType, ValueType, 1000> DataNodeType;
     typedef IndexNode<KeyType, ValueType, CacheKeyType> IndexNodeType;
 
     //typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
     //BPlusStoreType* ptrTree = new BPlusStoreType(3);
 
-    FileStorage<CacheKeyType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType> _t(1,1,"");
+    typedef BPlusStore<string, string, LRUCache<FileStorage, CacheKeyType, LRUCacheObject, TypeMarshaller, DataNode<string, string, __COUNTER__>, IndexNode<string, string, CacheKeyType>>> BPlusStoreType2;
+    BPlusStoreType2* ptrTree2 = new BPlusStoreType2(3, 10, 1, 1, "");
 
     typedef BPlusStore<KeyType, ValueType, LRUCache<FileStorage, CacheKeyType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>> BPlusStoreType;
     BPlusStoreType* ptrTree = new BPlusStoreType(3, 10, 1, 1, "");

@@ -34,17 +34,17 @@ public:
 		return std::make_shared<LRUCacheObject>(ptrValue);
 	}
 
-	std::tuple<const std::byte*, size_t> serialize()
+	std::tuple<uint8_t, const std::byte*, size_t> serialize()
 	{
 		return ValueCoreTypesMarshaller::template serialize<ValueCoreTypes...>(*data);
 	}
 
-	void deserialize(std::byte* bytes) 
+	void deserialize(uint8_t uid, std::byte* bytes) 
 	{
 
 		CacheValueType_ deserializedVariant;
 
-		ValueCoreTypesMarshaller::template deserialize<ValueCoreTypes...>(bytes, deserializedVariant);
+		ValueCoreTypesMarshaller::template deserialize<ValueCoreTypes...>(uid, bytes, deserializedVariant);
 
 	}
 

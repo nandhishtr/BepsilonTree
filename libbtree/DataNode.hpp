@@ -8,11 +8,14 @@
 
 #include "ErrorCodes.h"
 
-template <typename KeyType, typename ValueType>
+template <typename KeyType, typename ValueType, uint8_t TYPE_UID>
 class DataNode
 {
+public:
+	static const uint8_t UID = TYPE_UID;
+
 private:
-	typedef DataNode<KeyType, ValueType> SelfType;
+	typedef DataNode<KeyType, ValueType, TYPE_UID> SelfType;
 	typedef std::vector<KeyType>::const_iterator KeyTypeIterator;
 	typedef std::vector<ValueType>::const_iterator ValueTypeIterator;
 
@@ -180,14 +183,14 @@ public:
 	}
 
 public:
-	std::tuple<const std::byte*, size_t> getSerializedBytes()
+	std::tuple<uint8_t, const std::byte*, size_t> getSerializedBytes()
 	{
 		const std::byte* bytes = reinterpret_cast<const std::byte*>(m_ptrData.get());
 
-		std::byte* _bytes = reinterpret_cast<std::byte*>(m_ptrData.get());
-		DATANODESTRUCT* o = reinterpret_cast<DATANODESTRUCT*>(_bytes);
+		//std::byte* _bytes = reinterpret_cast<std::byte*>(m_ptrData.get());
+		//DATANODESTRUCT* o = reinterpret_cast<DATANODESTRUCT*>(_bytes);
 
-		return std::tuple<const std::byte*, size_t>(bytes, sizeof(DATANODESTRUCT));
+		return std::tuple<uint8_t, const std::byte*, size_t>(UID, bytes, sizeof(DATANODESTRUCT));
 
 	}
 
