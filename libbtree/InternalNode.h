@@ -9,14 +9,6 @@
 #include <cmath>
 
 #include "INode.h"
-#include "ICacheObjectKey.h"
-#include "DRAMLRUCache.h"
-#include "DRAMCacheObject.h"
-#include "DRAMCacheObjectKey.h"
-
-#include "NVRAMLRUCache.h"
-#include "NVRAMCacheObject.h"
-#include "NVRAMCacheObjectKey.h"
 
 using namespace std;
 

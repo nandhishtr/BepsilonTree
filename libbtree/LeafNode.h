@@ -8,11 +8,11 @@
 #include "InternalNode.h"
 #include "DRAMLRUCache.h"
 #include "DRAMCacheObject.h"
-#include "DRAMCacheObjectKey.h"
+#include "DRAMObjectUID.h"
 
 #include "NVRAMLRUCache.h"
 #include "NVRAMCacheObject.h"
-#include "NVRAMCacheObjectKey.h"
+#include "NVRAMObjectUID.h"
 
 using namespace std; 
 

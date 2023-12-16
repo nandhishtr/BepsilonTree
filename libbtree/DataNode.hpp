@@ -148,7 +148,7 @@ public:
 		return ErrorCode::Success;
 	}
 
-	inline void moveAnEntityFromLHSSibling(shared_ptr<SelfType> ptrLHSSibling, KeyType& pivotKey)
+	inline void moveAnEntityFromLHSSibling(std::shared_ptr<SelfType> ptrLHSSibling, KeyType& pivotKey)
 	{
 		KeyType key = ptrLHSSibling->m_ptrData->m_vtKeys.back();
 		ValueType value = ptrLHSSibling->m_ptrData->m_vtValues.back();
@@ -162,7 +162,7 @@ public:
 		pivotKey = key;
 	}
 
-	inline void moveAnEntityFromRHSSibling(shared_ptr<SelfType> ptrRHSSibling, KeyType& pivotKey)
+	inline void moveAnEntityFromRHSSibling(std::shared_ptr<SelfType> ptrRHSSibling, KeyType& pivotKey)
 	{
 		KeyType key = ptrRHSSibling->m_ptrData->m_vtKeys.front();
 		ValueType value = ptrRHSSibling->m_ptrData->m_vtValues.front();
@@ -176,7 +176,7 @@ public:
 		pivotKey = ptrRHSSibling->m_ptrData->m_vtKeys.front();
 	}
 
-	inline void mergeNode(shared_ptr<SelfType> ptrSibling)
+	inline void mergeNode(std::shared_ptr<SelfType> ptrSibling)
 	{
 		m_ptrData->m_vtKeys.insert(m_ptrData->m_vtKeys.end(), ptrSibling->m_ptrData->m_vtKeys.begin(), ptrSibling->m_ptrData->m_vtKeys.end());
 		m_ptrData->m_vtValues.insert(m_ptrData->m_vtValues.end(), ptrSibling->m_ptrData->m_vtValues.begin(), ptrSibling->m_ptrData->m_vtValues.end());

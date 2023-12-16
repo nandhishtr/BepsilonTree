@@ -7,7 +7,7 @@
 //
 //#include "NVRAMLRUCache.h"
 //#include "NVRAMCacheObject.h"
-//#include "NVRAMCacheObjectKey.h"
+//#include "NVRAMObjectUID.h"
 //using namespace std;
 
 //class BPlusStore_DRAMLRU_Suite_1 : public ::testing::Test 

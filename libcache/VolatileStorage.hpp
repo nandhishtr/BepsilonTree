@@ -2,17 +2,23 @@
 #include <memory>
 #include <unordered_map>
 
-#include "UnsortedMapUtil.h"
 #include "ErrorCodes.h"
 
-template<typename KeyType, template <typename, typename...> typename ValueType, typename TypeMarshaller, typename... ValueCoreTypes>
+template<
+	typename ICallback,
+	typename ObjectUIDType, 
+	template <typename, typename...> typename ObjectWrapperType, 
+	typename ObjectTypeMarshaller, 
+	typename... ObjectTypes>
 class VolatileStorage
 {
-	typedef ValueType<TypeMarshaller, ValueCoreTypes...> StorageValueType;
+public:
+	typedef ObjectUIDType ObjectUIDType;
+	typedef ObjectWrapperType<ObjectTypeMarshaller, ObjectTypes...> ObjectType;
 
 private:
 	size_t m_nPoolSize;
-	std::unordered_map<KeyType, std::shared_ptr<StorageValueType>> m_mpObject;
+	std::unordered_map<ObjectUIDType, std::shared_ptr<ObjectType>> m_mpObject;
 
 public:
 	VolatileStorage(size_t nPoolSize)
@@ -20,7 +26,7 @@ public:
 	{
 	}
 
-	std::shared_ptr<StorageValueType> getObject(KeyType ptrKey)
+	std::shared_ptr<ObjectType> getObject(ObjectUIDType ptrKey)
 	{
 		if (m_mpObject.find(ptrKey) != m_mpObject.end())
 		{
@@ -30,7 +36,7 @@ public:
 		return nullptr;
 	}
 
-	CacheErrorCode addObject(KeyType ptrKey, std::shared_ptr<StorageValueType> ptrValue)
+	CacheErrorCode addObject(ObjectUIDType ptrKey, std::shared_ptr<ObjectType> ptrValue)
 	{
 		if (m_mpObject.size() >= m_nPoolSize)
 		{

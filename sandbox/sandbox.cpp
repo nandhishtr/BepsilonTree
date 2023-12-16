@@ -1,8 +1,7 @@
 #include <iostream>
 
-#include "BTree.h"
 #include "BPlusStore.hpp"
-#include "NoCache.h"
+#include "NoCache.hpp"
 #include "glog/logging.h"
 #include <type_traits>
 
@@ -22,23 +21,25 @@
 #include "FileStorage.hpp"
 #include "TypeMarshaller.hpp"
 
+#include "TypeUID.h"
+
 typedef int KeyType;
 typedef int ValueType;
-typedef uintptr_t CacheKeyType;
+typedef uintptr_t ObjectUIDType;
 
 typedef DataNode<KeyType, ValueType, 2000> DataNodeType;
-typedef IndexNode<KeyType, ValueType, CacheKeyType, 2001> IndexNodeType;
+typedef IndexNode<KeyType, ValueType, ObjectUIDType, 2001> IndexNodeType;
 
-typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
-//typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, CacheKeyType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>> BPlusStoreType;
-//typedef BPlusStore<KeyType, ValueType, LRUCache<FileStorage, CacheKeyType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>> BPlusStoreType;
+typedef BPlusStore<KeyType, ValueType, NoCache<ObjectUIDType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
+//typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>> BPlusStoreType;
+//typedef BPlusStore<KeyType, ValueType, LRUCache<FileStorage, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>> BPlusStoreType;
 
 /*typedef BPlusStore<
             KeyType, 
             ValueType, 
             LRUCache<
                 VolatileStorage,    // FileStorage<K, TypesMapper, V, ..., 
-                CacheKeyType,
+                ObjectUIDType,
                 LRUCacheObject, 
                 DataNodeType,
                 IndexNodeType
@@ -101,15 +102,15 @@ void threaded_test(int degree, int total_entries, int thread_count)
 
     typedef int KeyType;
     typedef int ValueType;
-    typedef uintptr_t CacheKeyType;
+    typedef uintptr_t ObjectUIDType;
 
     typedef DataNode<KeyType, ValueType, 2000> DataNodeType;
-    typedef IndexNode<KeyType, ValueType, CacheKeyType, 2001> IndexNodeType;
+    typedef IndexNode<KeyType, ValueType, ObjectUIDType, 2001> IndexNodeType;
 
-    typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
+    typedef BPlusStore<KeyType, ValueType, NoCache<ObjectUIDType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
     BPlusStoreType* ptrTree = new BPlusStoreType(degree);
 
-    //typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, CacheKeyType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>> BPlusStoreType;
+    //typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>> BPlusStoreType;
     //BPlusStoreType* ptrTree = new BPlusStoreType(degree, 10000, 10000000);
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
@@ -189,15 +190,15 @@ void int_test(int degree, int total_entries)
 {
     typedef int KeyType;
     typedef int ValueType;
-    typedef uintptr_t CacheKeyType;
+    typedef uintptr_t ObjectUIDType;
 
     typedef DataNode<KeyType, ValueType, __COUNTER__> DataNodeType;
-    typedef IndexNode<KeyType, ValueType, CacheKeyType, 2001> IndexNodeType;
+    typedef IndexNode<KeyType, ValueType, ObjectUIDType, 2001> IndexNodeType;
 
-    typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
+    typedef BPlusStore<KeyType, ValueType, NoCache<ObjectUIDType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
     BPlusStoreType* ptrTree = new BPlusStoreType(degree);
 
-    //typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, CacheKeyType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>> BPlusStoreType;
+    //typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>> BPlusStoreType;
     //BPlusStoreType* ptrTree = new BPlusStoreType(degree, 10, 10000000);
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
@@ -288,15 +289,15 @@ void string_test(int degree, int total_entries)
 {
     typedef string KeyType;
     typedef string ValueType;
-    typedef uintptr_t CacheKeyType;
+    typedef uintptr_t ObjectUIDType; //ObjectUIDType, ObjectType
 
     typedef DataNode<KeyType, ValueType, __COUNTER__> DataNodeType;
-    typedef IndexNode<KeyType, ValueType, CacheKeyType, 2001> IndexNodeType;
+    typedef IndexNode<KeyType, ValueType, ObjectUIDType, 2001> IndexNodeType;
 
-    typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
+    typedef BPlusStore<KeyType, ValueType, NoCache<ObjectUIDType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
     BPlusStoreType* ptrTree = new BPlusStoreType(degree);
 
-    //typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, CacheKeyType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>> BPlusStoreType;
+    //typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>> BPlusStoreType;
     //BPlusStoreType* ptrTree = new BPlusStoreType(degree, 10, 10000000);
 
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
@@ -431,6 +432,11 @@ auto sum(Args... args) {
     return foldLambda(args...);
 }
 
+#include "ObjectUID.h"
+#include "ObjectFatUID.h"
+#include "LRUCacheObject.hpp"
+#include "TypeMarshaller.hpp"
+
 int main(int argc, char* argv[])
 {
     VariantWithShared<Integer, Double, String>::type _myVariant = make_shared<Integer>();  // Wrapped in std::shared_ptr automatically
@@ -445,21 +451,27 @@ int main(int argc, char* argv[])
 
     typedef int KeyType;
     typedef int ValueType;
-    typedef uintptr_t CacheKeyType;
+    //typedef uintptr_t ObjectUIDType;
+    typedef ObjectFatUID ObjectUIDType;
+    //typedef ObjectUID ObjectUIDType;
 
-    typedef DataNode<KeyType, ValueType, 1000> DataNodeType;
-    typedef IndexNode<KeyType, ValueType, CacheKeyType, 10001> IndexNodeType;
+    typedef IFlushCallback<ObjectUIDType> ICallback;
 
-    typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
-    BPlusStoreType* ptrTree = new BPlusStoreType(3);
+    typedef DataNode<KeyType, ValueType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
+    typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> IndexNodeType;
 
-    //typedef BPlusStore<string, string, LRUCache<FileStorage, CacheKeyType, LRUCacheObject, TypeMarshaller, DataNode<string, string, __COUNTER__>, IndexNode<string, string, CacheKeyType>>> BPlusStoreType2;
+    //typedef BPlusStore<KeyType, ValueType, NoCache<ObjectUIDType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
+    //BPlusStoreType* ptrTree = new BPlusStoreType(3);
+
+    //typedef BPlusStore<string, string, LRUCache<FileStorage, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNode<string, string, __COUNTER__>, IndexNode<string, string, ObjectUIDType>>> BPlusStoreType2;
     //BPlusStoreType2* ptrTree2 = new BPlusStoreType2(3, 10, 1, 1, "");
 
-    //typedef BPlusStore<KeyType, ValueType, LRUCache<FileStorage, CacheKeyType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>> BPlusStoreType;
-    //BPlusStoreType* ptrTree = new BPlusStoreType(3, 10, 1, 1, "");
+    //LRUCache<FileStorage, CacheKeyType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>* _l = new LRUCache<FileStorage, CacheKeyType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>(nullptr, 10, 1024, 1024 * 1024, "D:\\filestore.hdb");
+    //typedef BPlusStore<KeyType, ValueType, LRUCache<ICallback, FileStorage<ICallback, CacheKeyType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
+    //BPlusStoreType* ptrTree = new BPlusStoreType(3, 10, 1024, 1024 * 1024, "D:\\filestore.hdb");
 
-    //BPlusStoreType* ptrTree = new BPlusStoreType(3, 100000, 100000);
+    typedef BPlusStore<KeyType, ValueType, LRUCache<ICallback, VolatileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
+    BPlusStoreType* ptrTree = new BPlusStoreType(3, 100000, 100000);
 
     ptrTree->template init<DataNodeType>();
 

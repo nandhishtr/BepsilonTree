@@ -11,32 +11,30 @@
 #include  <algorithm>
 
 #include "ErrorCodes.h"
-#include "UnsortedMapUtil.h"
+#include "IFlushCallback.h"
 
 //#define __CONCURRENT__
 
-template <
-	template <typename, template <typename, typename> typename, typename, typename> typename StorageType, typename KeyType,
-	template <typename, typename...> typename ValueType, typename ValueCoreTypesMarshaller, typename... ValueCoreTypes
->
+template <typename ICallback, typename StorageType>
 class LRUCache
 {
-	typedef LRUCache<StorageType, KeyType, ValueType, ValueCoreTypesMarshaller, ValueCoreTypes...> SelfType;
+	typedef LRUCache<ICallback, StorageType> SelfType;
 
 public:
-	typedef KeyType KeyType;
-	typedef std::shared_ptr<ValueType<ValueCoreTypesMarshaller, ValueCoreTypes...>> CacheValueType;
+	typedef StorageType::ObjectUIDType ObjectUIDType;
+	typedef StorageType::ObjectType ObjectType;
+	typedef std::shared_ptr<ObjectType> ObjectTypePtr;
 
 private:
 	struct Item
 	{
 	public:
-		KeyType m_oKey;
-		CacheValueType m_ptrValue;
+		ObjectUIDType m_oKey;
+		ObjectTypePtr m_ptrValue;
 		std::shared_ptr<Item> m_ptrPrev;
 		std::shared_ptr<Item> m_ptrNext;
 
-		Item(KeyType& key, CacheValueType ptrValue)
+		Item(ObjectUIDType& key, ObjectTypePtr ptrValue)
 			: m_ptrNext(nullptr)
 			, m_ptrPrev(nullptr)
 		{
@@ -45,7 +43,7 @@ private:
 		}
 	};
 
-	std::unordered_map<KeyType, std::shared_ptr<Item>> m_mpObject;
+	std::unordered_map<ObjectUIDType, std::shared_ptr<Item>> m_mpObject;
 
 
 	size_t m_nCapacity;
@@ -64,7 +62,7 @@ private:
 	std::queue<std::shared_ptr<Item>> m_qLRUItems;
 #endif __CONCURRENT__
 
-	std::unique_ptr<StorageType<KeyType, ValueType, ValueCoreTypesMarshaller, ValueCoreTypes...>> m_ptrStorage;
+	std::unique_ptr<StorageType> m_ptrStorage;
 
 public:
 	~LRUCache()
@@ -77,7 +75,7 @@ public:
 		, m_ptrHead(nullptr)
 		, m_ptrTail(nullptr)
 	{
-		m_ptrStorage = std::make_unique<StorageType<KeyType, ValueType, ValueCoreTypesMarshaller, ValueCoreTypes...>>(args...);
+		m_ptrStorage = std::make_unique<StorageType>(args...);
 
 #ifdef __CONCURRENT__
 		m_bStop = false;
@@ -86,7 +84,7 @@ public:
 #endif __CONCURRENT__
 	}
 
-	CacheErrorCode remove(KeyType objKey)
+	CacheErrorCode remove(ObjectUIDType objKey)
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex>  lock_store(m_mtxCache);
@@ -104,7 +102,7 @@ public:
 		return CacheErrorCode::KeyDoesNotExist;
 	}
 
-	CacheValueType getObject(KeyType key)
+	ObjectTypePtr getObject(ObjectUIDType key)
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_store(m_mtxCache);
@@ -127,7 +125,7 @@ public:
 			return ptrItem->m_ptrValue;
 		}
 
-		std::shared_ptr<ValueType<ValueCoreTypesMarshaller, ValueCoreTypes...>> ptrValue = m_ptrStorage->getObject(key);
+		std::shared_ptr<ObjectType> ptrValue = m_ptrStorage->getObject(key);
 		if (ptrValue != nullptr)
 		{
 			std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue);
@@ -152,7 +150,7 @@ public:
 	}
 
 	template <typename Type>
-	Type getObjectOfType(KeyType key)
+	Type getObjectOfType(ObjectUIDType key)
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_store(m_mtxCache);
@@ -181,7 +179,7 @@ public:
 			return nullptr;
 		}
 
-		std::shared_ptr<ValueType<ValueCoreTypesMarshaller, ValueCoreTypes...>> ptrValue = m_ptrStorage->getObject(key);
+		std::shared_ptr<ObjectType> ptrValue = m_ptrStorage->getObject(key);
 		if (ptrValue != nullptr)
 		{
 			std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue);
@@ -214,17 +212,17 @@ public:
 	}
 
 	template<class Type, typename... ArgsType>
-	KeyType createObjectOfType(ArgsType... args)
+	ObjectUIDType createObjectOfType(ArgsType... args)
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_store(m_mtxCache);
 #endif __CONCURRENT__
 
 		//TODO .. do we really need these much objects? ponder!
-		KeyType key;
-		std::shared_ptr<ValueType<ValueCoreTypesMarshaller, ValueCoreTypes...>> ptrValue = ValueType<ValueCoreTypesMarshaller, ValueCoreTypes...>::template createObjectOfType<Type>(args...);
+		ObjectUIDType key;
+		std::shared_ptr<ObjectType> ptrValue = ObjectType::template createObjectOfType<Type>(args...);
 
-		key = KeyType::createAddressFromVolatilePointer(reinterpret_cast<uintptr_t>(ptrValue.get()));
+		key = ObjectUIDType::createAddressFromVolatilePointer(reinterpret_cast<uintptr_t>(ptrValue.get()));
 		//this->generateKey(key, ptrValue);
 
 		std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue);
@@ -301,7 +299,7 @@ private:
 	{
 #ifdef __CONCURRENT__
 		int nFlushCount = 0;
-		std::vector<KeyType> vtItems;
+		std::vector<ObjectUIDType> vtItems;
 
 		std::unique_lock<std::shared_mutex> lock_store(m_mtxCache);
 
@@ -365,7 +363,7 @@ private:
 #endif __CONCURRENT__
 	}
 
-	inline void generateKey(uintptr_t& key, std::shared_ptr<ValueType<ValueCoreTypesMarshaller, ValueCoreTypes...>> ptrValue)
+	inline void generateKey(uintptr_t& key, std::shared_ptr<ObjectType> ptrValue)
 	{
 		key = reinterpret_cast<uintptr_t>(&(*ptrValue.get()));
 	}

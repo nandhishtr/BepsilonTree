@@ -2,7 +2,7 @@
 #include <cstddef>
 #include <memory>
 
-class ICacheObjectKey
+class IObjectUID
 {
 };
 

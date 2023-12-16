@@ -1,19 +1,19 @@
 #pragma once
-#include "ICacheObjectKey.h"
+#include "IObjectUID.h"
 #include <cstdint>
 
-class DRAMCacheObjectKey : public ICacheObjectKey
+class DRAMObjectUID : public IObjectUID
 {
 public:
 	uintptr_t m_nPointerValue;
 
 public:
-	DRAMCacheObjectKey()
+	DRAMObjectUID()
 		: m_nPointerValue(NULL)
 	{
 	}
 
-	DRAMCacheObjectKey(void* ptr)
+	DRAMObjectUID(void* ptr)
 	{
 		m_nPointerValue = reinterpret_cast<uintptr_t>(ptr);
 	}

@@ -17,19 +17,21 @@
 #include "FileStorage.hpp"
 #include "TypeMarshaller.hpp"
 
-#include "TypeId.h"
-#include "CacheObjectFatKey.h"
+#include "TypeUID.h"
+#include "ObjectFatUID.h"
 
 namespace BPlusStore_LRUCache_FileStorage_Suite
 {
     typedef int KeyType;
     typedef int ValueType;
-    typedef CacheObjectFatKey CacheKeyType;
+    typedef ObjectFatUID ObjectUIDType;
 
-    typedef DataNode<KeyType, ValueType, TYPE_UID::DATA_NODE_INT_INT > LeadNodeType;
-    typedef IndexNode<KeyType, ValueType, CacheKeyType, TYPE_UID::DATA_NODE_INT_INT> InternalNodeType;
+    typedef DataNode<KeyType, ValueType, TYPE_UID::DATA_NODE_INT_INT > LeafNodeType;
+    typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> InternalNodeType;
 
-    typedef BPlusStore<KeyType, ValueType, LRUCache<FileStorage, CacheKeyType, LRUCacheObject, TypeMarshaller, LeadNodeType, InternalNodeType>> BPlusStoreType;
+    typedef IFlushCallback<ObjectUIDType> ICallback;
+    
+    typedef BPlusStore<KeyType, ValueType, LRUCache<ICallback, FileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, LeafNodeType, InternalNodeType>>> BPlusStoreType;
 
     class BPlusStore_LRUCache_FileStorage_Suite_3 : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, int, string>>
     {
@@ -41,7 +43,7 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
             std::tie(nDegree, nThreadCount, nTotalEntries, nCacheSize, nBlockSize, nFileSize, stFileName) = GetParam();
 
             //m_ptrTree = new BPlusStoreType(3);
-            //m_ptrTree->template init<LeadNodeType>();
+            //m_ptrTree->template init<LeafNodeType>();
         }
 
         void TearDown() override {
@@ -60,14 +62,14 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
     void insert_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
         for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+            ptrTree->template insert<InternalNodeType, LeafNodeType>(nCntr, nCntr);
         }
     }
 
     void reverse_insert_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
         for (int nCntr = nRangeEnd - 1; nCntr >= nRangeStart; nCntr--)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+            ptrTree->template insert<InternalNodeType, LeafNodeType>(nCntr, nCntr);
         }
     }
 
@@ -75,7 +77,7 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
         for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+            ErrorCode code = ptrTree->template search<InternalNodeType, LeafNodeType>(nCntr, nValue);
 
             ASSERT_EQ(nCntr, nValue);
         }
@@ -85,7 +87,7 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
         for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
         {
             int nValue = 0;
-            ErrorCode errCode = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+            ErrorCode errCode = ptrTree->template search<InternalNodeType, LeafNodeType>(nCntr, nValue);
 
             ASSERT_EQ(errCode, ErrorCode::KeyDoesNotExist);
         }
@@ -94,21 +96,21 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
     void delete_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
         for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
+            ErrorCode code = ptrTree->template remove<InternalNodeType, LeafNodeType>(nCntr);
         }
     }
 
     void reverse_delete_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
         for (int nCntr = nRangeEnd - 1; nCntr >= nRangeStart; nCntr--)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
+            ErrorCode code = ptrTree->template remove<InternalNodeType, LeafNodeType>(nCntr);
         }
     }
 
     TEST_P(BPlusStore_LRUCache_FileStorage_Suite_3, Bulk_Insert_v1) {
 
         BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
-        ptrTree->template init<LeadNodeType>();
+        ptrTree->template init<LeafNodeType>();
 
         std::vector<std::thread> vtThreads;
 
@@ -131,7 +133,7 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
     TEST_P(BPlusStore_LRUCache_FileStorage_Suite_3, Bulk_Insert_v2) {
 
         BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
-        ptrTree->template init<LeadNodeType>();
+        ptrTree->template init<LeafNodeType>();
 
         std::vector<std::thread> vtThreads;
 
@@ -154,7 +156,7 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
     TEST_P(BPlusStore_LRUCache_FileStorage_Suite_3, Bulk_Search_v1) {
 
         BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
-        ptrTree->template init<LeadNodeType>();
+        ptrTree->template init<LeafNodeType>();
 
         std::vector<std::thread> vtThreads;
 
@@ -193,7 +195,7 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
     TEST_P(BPlusStore_LRUCache_FileStorage_Suite_3, Bulk_Search_v2) {
 
         BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
-        ptrTree->template init<LeadNodeType>();
+        ptrTree->template init<LeafNodeType>();
 
         std::vector<std::thread> vtThreads;
 
@@ -231,7 +233,7 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
     TEST_P(BPlusStore_LRUCache_FileStorage_Suite_3, Bulk_Delete_v1) {
 
         BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
-        ptrTree->template init<LeadNodeType>();
+        ptrTree->template init<LeafNodeType>();
 
         std::vector<std::thread> vtThreads;
 
@@ -284,7 +286,7 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
     TEST_P(BPlusStore_LRUCache_FileStorage_Suite_3, Bulk_Delete_v2) {
 
         BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nFileSize, stFileName);
-        ptrTree->template init<LeadNodeType>();
+        ptrTree->template init<LeafNodeType>();
 
         std::vector<std::thread> vtThreads;
 

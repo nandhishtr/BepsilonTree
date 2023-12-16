@@ -9,23 +9,23 @@
 
 #include "glog/logging.h"
 
-#include "NoCache.h"
+#include "NoCache.hpp"
 #include "IndexNode.hpp"
 #include "DataNode.hpp"
 #include "BPlusStore.hpp"
 #include "NoCacheObject.hpp"
-#include "TypeId.h"
+#include "TypeUID.h"
 namespace BPlusStore_NoCache_Suite
 {
 
     typedef int KeyType;
     typedef int ValueType;
-    typedef uintptr_t CacheKeyType;
+    typedef uintptr_t ObjectUIDType;
 
     typedef DataNode<KeyType, ValueType, TYPE_UID::DATA_NODE_INT_INT > LeadNodeType;
-    typedef IndexNode<KeyType, ValueType, CacheKeyType, TYPE_UID::DATA_NODE_INT_INT > InternalNodeType;
+    typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT > InternalNodeType;
 
-    typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, LeadNodeType, InternalNodeType>> BPlusStoreType;
+    typedef BPlusStore<KeyType, ValueType, NoCache<ObjectUIDType, NoCacheObject, LeadNodeType, InternalNodeType>> BPlusStoreType;
 
     class BPlusStore_NoCache_Suite_3 : public ::testing::TestWithParam<std::tuple<int, int, int>>
     {

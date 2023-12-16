@@ -4,8 +4,6 @@
 
 #include "ICache.h"
 #include "DRAMCacheObject.h"
-#include "DRAMCacheObjectKey.h"
-#include "UnsortedMapUtil.h"
 #include "DRAMVolatileStorage.h"
 
 template <
@@ -211,9 +209,9 @@ private:
 		*key = reinterpret_cast<uintptr_t>(&(*obj.get()));
 	}
 
-	void generateKey(std::shared_ptr<DRAMCacheObjectKey> key, std::shared_ptr<StorageValueCoreType> obj)
+	void generateKey(std::shared_ptr<DRAMObjectUID> key, std::shared_ptr<StorageValueCoreType> obj)
 	{
-		*key = DRAMCacheObjectKey(&(*obj.get()));
+		*key = DRAMObjectUID(&(*obj.get()));
 	}
 };
 
@@ -387,9 +385,9 @@ private:
 //		*key = reinterpret_cast<uintptr_t>(&(*obj.get()));
 //	}
 //
-//	void generateKey(std::shared_ptr<DRAMCacheObjectKey> key, std::shared_ptr<ValueDRAMCoreType> obj)
+//	void generateKey(std::shared_ptr<DRAMObjectUID> key, std::shared_ptr<ValueDRAMCoreType> obj)
 //	{
-//		*key = DRAMCacheObjectKey(&(*obj.get()));
+//		*key = DRAMObjectUID(&(*obj.get()));
 //	}
 //};
 //

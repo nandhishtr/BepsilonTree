@@ -8,13 +8,15 @@
 #include <typeinfo>
 
 #include "ErrorCodes.h"
+#include "IFlushCallback.h"
 
 template<typename KeyType, template <typename...> typename ValueType, typename... ValueCoreTypes>
 class NoCache
 {
 public:
-	typedef KeyType KeyType;
-	typedef ValueType<ValueCoreTypes...>* CacheValueType;
+	typedef KeyType ObjectUIDType;
+	typedef ValueType<ValueCoreTypes...> ObjectType;
+	typedef ValueType<ValueCoreTypes...>* ObjectTypePtr;
 
 public:
 	~NoCache()
@@ -25,23 +27,23 @@ public:
 	{
 	}
 
-	CacheErrorCode remove(KeyType objKey)
+	CacheErrorCode remove(ObjectUIDType objKey)
 	{
-		CacheValueTypePtr ptrValue = reinterpret_cast<CacheValueTypePtr>(objKey);
+		ObjectTypePtr ptrValue = reinterpret_cast<ObjectTypePtr>(objKey);
 		delete ptrValue;
 
 		return CacheErrorCode::KeyDoesNotExist;
 	}
 
-	CacheValueTypePtr getObject(KeyType objKey)
+	ObjectTypePtr getObject(ObjectUIDType objKey)
 	{
-		return reinterpret_cast<CacheValueTypePtr>(objKey);
+		return reinterpret_cast<ObjectTypePtr>(objKey);
 	}
 
 	template <typename Type>
-	Type getObjectOfType(KeyType objKey)
+	Type getObjectOfType(ObjectUIDType objKey)
 	{
-		CacheValueTypePtr ptrValue = reinterpret_cast<CacheValueTypePtr>(objKey);
+		ObjectTypePtr ptrValue = reinterpret_cast<ObjectTypePtr>(objKey);
 
 		if (std::holds_alternative<Type>(*ptrValue->data))
 		{
@@ -52,12 +54,12 @@ public:
 	}
 
 	template<class Type, typename... ArgsType>
-	KeyType createObjectOfType(ArgsType... args)
+	ObjectUIDType createObjectOfType(ArgsType... args)
 	{
-		//CacheValueTypePtr ptrValue = new std::variant<ValueCoreTypes...>(std::make_shared<Type>(args...));
+		//ObjectTypePtr ptrValue = new std::variant<ValueCoreTypes...>(std::make_shared<Type>(args...));
 		
 		ValueType<ValueCoreTypes...>* ptrValue = ValueType<ValueCoreTypes...>::template createObjectOfType<Type>(args...);
 
-		return reinterpret_cast<KeyType>(ptrValue);
+		return reinterpret_cast<ObjectUIDType>(ptrValue);
 	}
 };

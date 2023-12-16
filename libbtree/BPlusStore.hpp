@@ -1,5 +1,5 @@
 #pragma once
-
+#include <memory>
 #include <iostream>
 #include <stack>
 #include <optional>
@@ -8,7 +8,8 @@
 #include <syncstream>
 #include <thread>
 #include <cmath>
-
+#include <exception>
+#include <variant>
 #include "ErrorCodes.h"
 
 //#define __CONCURRENT__
@@ -16,13 +17,13 @@
 template <typename KeyType, typename ValueType, typename CacheType>
 class BPlusStore
 {
-    typedef CacheType::KeyType CacheKeyType;
-    typedef CacheType::CacheValueType CacheValueType;
+    typedef CacheType::ObjectUIDType ObjectUIDType;
+    typedef CacheType::ObjectTypePtr ObjectTypePtr;
 
 private:
     uint32_t m_nDegree;
     std::shared_ptr<CacheType> m_ptrCache;
-    std::optional<CacheKeyType> m_cktRootNodeKey;
+    std::optional<ObjectUIDType> m_cktRootNodeKey;
     mutable std::shared_mutex mutex;
 public:
     ~BPlusStore()
@@ -49,9 +50,9 @@ public:
         std::vector<std::unique_lock<std::shared_mutex>> vtLocks;
 #endif // __CONCURRENT__
 
-        std::vector<std::pair<CacheKeyType, CacheValueType>> vtNodes;
-        CacheValueType ptrLastNode = nullptr, ptrCurrentNode = nullptr;
-        CacheKeyType ckLastNode, ckCurrentNode;
+        std::vector<std::pair<ObjectUIDType, ObjectTypePtr>> vtNodes;
+        ObjectTypePtr ptrLastNode = nullptr, ptrCurrentNode = nullptr;
+        ObjectUIDType ckLastNode, ckCurrentNode;
 
 #ifdef __CONCURRENT__
         vtLocks.push_back(std::unique_lock<std::shared_mutex>(mutex));
@@ -69,16 +70,16 @@ public:
 
             if (ptrCurrentNode == nullptr)
             {
-                throw new exception("should not occur!");   // TODO: critical log.
+                throw new std::exception("should not occur!");   // TODO: critical log.
             }
 
-            if (std::holds_alternative<shared_ptr<IndexNodeType>>(*ptrCurrentNode->data))
+            if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrCurrentNode->data))
             {
-                shared_ptr<IndexNodeType> ptrIndexNode = std::get<shared_ptr<IndexNodeType>>(*ptrCurrentNode->data);
+                std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrCurrentNode->data);
 
                 if (ptrIndexNode->canTriggerSplit(m_nDegree))
                 {
-                    vtNodes.push_back(std::pair<CacheKeyType, CacheValueType>(ckLastNode, ptrLastNode));
+                    vtNodes.push_back(std::pair<ObjectUIDType, ObjectTypePtr>(ckLastNode, ptrLastNode));
                 }
                 else
                 {
@@ -93,16 +94,16 @@ public:
 
                 ckCurrentNode = ptrIndexNode->getChild(key); // fid it.. there are two kinds of methods..
             }
-            else if (std::holds_alternative<shared_ptr<DataNodeType>>(*ptrCurrentNode->data))
+            else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrCurrentNode->data))
             {
-                shared_ptr<DataNodeType> ptrDataNode = std::get<shared_ptr<DataNodeType>>(*ptrCurrentNode->data);
+                std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrCurrentNode->data);
 
                 ptrDataNode->insert(key, value);
 
                 if (ptrDataNode->requireSplit(m_nDegree))
                 {
-                    vtNodes.push_back(std::pair<CacheKeyType, CacheValueType>(ckLastNode, ptrLastNode));
-                    vtNodes.push_back(std::pair<CacheKeyType, CacheValueType>(ckCurrentNode, ptrCurrentNode));
+                    vtNodes.push_back(std::pair<ObjectUIDType, ObjectTypePtr>(ckLastNode, ptrLastNode));
+                    vtNodes.push_back(std::pair<ObjectUIDType, ObjectTypePtr>(ckCurrentNode, ptrCurrentNode));
                 }
                 else
                 {
@@ -117,27 +118,27 @@ public:
         } while (true);
 
         KeyType pivotKey;
-        CacheKeyType ckLHSNode;
-        std::optional<CacheKeyType> ckRHSNode;
+        ObjectUIDType ckLHSNode;
+        std::optional<ObjectUIDType> ckRHSNode;
 
         while (vtNodes.size() > 0) 
         {
-            std::pair<CacheKeyType, CacheValueType> prNodeDetails = vtNodes.back();
+            std::pair<ObjectUIDType, ObjectTypePtr> prNodeDetails = vtNodes.back();
 
             if (prNodeDetails.second == nullptr)
             {
                 if (vtNodes.size() != 1)
                 {
-                    throw new exception("should not occur!");
+                    throw new std::exception("should not occur!");
                 }
 
                 m_cktRootNodeKey = m_ptrCache->template createObjectOfType<IndexNodeType>(pivotKey, ckLHSNode, *ckRHSNode);
                 break;
             }
 
-            if (std::holds_alternative<shared_ptr<IndexNodeType>>(*prNodeDetails.second->data))
+            if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*prNodeDetails.second->data))
             {
-                shared_ptr<IndexNodeType> ptrIndexNode = std::get<shared_ptr<IndexNodeType>>(*prNodeDetails.second->data);
+                std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*prNodeDetails.second->data);
 
                 ptrIndexNode->insert(pivotKey, *ckRHSNode);
 
@@ -149,19 +150,19 @@ public:
 
                     if (errCode != ErrorCode::Success)
                     {
-                        throw new exception("should not occur!");
+                        throw new std::exception("should not occur!");
                     }
                 }
             }
-            else if (std::holds_alternative<shared_ptr<DataNodeType>>(*prNodeDetails.second->data))
+            else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*prNodeDetails.second->data))
             {
-                shared_ptr<DataNodeType> ptrDataNode = std::get<shared_ptr<DataNodeType>>(*prNodeDetails.second->data);
+                std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*prNodeDetails.second->data);
 
-                ErrorCode errCode = ptrDataNode->template split<std::shared_ptr<CacheType>, CacheKeyType>(m_ptrCache, ckRHSNode, pivotKey);
+                ErrorCode errCode = ptrDataNode->template split<std::shared_ptr<CacheType>, ObjectUIDType>(m_ptrCache, ckRHSNode, pivotKey);
 
                 if (errCode != ErrorCode::Success)
                 {
-                    throw new exception("should not occur!");
+                    throw new std::exception("should not occur!");
                 }                
             }
 
@@ -183,10 +184,10 @@ public:
         vtLocks.push_back(std::shared_lock<std::shared_mutex>(mutex));
 #endif __CONCURRENT__
 
-        CacheKeyType ckCurrentNode = m_cktRootNodeKey.value();
+        ObjectUIDType ckCurrentNode = m_cktRootNodeKey.value();
         do
         {
-            CacheValueType prNodeDetails = m_ptrCache->getObject(ckCurrentNode);    //TODO: lock
+            ObjectTypePtr prNodeDetails = m_ptrCache->getObject(ckCurrentNode);    //TODO: lock
 
 #ifdef __CONCURRENT__
             vtLocks.push_back(std::shared_lock<std::shared_mutex>(prNodeDetails->mutex));
@@ -195,18 +196,18 @@ public:
 
             if (prNodeDetails == nullptr)
             {
-                throw new exception("should not occur!");
+                throw new std::exception("should not occur!");
             }
 
-            if (std::holds_alternative<shared_ptr<IndexNodeType>>(*prNodeDetails->data))
+            if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*prNodeDetails->data))
             {
-                shared_ptr<IndexNodeType> ptrIndexNode = std::get<shared_ptr<IndexNodeType>>(*prNodeDetails->data);
+                std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*prNodeDetails->data);
 
                 ckCurrentNode = ptrIndexNode->getChild(key);
             }
-            else if (std::holds_alternative<shared_ptr<DataNodeType>>(*prNodeDetails->data))
+            else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*prNodeDetails->data))
             {
-                shared_ptr<DataNodeType> ptrDataNode = std::get<shared_ptr<DataNodeType>>(*prNodeDetails->data);
+                std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*prNodeDetails->data);
 
                 errCode = ptrDataNode->getValue(key, value);
 
@@ -224,9 +225,9 @@ public:
         std::vector<std::unique_lock<std::shared_mutex>> vtLocks;
 #endif __CONCURRENT__
 
-        std::vector<std::pair<CacheKeyType, CacheValueType>> vtNodes;
-        CacheValueType ptrLastNode = nullptr, ptrCurrentNode = nullptr;
-        CacheKeyType ckLastNode, ckCurrentNode;
+        std::vector<std::pair<ObjectUIDType, ObjectTypePtr>> vtNodes;
+        ObjectTypePtr ptrLastNode = nullptr, ptrCurrentNode = nullptr;
+        ObjectUIDType ckLastNode, ckCurrentNode;
 
 #ifdef __CONCURRENT__
         vtLocks.push_back(std::unique_lock<std::shared_mutex>(mutex));
@@ -244,16 +245,16 @@ public:
 
             if (ptrCurrentNode == nullptr)
             {
-                throw new exception("should not occur!");
+                throw new std::exception("should not occur!");
             }
 
-            if (std::holds_alternative<shared_ptr<IndexNodeType>>(*ptrCurrentNode->data))
+            if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrCurrentNode->data))
             {
-                shared_ptr<IndexNodeType> ptrIndexNode = std::get<shared_ptr<IndexNodeType>>(*ptrCurrentNode->data);
+                std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrCurrentNode->data);
 
                 if (ptrIndexNode->canTriggerMerge(m_nDegree))
                 {
-                    vtNodes.push_back(std::pair<CacheKeyType, CacheValueType>(ckLastNode, ptrLastNode));
+                    vtNodes.push_back(std::pair<ObjectUIDType, ObjectTypePtr>(ckLastNode, ptrLastNode));
                 }
                 else
                 {
@@ -271,16 +272,16 @@ public:
 
                 ckCurrentNode = ptrIndexNode->getChild(key); // fid it.. there are two kinds of methods..
             }
-            else if (std::holds_alternative<shared_ptr<DataNodeType>>(*ptrCurrentNode->data))
+            else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrCurrentNode->data))
             {
-                shared_ptr<DataNodeType> ptrDataNode = std::get<shared_ptr<DataNodeType>>(*ptrCurrentNode->data);
+                std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrCurrentNode->data);
 
                 ptrDataNode->remove(key);
 
                 if (ptrDataNode->requireMerge(m_nDegree))
                 {
-                    vtNodes.push_back(std::pair<CacheKeyType, CacheValueType>(ckLastNode, ptrLastNode));
-                    vtNodes.push_back(std::pair<CacheKeyType, CacheValueType>(ckCurrentNode, ptrCurrentNode));
+                    vtNodes.push_back(std::pair<ObjectUIDType, ObjectTypePtr>(ckLastNode, ptrLastNode));
+                    vtNodes.push_back(std::pair<ObjectUIDType, ObjectTypePtr>(ckCurrentNode, ptrCurrentNode));
                 }
                 else
                 {
@@ -294,32 +295,32 @@ public:
             }
         } while (true);
 
-        CacheKeyType ckChildNode;
-        CacheValueType ptrChildNode = nullptr;
+        ObjectUIDType ckChildNode;
+        ObjectTypePtr ptrChildNode = nullptr;
 
         while (vtNodes.size() > 0)
         {
-            std::pair<CacheKeyType, CacheValueType> prNodeDetails = vtNodes.back();
+            std::pair<ObjectUIDType, ObjectTypePtr> prNodeDetails = vtNodes.back();
 
             if (prNodeDetails.second == nullptr)
             {
                 if (vtNodes.size() != 1)
                 {
-                    throw new exception("should not occur!");
+                    throw new std::exception("should not occur!");
                 }
 
                 break;
             }
 
-            if (std::holds_alternative<shared_ptr<IndexNodeType>>(*prNodeDetails.second->data))
+            if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*prNodeDetails.second->data))
             {
-                shared_ptr<IndexNodeType> ptrParentIndexNode = std::get<shared_ptr<IndexNodeType>>(*prNodeDetails.second->data);
+                std::shared_ptr<IndexNodeType> ptrParentIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*prNodeDetails.second->data);
 
-                if (std::holds_alternative<shared_ptr<IndexNodeType>>(*ptrChildNode->data))
+                if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrChildNode->data))
                 {
-                    std::optional<CacheKeyType> dlt = std::nullopt;
+                    std::optional<ObjectUIDType> dlt = std::nullopt;
 
-                    shared_ptr<IndexNodeType> ptrChildIndexNode = std::get<shared_ptr<IndexNodeType>>(*ptrChildNode->data);
+                    std::shared_ptr<IndexNodeType> ptrChildIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrChildNode->data);
 
                     if (ptrChildIndexNode->requireMerge(m_nDegree))
                     {
@@ -354,11 +355,11 @@ public:
                         }
                     }
                 }
-                else if (std::holds_alternative<shared_ptr<DataNodeType>>(*ptrChildNode->data))
+                else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrChildNode->data))
                 {
-                    std::optional<CacheKeyType> dlt = std::nullopt;
+                    std::optional<ObjectUIDType> dlt = std::nullopt;
 
-                    shared_ptr<DataNodeType> ptrChildDataNode = std::get<shared_ptr<DataNodeType>>(*ptrChildNode->data);
+                    std::shared_ptr<DataNodeType> ptrChildDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrChildNode->data);
                     ptrParentIndexNode->template rebalanceDataNode<std::shared_ptr<CacheType>, shared_ptr<DataNodeType>>(m_ptrCache, ptrChildDataNode, key, m_nDegree, ckChildNode, dlt);
 
                     if (dlt)
@@ -403,16 +404,16 @@ public:
     template <typename IndexNodeType, typename DataNodeType>
     void print()
     {
-        CacheValueType ptrRootNode = m_ptrCache->getObjectOfType(m_cktRootNodeKey.value());
-        if (std::holds_alternative<shared_ptr<IndexNodeType>>(*ptrRootNode->data))
+        ObjectTypePtr ptrRootNode = m_ptrCache->getObjectOfType(m_cktRootNodeKey.value());
+        if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrRootNode->data))
         {
-            shared_ptr<IndexNodeType> ptrIndexNode = std::get<shared_ptr<IndexNodeType>>(*ptrRootNode->data);
+            std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrRootNode->data);
 
-            ptrIndexNode->template print<std::shared_ptr<CacheType>, CacheValueType, DataNodeType>(m_ptrCache, 0);
+            ptrIndexNode->template print<std::shared_ptr<CacheType>, ObjectTypePtr, DataNodeType>(m_ptrCache, 0);
         }
-        else if (std::holds_alternative<shared_ptr<DataNodeType>>(*ptrRootNode->data))
+        else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrRootNode->data))
         {
-            shared_ptr<DataNodeType> ptrDataNode = std::get<shared_ptr<DataNodeType>>(*ptrRootNode->data);
+            std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrRootNode->data);
 
             ptrDataNode->print(0);
         }

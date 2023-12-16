@@ -7,10 +7,10 @@
 //
 //#include "DRAMLRUCache.h"
 //#include "DRAMCacheObject.h"
-//#include "DRAMCacheObjectKey.h"
+//#include "DRAMObjectUID.h"
 //#include "DRAMVolatileStorage.h"
 //#include <iostream>
-//#include "NoCache.h"
+//#include "NoCache.hpp"
 
 //class BPlusStore_DRAMLRU_Suite_2 : public ::testing::Test
 //{

@@ -9,12 +9,12 @@
 
 #include "glog/logging.h"
 
-#include "NoCache.h"
+#include "NoCache.hpp"
 #include "IndexNode.hpp"
 #include "DataNode.hpp"
 #include "BPlusStore.hpp"
 #include "NoCacheObject.hpp"
-#include "TypeId.h"
+#include "TypeUID.h"
 namespace BPlusStore_NoCache_Suite
 {
     class BPlusStore_NoCache_Suite_2 : public ::testing::TestWithParam<std::tuple<int, int, int>>
@@ -22,12 +22,12 @@ namespace BPlusStore_NoCache_Suite
     protected:
         typedef string KeyType;
         typedef string ValueType;
-        typedef uintptr_t CacheKeyType;
+        typedef uintptr_t ObjectUIDType;
 
         typedef DataNode<KeyType, ValueType, TYPE_UID::DATA_NODE_STRING_STRING> LeadNodeType;
-        typedef IndexNode<KeyType, ValueType, CacheKeyType, TYPE_UID::DATA_NODE_STRING_STRING> InternalNodeType;
+        typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_STRING_STRING> InternalNodeType;
 
-        typedef BPlusStore<KeyType, ValueType, NoCache<CacheKeyType, NoCacheObject, LeadNodeType, InternalNodeType>> BPlusStoreType;
+        typedef BPlusStore<KeyType, ValueType, NoCache<ObjectUIDType, NoCacheObject, LeadNodeType, InternalNodeType>> BPlusStoreType;
 
         BPlusStoreType* m_ptrTree;
 

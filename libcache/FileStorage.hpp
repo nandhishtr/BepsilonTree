@@ -9,6 +9,7 @@
 #include <cmath>
 
 #include "ErrorCodes.h"
+#include "IFlushCallback.h"
 
 class TypeProcessor {
 public:
@@ -40,15 +41,22 @@ struct NthType<N, FirstType, RemainingTypes...> {
 	using type = typename NthType<N - 1, RemainingTypes...>::type;
 };
 
-template<typename KeyType, template <typename, typename...> typename ValueType, typename ValueCoreTypesMarshaller, typename... ValueCoreTypes>
+template<
+	typename ICallback,
+	typename ObjectUIDType, 
+	template <typename, typename...> typename ObjectWrapperType, 
+	typename ObjectTypeMarshaller, 
+	typename... ObjectTypes
+>
 class FileStorage
 {
-	using type = typename NthType<0, ValueCoreTypes...>::type;
-	using type2 = typename NthType<1, ValueCoreTypes...>::type;
-	//using type21 = typename NthType<2, ValueCoreTypes...>::type;
+	using type = typename NthType<0, ObjectTypes...>::type;
+	using type2 = typename NthType<1, ObjectTypes...>::type;
+	//using type21 = typename NthType<2, ObjectTypes...>::type;
 
-
-	typedef ValueType<ValueCoreTypesMarshaller, ValueCoreTypes...> StorageValueType;
+public:
+	typedef ObjectUIDType ObjectUIDType;
+	typedef ObjectWrapperType<ObjectTypeMarshaller, ObjectTypes...> ObjectType;
 
 private:
 	size_t m_nFileSize;
@@ -78,7 +86,7 @@ public:
 		}
 	}
 
-	std::shared_ptr<StorageValueType> getObject(KeyType ptrKey)
+	std::shared_ptr<ObjectType> getObject(ObjectUIDType ptrKey)
 	{
 		char* szBuffer = new char[m_nBlockSize];
 
@@ -87,10 +95,10 @@ public:
 		return nullptr;
 	}
 
-	CacheErrorCode addObject(KeyType ptrKey, std::shared_ptr<StorageValueType> ptrValue)
+	CacheErrorCode addObject(ObjectUIDType ptrKey, std::shared_ptr<ObjectType> ptrValue)
 	{
 		std::tuple<uint8_t, const std::byte*, size_t> tpSerializedData = ptrValue->serialize();
-		//std::string serializedValue = std::visit(ValueCoreTypesMarshaller{}, ptrValue);
+		//std::string serializedValue = std::visit(ObjectTypeMarshaller{}, ptrValue);
 
 		//std::byte* bStream = new std::byte[std::get<2>(tpSerializedData)];
 		//size_t nStreamSize = new std::byte[std::get<2>(tpSerializedData)];
@@ -102,7 +110,7 @@ public:
 
 		size_t nBlockRequired = std::ceil(std::get<2>(tpSerializedData) / (float)m_nBlockSize);
 
-		ptrKey = KeyType::createAddressFromFileOffset(m_nBlockSize, nBlockRequired * m_nBlockSize);
+		ptrKey = ObjectUIDType::createAddressFromFileOffset(m_nBlockSize, nBlockRequired * m_nBlockSize);
 
 		for (int idx = 0; idx < nBlockRequired; idx++)
 		{

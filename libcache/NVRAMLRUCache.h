@@ -4,7 +4,7 @@
 
 #include "ICache.h"
 #include "NVRAMCacheObject.h"
-#include "NVRAMCacheObjectKey.h"
+#include "NVRAMObjectUID.h"
 #include "UnsortedMapUtil.h"
 #include "NVRAMVolatileStorage.h"
 
@@ -211,9 +211,9 @@ private:
 		*key = reinterpret_cast<uintptr_t>(&(*obj.get()));
 	}
 
-	void generateKey(std::shared_ptr<NVRAMCacheObjectKey> key, std::shared_ptr<ValueCoreTypeA> obj)
+	void generateKey(std::shared_ptr<NVRAMObjectUID> key, std::shared_ptr<ValueCoreTypeA> obj)
 	{
-		*key = NVRAMCacheObjectKey(&(*obj.get()));
+		*key = NVRAMObjectUID(&(*obj.get()));
 	}
 };
 
@@ -387,9 +387,9 @@ private:
 		*key = reinterpret_cast<uintptr_t>(&(*obj.get()));
 	}
 
-	void generateKey(std::shared_ptr<NVRAMCacheObjectKey> key, std::shared_ptr<ValueDRAMCoreType> obj)
+	void generateKey(std::shared_ptr<NVRAMObjectUID> key, std::shared_ptr<ValueDRAMCoreType> obj)
 	{
-		*key = NVRAMCacheObjectKey(&(*obj.get()));
+		*key = NVRAMObjectUID(&(*obj.get()));
 	}
 };
 

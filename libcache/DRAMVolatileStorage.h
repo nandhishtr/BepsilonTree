@@ -2,7 +2,6 @@
 #include <memory>
 #include <unordered_map>
 
-#include "UnsortedMapUtil.h"
 #include "ErrorCodes.h"
 
 template <typename KeyType, typename ValueType>

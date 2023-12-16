@@ -7,10 +7,10 @@
 //
 //#include "NVRAMLRUCache.h"
 //#include "NVRAMCacheObject.h"
-//#include "NVRAMCacheObjectKey.h"
+//#include "NVRAMObjectUID.h"
 //#include "NVRAMVolatileStorage.h"
 //#include <iostream>
-//#include "NoCache.h"
+//#include "NoCache.hpp"
 
 //class BPlusStore_NVRAMLRU_Suite_1 : public ::testing::Test 
 //{
