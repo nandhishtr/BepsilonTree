@@ -51,7 +51,7 @@ public:
 
         std::vector<std::pair<CacheKeyType, CacheValueType>> vtNodes;
         CacheValueType ptrLastNode = nullptr, ptrCurrentNode = nullptr;
-        CacheKeyType ckLastNode = NULL, ckCurrentNode = NULL;
+        CacheKeyType ckLastNode, ckCurrentNode;
 
 #ifdef __CONCURRENT__
         vtLocks.push_back(std::unique_lock<std::shared_mutex>(mutex));
@@ -226,7 +226,7 @@ public:
 
         std::vector<std::pair<CacheKeyType, CacheValueType>> vtNodes;
         CacheValueType ptrLastNode = nullptr, ptrCurrentNode = nullptr;
-        CacheKeyType ckLastNode = NULL, ckCurrentNode = NULL;
+        CacheKeyType ckLastNode, ckCurrentNode;
 
 #ifdef __CONCURRENT__
         vtLocks.push_back(std::unique_lock<std::shared_mutex>(mutex));

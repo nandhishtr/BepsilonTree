@@ -16,9 +16,6 @@ public:
 	typedef KeyType KeyType;
 	typedef ValueType<ValueCoreTypes...>* CacheValueType;
 
-private:
-	typedef ValueType<ValueCoreTypes...>* CacheValueTypePtr;
-
 public:
 	~NoCache()
 	{

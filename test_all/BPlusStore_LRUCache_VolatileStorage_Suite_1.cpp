@@ -16,6 +16,9 @@
 #include "LRUCacheObject.hpp"
 #include "VolatileStorage.hpp"
 #include "TypeMarshaller.hpp"
+#include "TypeId.h"
+#include "CacheObjectKey.h"
+
 
 namespace BPlusStore_LRUCache_VolatileStorage_Suite
 {
@@ -25,10 +28,10 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
     protected:
         typedef int KeyType;
         typedef int ValueType;
-        typedef uintptr_t CacheKeyType;
+        typedef CacheObjectKey CacheKeyType;
 
-        typedef DataNode<KeyType, ValueType> LeadNodeType;
-        typedef IndexNode<KeyType, ValueType, CacheKeyType> InternalNodeType;
+        typedef DataNode<KeyType, ValueType, TYPE_UID::DATA_NODE_INT_INT > LeadNodeType;
+        typedef IndexNode<KeyType, ValueType, CacheKeyType, TYPE_UID::DATA_NODE_INT_INT > InternalNodeType;
 
         typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage, CacheKeyType, LRUCacheObject, TypeMarshaller, LeadNodeType, InternalNodeType>> BPlusStoreType;
 

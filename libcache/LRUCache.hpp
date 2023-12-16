@@ -224,7 +224,8 @@ public:
 		KeyType key;
 		std::shared_ptr<ValueType<ValueCoreTypesMarshaller, ValueCoreTypes...>> ptrValue = ValueType<ValueCoreTypesMarshaller, ValueCoreTypes...>::template createObjectOfType<Type>(args...);
 
-		this->generateKey(key, ptrValue);
+		key = KeyType::createAddressFromVolatilePointer(reinterpret_cast<uintptr_t>(ptrValue.get()));
+		//this->generateKey(key, ptrValue);
 
 		std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue);
 
