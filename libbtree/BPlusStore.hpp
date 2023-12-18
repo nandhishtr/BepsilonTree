@@ -320,18 +320,18 @@ public:
 
                 if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrChildNode->data))
                 {
-                    std::optional<ObjectUIDType> dlt = std::nullopt;
+                    std::optional<ObjectUIDType> uidToDelete = std::nullopt;
 
                     std::shared_ptr<IndexNodeType> ptrChildIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrChildNode->data);
 
                     if (ptrChildIndexNode->requireMerge(m_nDegree))
                     {
-                        ptrParentIndexNode->template rebalanceIndexNode<std::shared_ptr<CacheType>, shared_ptr<IndexNodeType>>(m_ptrCache, ptrChildIndexNode, key, m_nDegree, ckChildNode, dlt);
+                        ptrParentIndexNode->template rebalanceIndexNode<std::shared_ptr<CacheType>, shared_ptr<IndexNodeType>>(m_ptrCache, ptrChildIndexNode, key, m_nDegree, ckChildNode, uidToDelete);
 
-                        if (dlt)
+                        if (uidToDelete)
                         {
 #ifdef __CONCURRENT__
-                            if (*dlt == ckChildNode)
+                            if (*uidToDelete == ckChildNode)
                             {
                                 auto it = vtLocks.begin();
                                 while (it != vtLocks.end()) {
@@ -347,7 +347,7 @@ public:
                             }
 #endif __CONCURRENT__
 
-                            m_ptrCache->remove(*dlt);
+                            m_ptrCache->remove(*uidToDelete);
                         }
 
                         if (ptrParentIndexNode->getKeysCount() == 0)
@@ -359,15 +359,15 @@ public:
                 }
                 else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrChildNode->data))
                 {
-                    std::optional<ObjectUIDType> dlt = std::nullopt;
+                    std::optional<ObjectUIDType> uidToDelete = std::nullopt;
 
                     std::shared_ptr<DataNodeType> ptrChildDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrChildNode->data);
-                    ptrParentIndexNode->template rebalanceDataNode<std::shared_ptr<CacheType>, shared_ptr<DataNodeType>>(m_ptrCache, ptrChildDataNode, key, m_nDegree, ckChildNode, dlt);
+                    ptrParentIndexNode->template rebalanceDataNode<std::shared_ptr<CacheType>, shared_ptr<DataNodeType>>(m_ptrCache, ptrChildDataNode, key, m_nDegree, ckChildNode, uidToDelete);
 
-                    if (dlt)
+                    if (uidToDelete)
                     {
 #ifdef __CONCURRENT__
-                        if (*dlt == ckChildNode)
+                        if (*uidToDelete == ckChildNode)
                         {
                             auto it = vtLocks.begin();
                             while (it != vtLocks.end()) {
@@ -383,7 +383,7 @@ public:
                         }
 #endif __CONCURRENT__
 
-                        m_ptrCache->remove(*dlt);
+                        m_ptrCache->remove(*uidToDelete);
                     }
 
                     if (ptrParentIndexNode->getKeysCount() == 0)

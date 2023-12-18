@@ -43,6 +43,13 @@ private:
 			m_oKey = key;
 			m_ptrValue = ptrValue;
 		}
+
+		~Item()
+		{
+			m_ptrPrev = nullptr;
+			m_ptrNext = nullptr;
+			m_ptrValue = nullptr;
+		}
 	};
 
 	std::unordered_map<ObjectUIDType, std::shared_ptr<Item>> m_mpObject;
@@ -105,25 +112,8 @@ public:
 		auto it = m_mpObject.find(key);
 		if (it != m_mpObject.end()) 
 		{
-			//if (!(*it).second->m_ptrValue->mutex.try_lock())
-			//{
-			//	throw new std::exception("should not occur!");
-			//}
-			//(*it).second->m_ptrValue->mutex.unlock();
-
 			removeFromLRU((*it).second);
-
-			//if ((*it).second->m_ptrValue.use_count() > 1)
-			//{
-			//	//throw new std::exception("should not occur!");
-			//}
-			//else {
-			//}
-
-			m_mpObject.erase(it);			
-
-			//TODO: explicitly call std::shared destructor!
-			//TODO: look for ref count?
+			m_mpObject.erase((*it).first);
 			return CacheErrorCode::Success;
 		}
 
@@ -221,9 +211,9 @@ public:
 		{
 			std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue);
 
-//#ifdef __CONCURRENT__
-//			std::unique_lock<std::shared_mutex> re_lock_cache(m_mtxCache);
-//#endif __CONCURRENT__
+#ifdef __CONCURRENT__
+			std::unique_lock<std::shared_mutex> re_lock_cache(m_mtxCache);
+#endif __CONCURRENT__
 
 			m_mpObject[key] = ptrItem;
 
@@ -315,9 +305,7 @@ private:
 		}
 		else
 		{
-			if (ptrItem->m_ptrPrev!= nullptr)
 			ptrItem->m_ptrPrev->m_ptrNext = ptrItem->m_ptrNext;
-			if (ptrItem->m_ptrNext != nullptr)
 			ptrItem->m_ptrNext->m_ptrPrev = ptrItem->m_ptrPrev;
 		}
 
@@ -359,31 +347,31 @@ private:
 
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache);
 
-		while (m_mpObject.size() >= m_nCapacity)
-		{
-			//if (!m_ptrTail->m_ptrValue->mutex.try_lock())
-			//{
-			//	break;
-			//}
-			//m_ptrTail->m_ptrValue->mutex.unlock();
+		if (m_mpObject.size() < m_nCapacity)
+			return;
 
-			//if (m_ptrTail->m_ptrValue.use_count() > 1)
-			//{
-			//	break;
-			//	//throw new std::exception("should not occur!");
-			//}
-			//else {
-			//}
+		size_t nFlushCount = m_mpObject.size() - m_nCapacity;
+		for (size_t idx = 0; idx < nFlushCount; idx++)
+		{
+			if (!m_ptrTail->m_ptrValue->mutex.try_lock())
+			{
+				// in use.. TODO: proceed with the next one.
+				break;
+			}
+			m_ptrTail->m_ptrValue->mutex.unlock();
+
 
 			std::shared_ptr<Item> ptrTemp = m_ptrTail;
-			m_ptrTail = ptrTemp->m_ptrPrev;
+
 			vtItems.push_back(std::pair<ObjectUIDType, ObjectTypePtr>(ptrTemp->m_oKey, ptrTemp->m_ptrValue));
 
 			m_mpObject.erase(ptrTemp->m_oKey);
 
+			m_ptrTail = ptrTemp->m_ptrPrev;
+
 			ptrTemp->m_ptrPrev = nullptr;
 			ptrTemp->m_ptrNext = nullptr;
-			
+
 			if (m_ptrTail)
 			{
 				m_ptrTail->m_ptrNext = nullptr;
@@ -397,13 +385,20 @@ private:
 		std::unique_lock<std::shared_mutex> lock_storage(m_mtxStorage);
 
 		lock_cache.unlock();
+
 		auto it = vtItems.begin();
 		while (it != vtItems.end())
 		{
 			m_ptrStorage->addObject((*it).first, (*it).second);
-			//TODO: delete object!
+
+			if ((*it).second.use_count() != 2)
+			{
+				throw new std::exception("should not occur!");
+			}
+
 			it++;
 		}
+
 		vtItems.clear();
 #else
 		while (m_mpObject.size() >= m_nCapacity)
