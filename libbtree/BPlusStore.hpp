@@ -10,12 +10,13 @@
 #include <cmath>
 #include <exception>
 #include <variant>
+#include "CacheErrorCodes.h"
 #include "ErrorCodes.h"
 
-//#define __CONCURRENT__
+#define __CONCURRENT__
 
-template <typename KeyType, typename ValueType, typename CacheType>
-class BPlusStore
+template <typename ICallback, typename KeyType, typename ValueType, typename CacheType>
+class BPlusStore : public ICallback
 {
     typedef CacheType::ObjectUIDType ObjectUIDType;
     typedef CacheType::ObjectTypePtr ObjectTypePtr;
@@ -40,6 +41,7 @@ public:
     template <typename DefaultNodeType>
     void init()
     {
+        m_ptrCache->init(this);
         m_cktRootNodeKey = m_ptrCache->template createObjectOfType<DefaultNodeType>();
     }
 
@@ -417,5 +419,11 @@ public:
 
             ptrDataNode->print(0);
         }
+    }
+
+public:
+    CacheErrorCode keyUpdate(ObjectUIDType uidObject)
+    {
+        return CacheErrorCode::Success;
     }
 };

@@ -1,10 +1,9 @@
 #pragma once
-#include "ErrorCodes.h"
+#include "CacheErrorCodes.h"
 
-template <typename KeyType>
+template <typename ObjectUIDType>
 class IFlushCallback
 {
 public:
-	virtual CacheErrorCode keyUpdate(KeyType oldKey, KeyType newKey, KeyType parentKey) = 0;
+	virtual CacheErrorCode keyUpdate(ObjectUIDType uidObject) = 0;
 };
-

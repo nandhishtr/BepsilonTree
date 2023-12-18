@@ -7,7 +7,7 @@
 #include <variant>
 #include <typeinfo>
 
-#include "ErrorCodes.h"
+#include "CacheErrorCodes.h"
 #include "IFlushCallback.h"
 
 template<typename KeyType, template <typename...> typename ValueType, typename... ValueCoreTypes>
@@ -25,6 +25,12 @@ public:
 
 	NoCache()
 	{
+	}
+
+	template <typename... InitArgs>
+	CacheErrorCode init(InitArgs... args)
+	{
+		return CacheErrorCode::Success;
 	}
 
 	CacheErrorCode remove(ObjectUIDType objKey)

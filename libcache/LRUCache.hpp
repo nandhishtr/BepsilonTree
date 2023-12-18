@@ -9,11 +9,13 @@
 #include <unordered_map>
 #include <queue>
 #include  <algorithm>
+#include <tuple>
 
 #include "ErrorCodes.h"
 #include "IFlushCallback.h"
+#include "VariadicNthType.h"
 
-//#define __CONCURRENT__
+#define __CONCURRENT__
 
 template <typename ICallback, typename StorageType>
 class LRUCache
@@ -45,7 +47,6 @@ private:
 
 	std::unordered_map<ObjectUIDType, std::shared_ptr<Item>> m_mpObject;
 
-
 	size_t m_nCapacity;
 	std::shared_ptr<Item> m_ptrHead;
 	std::shared_ptr<Item> m_ptrTail;
@@ -53,13 +54,10 @@ private:
 #ifdef __CONCURRENT__
 	bool m_bStop;
 
-	std::thread m_threadLRU;
 	std::thread m_threadCacheFlush;
 
 	mutable std::shared_mutex m_mtxCache;
-	mutable std::shared_mutex m_mtxLRUQueue;
-
-	std::queue<std::shared_ptr<Item>> m_qLRUItems;
+	mutable std::shared_mutex m_mtxStorage;
 #endif __CONCURRENT__
 
 	std::unique_ptr<StorageType> m_ptrStorage;
@@ -67,6 +65,14 @@ private:
 public:
 	~LRUCache()
 	{
+		m_bStop = true;
+		m_threadCacheFlush.join();
+
+		m_ptrHead = nullptr;
+		m_ptrTail = nullptr;
+		m_ptrStorage = nullptr;
+
+		m_mpObject.clear();
 	}
 
 	template <typename... StorageArgs>
@@ -79,23 +85,45 @@ public:
 
 #ifdef __CONCURRENT__
 		m_bStop = false;
-		m_threadLRU = std::thread(handlerLRUQueue, this);
 		m_threadCacheFlush = std::thread(handlerCacheFlush, this);
 #endif __CONCURRENT__
 	}
 
-	CacheErrorCode remove(ObjectUIDType objKey)
+	template <typename... InitArgs>
+	CacheErrorCode init(InitArgs... args)
+	{	
+		//m_ptrCallback = ptrCallback;
+		return m_ptrStorage->init(getNthElement<0>(args...));
+	}
+
+	CacheErrorCode remove(ObjectUIDType key)
 	{
 #ifdef __CONCURRENT__
-		std::unique_lock<std::shared_mutex>  lock_store(m_mtxCache);
+		std::unique_lock<std::shared_mutex>  lock_cache(m_mtxCache);
 #endif __CONCURRENT__
 
-		auto it = m_mpObject.find(objKey);
+		auto it = m_mpObject.find(key);
 		if (it != m_mpObject.end()) 
 		{
+			//if (!(*it).second->m_ptrValue->mutex.try_lock())
+			//{
+			//	throw new std::exception("should not occur!");
+			//}
+			//(*it).second->m_ptrValue->mutex.unlock();
+
+			removeFromLRU((*it).second);
+
+			//if ((*it).second->m_ptrValue.use_count() > 1)
+			//{
+			//	//throw new std::exception("should not occur!");
+			//}
+			//else {
+			//}
+
+			m_mpObject.erase(it);			
+
 			//TODO: explicitly call std::shared destructor!
 			//TODO: look for ref count?
-			m_mpObject.erase(it);
 			return CacheErrorCode::Success;
 		}
 
@@ -105,43 +133,48 @@ public:
 	ObjectTypePtr getObject(ObjectUIDType key)
 	{
 #ifdef __CONCURRENT__
-		std::unique_lock<std::shared_mutex> lock_store(m_mtxCache);
+		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache); // std::unique_lock due to LRU's linked-list update! is there any better way?
 #endif __CONCURRENT__
 
 		if (m_mpObject.find(key) != m_mpObject.end())
 		{
 			std::shared_ptr<Item> ptrItem = m_mpObject[key];
-
-#ifdef __CONCURRENT__
-			lock_store.unlock();
-			
-			std::unique_lock<std::shared_mutex> lock_lru_queue(m_mtxLRUQueue);
-
-			m_qLRUItems.push(ptrItem);
-#else
 			moveToFront(ptrItem);
-#endif __CONCURRENT__
-
 			return ptrItem->m_ptrValue;
 		}
 
+#ifdef __CONCURRENT__
+		lock_cache.unlock();
+		std::shared_lock<std::shared_mutex> lock_storage(m_mtxStorage); // TODO: requesting the same key?
+#endif __CONCURRENT__
+
 		std::shared_ptr<ObjectType> ptrValue = m_ptrStorage->getObject(key);
+
+#ifdef __CONCURRENT__
+		lock_storage.unlock();
+#endif __CONCURRENT__
+
 		if (ptrValue != nullptr)
 		{
 			std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue);
 
+#ifdef __CONCURRENT__
+			std::unique_lock<std::shared_mutex> re_lock_cache(m_mtxCache);
+#endif __CONCURRENT__
+
 			m_mpObject[key] = ptrItem;
 
-#ifdef __CONCURRENT__
-			lock_store.unlock();
-
-			std::unique_lock<std::shared_mutex> lock_lru_queue(m_mtxLRUQueue);
-
-			m_qLRUItems.push(ptrItem);
-#else
-			moveToFront(ptrItem);
-			flushItemsToStorage();
-#endif __CONCURRENT__
+			if (!m_ptrHead) 
+			{
+				m_ptrHead = ptrItem;
+				m_ptrTail = ptrItem;
+			}
+			else 
+			{
+				ptrItem->m_ptrNext = m_ptrHead;
+				m_ptrHead->m_ptrPrev = ptrItem;
+				m_ptrHead = ptrItem;
+			}
 
 			return ptrValue;
 		}
@@ -153,23 +186,17 @@ public:
 	Type getObjectOfType(ObjectUIDType key)
 	{
 #ifdef __CONCURRENT__
-		std::unique_lock<std::shared_mutex> lock_store(m_mtxCache);
+		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache);
 #endif __CONCURRENT__
 
 		if (m_mpObject.find(key) != m_mpObject.end())
 		{
 			std::shared_ptr<Item> ptrItem = m_mpObject[key];
-
-#ifdef __CONCURRENT__
-			lock_store.unlock();
-
-			std::unique_lock<std::shared_mutex> lock_lru_queue(m_mtxLRUQueue);
-
-			m_qLRUItems.push(ptrItem);
-#else
 			moveToFront(ptrItem);
 
-#endif __CONCURRENT__
+//#ifdef __CONCURRENT__
+//			lock_cache.unlock();
+//#endif __CONCURRENT__
 
 			if (std::holds_alternative<Type>(*ptrItem->m_ptrValue->data))
 			{
@@ -179,26 +206,42 @@ public:
 			return nullptr;
 		}
 
+#ifdef __CONCURRENT__
+		lock_cache.unlock();
+		std::shared_lock<std::shared_mutex> lock_storage(m_mtxStorage);
+#endif __CONCURRENT__
+
 		std::shared_ptr<ObjectType> ptrValue = m_ptrStorage->getObject(key);
+
+#ifdef __CONCURRENT__
+		lock_storage.unlock();
+#endif __CONCURRENT__
+
 		if (ptrValue != nullptr)
 		{
 			std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue);
 
+//#ifdef __CONCURRENT__
+//			std::unique_lock<std::shared_mutex> re_lock_cache(m_mtxCache);
+//#endif __CONCURRENT__
+
 			m_mpObject[key] = ptrItem;
 
-#ifdef __CONCURRENT__
-			lock_store.unlock();
+			if (!m_ptrHead)
+			{
+				m_ptrHead = ptrItem;
+				m_ptrTail = ptrItem;
+			}
+			else
+			{
+				ptrItem->m_ptrNext = m_ptrHead;
+				m_ptrHead->m_ptrPrev = ptrItem;
+				m_ptrHead = ptrItem;
+			}
 
-			std::unique_lock<std::shared_mutex> lock_lru_queue(m_mtxLRUQueue);
-
-			m_qLRUItems.push(ptrItem);
-
-			lock_lru_queue.unlock();
-#else
-			moveToFront(ptrItem);
-			flushItemsToStorage();
-#endif __CONCURRENT__
-
+//#ifdef __CONCURRENT__
+//			lock_cache.unlock();
+//#endif __CONCURRENT__
 
 			if (std::holds_alternative<Type>(*ptrValue->data))
 			{
@@ -214,37 +257,42 @@ public:
 	template<class Type, typename... ArgsType>
 	ObjectUIDType createObjectOfType(ArgsType... args)
 	{
-#ifdef __CONCURRENT__
-		std::unique_lock<std::shared_mutex> lock_store(m_mtxCache);
-#endif __CONCURRENT__
-
-		//TODO .. do we really need these much objects? ponder!
 		ObjectUIDType key;
 		std::shared_ptr<ObjectType> ptrValue = ObjectType::template createObjectOfType<Type>(args...);
 
 		key = ObjectUIDType::createAddressFromVolatilePointer(reinterpret_cast<uintptr_t>(ptrValue.get()));
-		//this->generateKey(key, ptrValue);
 
 		std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue);
+
+#ifdef __CONCURRENT__
+		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache);
+#endif __CONCURRENT__
 
 		if (m_mpObject.find(key) != m_mpObject.end())
 		{
 			std::shared_ptr<Item> ptrItem = m_mpObject[key];
 			ptrItem->m_ptrValue = ptrValue;
+			moveToFront(ptrItem);
 		}
 		else
 		{
 			m_mpObject[key] = ptrItem;
+			if (!m_ptrHead) 
+			{
+				m_ptrHead = ptrItem;
+				m_ptrTail = ptrItem;
+			}
+			else 
+			{
+				ptrItem->m_ptrNext = m_ptrHead;
+				m_ptrHead->m_ptrPrev = ptrItem;
+				m_ptrHead = ptrItem;
+			}
 		}
 
 #ifdef __CONCURRENT__
-		lock_store.unlock();
-
-		std::unique_lock<std::shared_mutex> lock_lru_queue(m_mtxLRUQueue);
-
-		m_qLRUItems.push(ptrItem);
+		//..
 #else
-		moveToFront(ptrItem);
 		flushItemsToStorage();
 #endif __CONCURRENT__
 
@@ -255,37 +303,21 @@ private:
 	inline void moveToFront(std::shared_ptr<Item> ptrItem)
 	{
 		if (ptrItem == m_ptrHead)
-			return;
-
-		if (!m_ptrHead) 
 		{
-			m_ptrHead = ptrItem;
-			m_ptrTail = ptrItem;
-
-			ptrItem->m_ptrNext = nullptr;
-			ptrItem->m_ptrPrev = nullptr;
-
+			m_ptrHead->m_ptrPrev = nullptr;
 			return;
 		}
-
 
 		if (ptrItem == m_ptrTail)
 		{
 			m_ptrTail = ptrItem->m_ptrPrev;
 			m_ptrTail->m_ptrNext = nullptr;
-			
-			ptrItem->m_ptrPrev = nullptr;
-			ptrItem->m_ptrNext = m_ptrHead;
-			
-			m_ptrHead->m_ptrPrev = ptrItem;
-			m_ptrHead = ptrItem;
-
-			return;
 		}
-
-		if (ptrItem->m_ptrPrev != nullptr && ptrItem->m_ptrNext != nullptr)
+		else
 		{
+			if (ptrItem->m_ptrPrev!= nullptr)
 			ptrItem->m_ptrPrev->m_ptrNext = ptrItem->m_ptrNext;
+			if (ptrItem->m_ptrNext != nullptr)
 			ptrItem->m_ptrNext->m_ptrPrev = ptrItem->m_ptrPrev;
 		}
 
@@ -295,35 +327,63 @@ private:
 		m_ptrHead = ptrItem;
 	}
 
+	inline void removeFromLRU(std::shared_ptr<Item> ptrItem)
+	{
+		if (ptrItem == m_ptrHead)
+		{
+			m_ptrHead = ptrItem->m_ptrNext;
+			m_ptrHead->m_ptrPrev = nullptr;
+		}
+
+		if (ptrItem == m_ptrTail)
+		{
+			m_ptrTail = ptrItem->m_ptrPrev;
+			m_ptrTail->m_ptrNext = nullptr;
+		}
+
+		if (ptrItem->m_ptrPrev != nullptr && ptrItem->m_ptrNext != nullptr)
+		{
+			ptrItem->m_ptrPrev->m_ptrNext = ptrItem->m_ptrNext;
+			ptrItem->m_ptrNext->m_ptrPrev = ptrItem->m_ptrPrev;
+		}
+
+		ptrItem->m_ptrPrev = nullptr;
+		ptrItem->m_ptrNext = nullptr;
+	}
+
 	inline void flushItemsToStorage()
 	{
 #ifdef __CONCURRENT__
-		int nFlushCount = 0;
-		std::vector<ObjectUIDType> vtItems;
 
-		std::unique_lock<std::shared_mutex> lock_store(m_mtxCache);
+		std::vector<std::pair<ObjectUIDType, ObjectTypePtr>> vtItems;
 
-		if ((nFlushCount = m_mpObject.size()) <= m_nCapacity)
-			return;
+		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache);
 
-		lock_store.unlock();
-
-		// !!! Address following!!
-		//m_ptrStorage->addObject(m_ptrTail->m_oKey, m_ptrTail->m_ptrValue);
-
-		std::unique_lock<std::shared_mutex> lock_lru_queue(m_mtxLRUQueue);
-
-		for (int idx = 0; idx < nFlushCount; idx++)
+		while (m_mpObject.size() >= m_nCapacity)
 		{
-			if (m_ptrTail == nullptr)
-				break;
+			//if (!m_ptrTail->m_ptrValue->mutex.try_lock())
+			//{
+			//	break;
+			//}
+			//m_ptrTail->m_ptrValue->mutex.unlock();
+
+			//if (m_ptrTail->m_ptrValue.use_count() > 1)
+			//{
+			//	break;
+			//	//throw new std::exception("should not occur!");
+			//}
+			//else {
+			//}
 
 			std::shared_ptr<Item> ptrTemp = m_ptrTail;
+			m_ptrTail = ptrTemp->m_ptrPrev;
+			vtItems.push_back(std::pair<ObjectUIDType, ObjectTypePtr>(ptrTemp->m_oKey, ptrTemp->m_ptrValue));
 
-			vtItems.push_back(ptrTemp->m_oKey);
+			m_mpObject.erase(ptrTemp->m_oKey);
 
-			m_ptrTail = m_ptrTail->m_ptrPrev;
-
+			ptrTemp->m_ptrPrev = nullptr;
+			ptrTemp->m_ptrNext = nullptr;
+			
 			if (m_ptrTail)
 			{
 				m_ptrTail->m_ptrNext = nullptr;
@@ -334,15 +394,17 @@ private:
 			}
 		}
 
-		lock_lru_queue.unlock();
+		std::unique_lock<std::shared_mutex> lock_storage(m_mtxStorage);
 
-		std::unique_lock<std::shared_mutex> re_lock_store(m_mtxCache);
-
+		lock_cache.unlock();
 		auto it = vtItems.begin();
 		while (it != vtItems.end())
 		{
-			m_mpObject.erase(*it);
+			m_ptrStorage->addObject((*it).first, (*it).second);
+			//TODO: delete object!
+			it++;
 		}
+		vtItems.clear();
 #else
 		while (m_mpObject.size() >= m_nCapacity)
 		{
@@ -363,36 +425,7 @@ private:
 #endif __CONCURRENT__
 	}
 
-	inline void generateKey(uintptr_t& key, std::shared_ptr<ObjectType> ptrValue)
-	{
-		key = reinterpret_cast<uintptr_t>(&(*ptrValue.get()));
-	}
-
 #ifdef __CONCURRENT__
-	static void handlerLRUQueue(SelfType* ptrSelf) 
-	{
-		std::queue<std::shared_ptr<Item>> qLocal;
-
-		do 
-		{
-			std::unique_lock<std::shared_mutex> lock_store(ptrSelf->m_mtxLRUQueue);
-
-			qLocal = ptrSelf->m_qLRUItems;
-
-			lock_store.unlock();
-
-			while (qLocal.size() > 0)
-			{
-				// TODO: logic to move items in bunch!
-				ptrSelf->moveToFront(qLocal.front());
-				qLocal.pop();
-			}
-
-			std::this_thread::sleep_for(100ms);
-
-		} while (!ptrSelf->m_bStop);
-	}
-
 	static void handlerCacheFlush(SelfType* ptrSelf)
 	{
 		do

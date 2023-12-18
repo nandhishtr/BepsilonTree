@@ -13,21 +13,23 @@
 
 using namespace std;
 
-template <typename KeyType, typename ValueType, typename CacheKeyType, uint8_t TYPE_UID>
+template <typename KeyType, typename ValueType, typename ObjectUIDType, uint8_t TYPE_UID>
 class IndexNode
 {
 public:
 	static const uint8_t UID = TYPE_UID;
+	
+	ObjectUIDType m_keyParent;
 
 private:
-	typedef IndexNode<KeyType, ValueType, CacheKeyType, UID> SelfType;
+	typedef IndexNode<KeyType, ValueType, ObjectUIDType, UID> SelfType;
 	typedef std::vector<KeyType>::const_iterator KeyTypeIterator;
-	typedef std::vector<CacheKeyType>::const_iterator CacheKeyTypeIterator;
+	typedef std::vector<ObjectUIDType>::const_iterator CacheKeyTypeIterator;
 
 	struct INDEXNODESTRUCT
 	{
 		std::vector<KeyType> m_vtPivots;
-		std::vector<CacheKeyType> m_vtChildren;
+		std::vector<ObjectUIDType> m_vtChildren;
 	};
 
 private:
@@ -58,7 +60,7 @@ public:
 		m_ptrData->m_vtChildren.assign(itBeginChildren, itEndChildren);
 	}
 
-	IndexNode(const KeyType& pivotKey, const CacheKeyType& ptrLHSNode, const CacheKeyType& ptrRHSNode)
+	IndexNode(const KeyType& pivotKey, const ObjectUIDType& ptrLHSNode, const ObjectUIDType& ptrRHSNode)
 		: m_ptrData(make_shared<INDEXNODESTRUCT>())
 	{
 		m_ptrData->m_vtPivots.push_back(pivotKey);
@@ -67,7 +69,7 @@ public:
 
 	}
 
-	inline void insert(const KeyType& pivotKey, const CacheKeyType& ptrSibling)
+	inline void insert(const KeyType& pivotKey, const ObjectUIDType& ptrSibling)
 	{
 		size_t nChildIdx = m_ptrData->m_vtPivots.size();
 		for (int nIdx = 0; nIdx < m_ptrData->m_vtPivots.size(); ++nIdx)
@@ -84,7 +86,7 @@ public:
 	}
 
 	template <typename CacheType, typename CacheValueType>
-	inline ErrorCode rebalanceIndexNode(CacheType ptrCache, CacheValueType ptrChild, const KeyType& key, size_t nDegree, CacheKeyType& cktChild, std::optional<CacheKeyType>& cktNodeToDelete)
+	inline ErrorCode rebalanceIndexNode(CacheType ptrCache, CacheValueType ptrChild, const KeyType& key, size_t nDegree, ObjectUIDType& cktChild, std::optional<ObjectUIDType>& cktNodeToDelete)
 	{
 		CacheValueType ptrLHSNode = nullptr;
 		CacheValueType ptrRHSNode = nullptr;
@@ -145,7 +147,7 @@ public:
 	}
 
 	template <typename CacheType, typename CacheValueType>
-	inline ErrorCode rebalanceDataNode(CacheType ptrCache, CacheValueType ptrChild, const KeyType& key, size_t nDegree, CacheKeyType& cktChild, std::optional<CacheKeyType>& cktNodeToDelete)
+	inline ErrorCode rebalanceDataNode(CacheType ptrCache, CacheValueType ptrChild, const KeyType& key, size_t nDegree, ObjectUIDType& cktChild, std::optional<ObjectUIDType>& cktNodeToDelete)
 	{
 		CacheValueType ptrLHSNode = nullptr;
 		CacheValueType ptrRHSNode = nullptr;
@@ -223,11 +225,11 @@ public:
 		return nChildIdx;
 	}
 
-	inline CacheKeyType getChildAt(size_t nIdx) {
+	inline ObjectUIDType getChildAt(size_t nIdx) {
 		return m_ptrData->m_vtChildren[nIdx];
 	}
 
-	inline CacheKeyType getChild(const KeyType& key)
+	inline ObjectUIDType getChild(const KeyType& key)
 	{
 		return m_ptrData->m_vtChildren[getChildNodeIdx(key)];
 	}
@@ -254,7 +256,7 @@ public:
 	}
 
 	template <typename Cache>
-	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& ptrSibling, KeyType& pivotKey)
+	inline ErrorCode split(Cache ptrCache, std::optional<ObjectUIDType>& ptrSibling, KeyType& pivotKey)
 	{
 		size_t nMid = m_ptrData->m_vtPivots.size() / 2;
 
@@ -278,7 +280,7 @@ public:
 	inline void moveAnEntityFromLHSSibling(shared_ptr<SelfType> ptrLHSSibling, KeyType& keytoassign, KeyType& pivotKey)
 	{
 		KeyType key = ptrLHSSibling->m_ptrData->m_vtPivots.back();
-		CacheKeyType value = ptrLHSSibling->m_ptrData->m_vtChildren.back();
+		ObjectUIDType value = ptrLHSSibling->m_ptrData->m_vtChildren.back();
 
 		ptrLHSSibling->m_ptrData->m_vtPivots.pop_back();
 		ptrLHSSibling->m_ptrData->m_vtChildren.pop_back();
@@ -292,7 +294,7 @@ public:
 	inline void moveAnEntityFromRHSSibling(shared_ptr<SelfType> ptrRHSSibling, KeyType& keytoassign, KeyType& pivotKey)
 	{
 		KeyType key = ptrRHSSibling->m_ptrData->m_vtPivots.front();
-		CacheKeyType value = ptrRHSSibling->m_ptrData->m_vtChildren.front();
+		ObjectUIDType value = ptrRHSSibling->m_ptrData->m_vtChildren.front();
 
 		ptrRHSSibling->m_ptrData->m_vtPivots.erase(ptrRHSSibling->m_ptrData->m_vtPivots.begin());
 		ptrRHSSibling->m_ptrData->m_vtChildren.erase(ptrRHSSibling->m_ptrData->m_vtChildren.begin());

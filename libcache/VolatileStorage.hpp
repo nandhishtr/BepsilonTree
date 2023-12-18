@@ -20,10 +20,19 @@ private:
 	size_t m_nPoolSize;
 	std::unordered_map<ObjectUIDType, std::shared_ptr<ObjectType>> m_mpObject;
 
+	ICallback* m_ptrCallback;
+
 public:
 	VolatileStorage(size_t nPoolSize)
 		: m_nPoolSize(nPoolSize)
 	{
+	}
+
+	template <typename... InitArgs>
+	CacheErrorCode init(InitArgs... args)
+	{
+		m_ptrCallback = getNthElement<0>(args...);
+		return CacheErrorCode::Success;
 	}
 
 	std::shared_ptr<ObjectType> getObject(ObjectUIDType ptrKey)

@@ -33,7 +33,7 @@ public:
 
 	template <typename... Types>
 	static void deserialize(uint8_t uid, std::byte* bytes, std::variant<Types...>& variant) {
-		if (uid == DataNode<std::string, std::string, __COUNTER__>::UID)
+		/*if (uid == DataNode<std::string, std::string, __COUNTER__>::UID)
 		{
 		std::cout << __COUNTER__;
 
@@ -46,7 +46,7 @@ public:
 		{
 			std::cout << __COUNTER__;
 
-		}
+		}*/
 
 		//std::variant<std::shared_ptr<Types>...> _t;
 			

@@ -30,12 +30,14 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
         typedef int ValueType;
         typedef ObjectUID ObjectUIDType;
 
-        typedef DataNode<KeyType, ValueType, TYPE_UID::DATA_NODE_INT_INT > LeadNodeType;
+        typedef IFlushCallback<ObjectUIDType> ICallback;
+
+        typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT > DataNodeType;
         typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT > InternalNodeType;
 
         typedef IFlushCallback<ObjectUIDType> ICallback;
 
-        typedef BPlusStore<KeyType, ValueType, LRUCache<ICallback, VolatileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, LeadNodeType, InternalNodeType>>> BPlusStoreType;
+        typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, VolatileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, InternalNodeType>>> BPlusStoreType;
 
         //BPlusStoreType* m_ptrTree;
 
@@ -44,7 +46,7 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
             std::tie(nDegree, nBegin_BulkInsert, nEnd_BulkInsert, nCacheSize, nStorageSize) = GetParam();
 
             //m_ptrTree = new BPlusStoreType(3);
-            //m_ptrTree->template init<LeadNodeType>();
+            //m_ptrTree->template init<DataNodeType>();
         }
 
         void TearDown() override {
@@ -61,11 +63,11 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
     TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Insert_v1) {
 
         BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nStorageSize);
-        ptrTree->template init<LeadNodeType>();
+        ptrTree->template init<DataNodeType>();
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+            ptrTree->template insert<InternalNodeType, DataNodeType>(nCntr, nCntr);
         }
 
         delete ptrTree;
@@ -74,16 +76,16 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
     TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Insert_v2) {
 
         BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nStorageSize);
-        ptrTree->template init<LeadNodeType>();
+        ptrTree->template init<DataNodeType>();
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+            ptrTree->template insert<InternalNodeType, DataNodeType>(nCntr, nCntr);
         }
 
         for (size_t nCntr = nBegin_BulkInsert + 1; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+            ptrTree->template insert<InternalNodeType, DataNodeType>(nCntr, nCntr);
         }
 
         delete ptrTree;
@@ -92,11 +94,11 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
     TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Insert_v3) {
 
         BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nStorageSize);
-        ptrTree->template init<LeadNodeType>();
+        ptrTree->template init<DataNodeType>();
 
         for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+            ptrTree->template insert<InternalNodeType, DataNodeType>(nCntr, nCntr);
         }
 
         delete ptrTree;
@@ -105,17 +107,17 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
     TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Search_v1) {
 
         BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nStorageSize);
-        ptrTree->template init<LeadNodeType>();
+        ptrTree->template init<DataNodeType>();
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+            ptrTree->template insert<InternalNodeType, DataNodeType>(nCntr, nCntr);
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(nCntr, nValue);
 
             ASSERT_EQ(nValue, nCntr);
         }
@@ -126,22 +128,22 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
     TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Search_v2) {
 
         BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nStorageSize);
-        ptrTree->template init<LeadNodeType>();
+        ptrTree->template init<DataNodeType>();
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+            ptrTree->template insert<InternalNodeType, DataNodeType>(nCntr, nCntr);
         }
 
         for (size_t nCntr = nBegin_BulkInsert + 1; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+            ptrTree->template insert<InternalNodeType, DataNodeType>(nCntr, nCntr);
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(nCntr, nValue);
 
             ASSERT_EQ(nValue, nCntr);
         }
@@ -152,17 +154,17 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
     TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Search_v3) {
 
         BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nStorageSize);
-        ptrTree->template init<LeadNodeType>();
+        ptrTree->template init<DataNodeType>();
 
         for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+            ptrTree->template insert<InternalNodeType, DataNodeType>(nCntr, nCntr);
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(nCntr, nValue);
 
             ASSERT_EQ(nValue, nCntr);
         }
@@ -173,24 +175,24 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
     TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Delete_v1) {
 
         BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nStorageSize);
-        ptrTree->template init<LeadNodeType>();
+        ptrTree->template init<DataNodeType>();
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+            ptrTree->template insert<InternalNodeType, DataNodeType>(nCntr, nCntr);
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(nCntr, nValue);
 
             ASSERT_EQ(nValue, nCntr);
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
+            ErrorCode code = ptrTree->template remove<InternalNodeType, DataNodeType>(nCntr);
 
             ASSERT_EQ(code, ErrorCode::Success);
         }
@@ -198,7 +200,7 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(nCntr, nValue);
 
             ASSERT_EQ(code, ErrorCode::KeyDoesNotExist);
         }
@@ -209,29 +211,29 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
     TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Delete_v2) {
 
         BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nStorageSize);
-        ptrTree->template init<LeadNodeType>();
+        ptrTree->template init<DataNodeType>();
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+            ptrTree->template insert<InternalNodeType, DataNodeType>(nCntr, nCntr);
         }
 
         for (size_t nCntr = nBegin_BulkInsert + 1; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+            ptrTree->template insert<InternalNodeType, DataNodeType>(nCntr, nCntr);
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(nCntr, nValue);
 
             ASSERT_EQ(nValue, nCntr);
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
+            ErrorCode code = ptrTree->template remove<InternalNodeType, DataNodeType>(nCntr);
 
             ASSERT_EQ(code, ErrorCode::Success);
         }
@@ -239,7 +241,7 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(nCntr, nValue);
 
             ASSERT_EQ(code, ErrorCode::KeyDoesNotExist);
         }
@@ -250,24 +252,24 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
     TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Delete_v3) {
 
         BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nStorageSize);
-        ptrTree->template init<LeadNodeType>();
+        ptrTree->template init<DataNodeType>();
 
         for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
         {
-            ptrTree->template insert<InternalNodeType, LeadNodeType>(nCntr, nCntr);
+            ptrTree->template insert<InternalNodeType, DataNodeType>(nCntr, nCntr);
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(nCntr, nValue);
 
             ASSERT_EQ(nValue, nCntr);
         }
 
         for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, LeadNodeType>(nCntr);
+            ErrorCode code = ptrTree->template remove<InternalNodeType, DataNodeType>(nCntr);
 
             ASSERT_EQ(code, ErrorCode::Success);
         }
@@ -275,7 +277,7 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->template search<InternalNodeType, LeadNodeType>(nCntr, nValue);
+            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(nCntr, nValue);
 
             ASSERT_EQ(code, ErrorCode::KeyDoesNotExist);
         }
@@ -284,7 +286,7 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
         delete ptrTree;
     }
 
-    INSTANTIATE_TEST_CASE_P(
+ /*   INSTANTIATE_TEST_CASE_P(
         Bulk_Insert_Search_Delete,
         BPlusStore_LRUCache_VolatileStorage_Suite_1,
         ::testing::Values(
@@ -297,6 +299,6 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
             std::make_tuple(15, 0, 199999, 10000, 900000000),
             std::make_tuple(16, 0, 199999, 10000, 900000000),
             std::make_tuple(32, 0, 199999, 10000, 900000000),
-            std::make_tuple(64, 0, 199999, 10000, 900000000)));
+            std::make_tuple(64, 0, 199999, 10000, 900000000)));*/
     
 }

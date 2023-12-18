@@ -8,14 +8,15 @@
 
 #include "ErrorCodes.h"
 
-template <typename KeyType, typename ValueType, uint8_t TYPE_UID>
+template <typename KeyType, typename ValueType, typename ObjectUIDType, uint8_t TYPE_UID>
 class DataNode
 {
 public:
 	static const uint8_t UID = TYPE_UID;
 
+	ObjectUIDType m_keyParent;
 private:
-	typedef DataNode<KeyType, ValueType, TYPE_UID> SelfType;
+	typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID> SelfType;
 	typedef std::vector<KeyType>::const_iterator KeyTypeIterator;
 	typedef std::vector<ValueType>::const_iterator ValueTypeIterator;
 

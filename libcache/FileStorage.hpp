@@ -10,6 +10,7 @@
 
 #include "ErrorCodes.h"
 #include "IFlushCallback.h"
+#include "VariadicNthType.h"
 
 class TypeProcessor {
 public:
@@ -25,20 +26,6 @@ public:
 		std::cout << "Processing string: " << value << std::endl;
 	}
 
-};
-
-
-template <size_t N, typename... Types>
-struct NthType;
-
-template <typename FirstType, typename... RemainingTypes>
-struct NthType<0, FirstType, RemainingTypes...> {
-	using type = FirstType;
-};
-
-template <size_t N, typename FirstType, typename... RemainingTypes>
-struct NthType<N, FirstType, RemainingTypes...> {
-	using type = typename NthType<N - 1, RemainingTypes...>::type;
 };
 
 template<
@@ -68,6 +55,8 @@ private:
 	size_t m_nNextBlock;
 	std::vector<bool> m_vtAllocationTable;
 
+	ICallback* m_ptrCallback;
+
 public:
 	FileStorage(size_t nBlockSize, size_t nFileSize, std::string stFilename)
 		: m_nFileSize(nFileSize)
@@ -84,6 +73,13 @@ public:
 		{
 			//throw new exception("should not occur!");   // TODO: critical log.
 		}
+	}
+
+	template <typename... InitArgs>
+	CacheErrorCode init(InitArgs... args)
+	{
+		m_ptrCallback = getNthElement<0>(args...);
+		return CacheErrorCode::Success;
 	}
 
 	std::shared_ptr<ObjectType> getObject(ObjectUIDType ptrKey)
@@ -117,7 +113,7 @@ public:
 			m_vtAllocationTable[m_nNextBlock++] = true;
 		}
 
-		//m_ptrCallback->keyUpdate(ptrKey, ptrKey, ptrKey);
+		m_ptrCallback->keyUpdate(ptrKey);
 
 		/*memcpy(__, std::get<1>(tpSerializedData), std::get<2>(tpSerializedData));
 

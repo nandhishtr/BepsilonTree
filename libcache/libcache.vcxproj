@@ -143,7 +143,7 @@
   <ItemGroup>
     <ClInclude Include="ObjectFatUID.h" />
     <ClInclude Include="ObjectUID.h" />
-    <ClInclude Include="ErrorCodes.h" />
+    <ClInclude Include="CacheErrorCodes.h" />
     <ClInclude Include="FileStorage.hpp" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="IFlushCallback.h" />
@@ -153,6 +153,7 @@
     <ClInclude Include="NoCacheObject.hpp" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="UnsortedMapUtil.hpp" />
+    <ClInclude Include="VariadicNthType.h" />
     <ClInclude Include="VolatileStorage.hpp" />
   </ItemGroup>
   <ItemGroup>
