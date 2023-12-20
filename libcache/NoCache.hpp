@@ -41,22 +41,24 @@ public:
 		return CacheErrorCode::KeyDoesNotExist;
 	}
 
-	ObjectTypePtr getObject(ObjectUIDType objKey)
+	CacheErrorCode getObject(ObjectUIDType objKey, ObjectTypePtr& ptrObject)
 	{
-		return reinterpret_cast<ObjectTypePtr>(objKey);
+		ptrObject = reinterpret_cast<ObjectTypePtr>(objKey);
+		return CacheErrorCode::Success;
 	}
 
 	template <typename Type>
-	Type getObjectOfType(ObjectUIDType objKey)
+	CacheErrorCode getObjectOfType(ObjectUIDType objKey, Type& ptrObject)
 	{
 		ObjectTypePtr ptrValue = reinterpret_cast<ObjectTypePtr>(objKey);
 
 		if (std::holds_alternative<Type>(*ptrValue->data))
 		{
-			return std::get<Type>(*ptrValue->data);
+			ptrObject = std::get<Type>(*ptrValue->data);
+			return CacheErrorCode::Success;
 		}
 
-		return nullptr;
+		return CacheErrorCode::Error;
 	}
 
 	template<class Type, typename... ArgsType>

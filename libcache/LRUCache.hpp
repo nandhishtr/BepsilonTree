@@ -72,8 +72,10 @@ private:
 public:
 	~LRUCache()
 	{
+#ifdef __CONCURRENT__
 		m_bStop = true;
 		m_threadCacheFlush.join();
+#endif __CONCURRENT__
 
 		m_ptrHead = nullptr;
 		m_ptrTail = nullptr;
@@ -120,7 +122,7 @@ public:
 		return CacheErrorCode::KeyDoesNotExist;
 	}
 
-	ObjectTypePtr getObject(ObjectUIDType key)
+	CacheErrorCode getObject(ObjectUIDType key, ObjectTypePtr& ptrObject)
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache); // std::unique_lock due to LRU's linked-list update! is there any better way?
@@ -130,7 +132,8 @@ public:
 		{
 			std::shared_ptr<Item> ptrItem = m_mpObject[key];
 			moveToFront(ptrItem);
-			return ptrItem->m_ptrValue;
+			ptrObject = ptrItem->m_ptrValue;
+			return CacheErrorCode::Success;
 		}
 
 #ifdef __CONCURRENT__
@@ -166,14 +169,15 @@ public:
 				m_ptrHead = ptrItem;
 			}
 
-			return ptrValue;
+			ptrObject = ptrValue;
+			return CacheErrorCode::Success;
 		}
 		
-		return nullptr;
+		return CacheErrorCode::Error;
 	}
 
 	template <typename Type>
-	Type getObjectOfType(ObjectUIDType key)
+	CacheErrorCode getObjectOfType(ObjectUIDType key, Type& ptrObject)
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache);
@@ -190,10 +194,11 @@ public:
 
 			if (std::holds_alternative<Type>(*ptrItem->m_ptrValue->data))
 			{
-				return std::get<Type>(*ptrItem->m_ptrValue->data);
+				ptrObject = std::get<Type>(*ptrItem->m_ptrValue->data);
+				return CacheErrorCode::Success;
 			}
 
-			return nullptr;
+			return CacheErrorCode::Error;
 		}
 
 #ifdef __CONCURRENT__
@@ -235,13 +240,14 @@ public:
 
 			if (std::holds_alternative<Type>(*ptrValue->data))
 			{
-				return std::get<Type>(*ptrValue->data);
+				ptrObject = std::get<Type>(*ptrValue->data);
+				return CacheErrorCode::Success;
 			}
 
-			return nullptr;
+			return CacheErrorCode::Error;
 		}
 
-		return nullptr;
+		return CacheErrorCode::Error;
 	}
 
 	template<class Type, typename... ArgsType>

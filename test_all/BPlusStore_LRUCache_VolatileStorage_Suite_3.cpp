@@ -335,6 +335,7 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
         delete ptrTree;
     }
 
+#ifdef __CONCURRENT__
     INSTANTIATE_TEST_CASE_P(
         Bulk_Insert_Search_Delete,
         BPlusStore_LRUCache_VolatileStorage_Suite_3,
@@ -349,4 +350,5 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
             std::make_tuple(16, 2, 199999, 1000, 10000000),
             std::make_tuple(32, 2, 199999, 1000, 10000000),
             std::make_tuple(64, 2, 199999, 1000, 10000000)));
+#endif __CONCURRENT__
 }

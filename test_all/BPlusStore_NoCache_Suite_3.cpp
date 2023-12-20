@@ -328,6 +328,7 @@ namespace BPlusStore_NoCache_Suite
         delete ptrTree;
     }
 
+#ifdef __CONCURRENT__
     INSTANTIATE_TEST_CASE_P(
         Bulk_Insert_Search_Delete,
         BPlusStore_NoCache_Suite_3,
@@ -342,4 +343,5 @@ namespace BPlusStore_NoCache_Suite
             std::make_tuple(16, 10, 199999),
             std::make_tuple(32, 10, 199999),
             std::make_tuple(64, 10, 199999)));
+#endif __CONCURRENT__
 }

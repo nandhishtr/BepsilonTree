@@ -95,7 +95,7 @@ public:
 
 		if (nChildIdx > 0)
 		{
-			ptrLHSNode = ptrCache->template getObjectOfType<CacheValueType>(m_ptrData->m_vtChildren[nChildIdx - 1]);    //TODO: lock
+			ptrCache->template getObjectOfType<CacheValueType>(m_ptrData->m_vtChildren[nChildIdx - 1], ptrLHSNode);    //TODO: lock
 			if (ptrLHSNode->getKeysCount() > std::ceil(nDegree / 2.0f))	// TODO: macro?
 			{
 				KeyType key;
@@ -108,7 +108,7 @@ public:
 
 		if (nChildIdx < m_ptrData->m_vtPivots.size())
 		{
-			ptrRHSNode = ptrCache->template getObjectOfType<CacheValueType>(m_ptrData->m_vtChildren[nChildIdx + 1]);    //TODO: lock
+			ptrCache->template getObjectOfType<CacheValueType>(m_ptrData->m_vtChildren[nChildIdx + 1], ptrRHSNode);    //TODO: lock
 			if (ptrRHSNode->getKeysCount() > std::ceil(nDegree / 2.0f))
 			{
 				KeyType key;
@@ -157,7 +157,7 @@ public:
 
 		if (nChildIdx > 0)
 		{
-			ptrLHSNode = ptrCache->template getObjectOfType<CacheValueType>(m_ptrData->m_vtChildren[nChildIdx - 1]);    //TODO: lock
+			ptrCache->template getObjectOfType<CacheValueType>(m_ptrData->m_vtChildren[nChildIdx - 1], ptrLHSNode);    //TODO: lock
 			if (ptrLHSNode->getKeysCount() > std::ceil(nDegree / 2.0f))
 			{
 				KeyType key;
@@ -170,7 +170,7 @@ public:
 
 		if (nChildIdx < m_ptrData->m_vtPivots.size())
 		{
-			ptrRHSNode = ptrCache->template getObjectOfType<CacheValueType>(m_ptrData->m_vtChildren[nChildIdx + 1]);    //TODO: lock
+			ptrCache->template getObjectOfType<CacheValueType>(m_ptrData->m_vtChildren[nChildIdx + 1], ptrRHSNode);    //TODO: lock
 			if (ptrRHSNode->getKeysCount() > std::ceil(nDegree / 2.0f))
 			{
 				KeyType key;
@@ -340,7 +340,8 @@ public:
 
 			std::cout << std::string(nLevel, '.').c_str() << " ==> child: " << std::endl;
 
-			CacheValueType ptrNode = ptrCache->getObjectOfType(m_ptrData->m_vtChildren[nIndex]);
+			CacheValueType ptrNode = nullptr;
+			ptrCache->getObjectOfType(m_ptrData->m_vtChildren[nIndex], ptrNode);
 			if (std::holds_alternative<shared_ptr<SelfType>>(*ptrNode->data))
 			{
 				shared_ptr<SelfType> ptrIndexNode = std::get<shared_ptr<SelfType>>(*ptrNode->data);

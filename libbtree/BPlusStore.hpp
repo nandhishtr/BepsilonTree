@@ -64,7 +64,7 @@ public:
 
         do
         {
-            ptrCurrentNode = m_ptrCache->getObject(ckCurrentNode);    //TODO: lock
+            m_ptrCache->getObject(ckCurrentNode, ptrCurrentNode);    //TODO: lock
 
 #ifdef __CONCURRENT__
             vtLocks.push_back(std::unique_lock<std::shared_mutex>(ptrCurrentNode->mutex));
@@ -189,7 +189,8 @@ public:
         ObjectUIDType ckCurrentNode = m_cktRootNodeKey.value();
         do
         {
-            ObjectTypePtr prNodeDetails = m_ptrCache->getObject(ckCurrentNode);    //TODO: lock
+            ObjectTypePtr prNodeDetails = nullptr;
+            m_ptrCache->getObject(ckCurrentNode, prNodeDetails);    //TODO: lock
 
 #ifdef __CONCURRENT__
             vtLocks.push_back(std::shared_lock<std::shared_mutex>(prNodeDetails->mutex));
@@ -239,7 +240,7 @@ public:
 
         do
         {
-            ptrCurrentNode = m_ptrCache->getObject(ckCurrentNode);    //TODO: lock
+            m_ptrCache->getObject(ckCurrentNode, ptrCurrentNode);    //TODO: lock
             
 #ifdef __CONCURRENT__
             vtLocks.push_back(std::unique_lock<std::shared_mutex>(ptrCurrentNode->mutex));
@@ -406,7 +407,9 @@ public:
     template <typename IndexNodeType, typename DataNodeType>
     void print()
     {
-        ObjectTypePtr ptrRootNode = m_ptrCache->getObjectOfType(m_cktRootNodeKey.value());
+        ObjectTypePtr ptrRootNode = nullptr;
+        m_ptrCache->getObjectOfType(m_cktRootNodeKey.value(), ptrRootNode);
+
         if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrRootNode->data))
         {
             std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrRootNode->data);

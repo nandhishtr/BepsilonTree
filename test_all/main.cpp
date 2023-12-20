@@ -2,6 +2,8 @@
 
 #include "gtest/gtest.h"
 
+#define __CONCURRENT__
+
 int main(int argc, char** argv)
 {
 	::testing::InitGoogleTest(&argc, argv);
