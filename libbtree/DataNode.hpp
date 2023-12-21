@@ -6,6 +6,9 @@
 #include <cmath>
 #include <optional>
 
+#include <iostream>
+#include <fstream>
+
 #include "ErrorCodes.h"
 
 template <typename KeyType, typename ValueType, typename ObjectUIDType, uint8_t TYPE_UID>
@@ -56,8 +59,41 @@ public:
 	}
 
 	DataNode(char* szData)
+		: m_ptrData(make_shared<DATANODESTRUCT>())
 	{
-		m_ptrData.reset(reinterpret_cast<DATANODESTRUCT*>(szData));
+		size_t keyCount, valueCount;
+
+		//memcpy(&UID, reinterpret_cast<char*>(szData), sizeof(uint8_t));
+
+		// Deserialize the size of vectors
+		uint8_t t;
+
+		memcpy(&t, szData , sizeof(uint8_t));
+		memcpy( &keyCount, szData + sizeof(uint8_t), sizeof(size_t));
+		memcpy(&valueCount, szData + sizeof(uint8_t) + sizeof(size_t), sizeof(size_t));
+
+		// Resize vectors to accommodate the data
+		m_ptrData->m_vtKeys.resize(keyCount);
+		m_ptrData->m_vtValues.resize(valueCount);
+
+		// Deserialize vector elements
+		memcpy(m_ptrData->m_vtKeys.data(), szData + sizeof(uint8_t) + sizeof(size_t) + sizeof(size_t), keyCount * sizeof(KeyType));
+		memcpy(m_ptrData->m_vtValues.data(), szData + sizeof(uint8_t) + sizeof(size_t) + sizeof(size_t) + (keyCount * sizeof(KeyType)), valueCount * sizeof(ValueType));
+	}
+
+	DataNode(std::fstream& is)
+		: m_ptrData(make_shared<DATANODESTRUCT>())
+	{
+		size_t keyCount, valueCount;
+
+		is.read(reinterpret_cast<char*>(&keyCount), sizeof(size_t));
+		is.read(reinterpret_cast<char*>(&valueCount), sizeof(size_t));
+
+		m_ptrData->m_vtKeys.resize(keyCount);
+		m_ptrData->m_vtValues.resize(valueCount);
+
+		is.read(reinterpret_cast<char*>(m_ptrData->m_vtKeys.data()), keyCount * sizeof(KeyType));
+		is.read(reinterpret_cast<char*>(m_ptrData->m_vtValues.data()), valueCount * sizeof(ValueType));
 	}
 
 	DataNode(KeyTypeIterator itBeginKeys, KeyTypeIterator itEndKeys, ValueTypeIterator itBeginValues, ValueTypeIterator itEndValues)
@@ -196,10 +232,74 @@ public:
 public:
 	inline const char* getSerializedBytes(uint8_t& uidObjectType, size_t& nDataSize)
 	{
+		static_assert(
+			std::is_trivial<KeyType>::value &&
+			std::is_standard_layout<KeyType>::value &&
+			std::is_trivial<ValueType>::value &&
+			std::is_standard_layout<ValueType>::value,
+			"Can only deserialize POD types with this function");
+
+		size_t keyCount = m_ptrData->m_vtKeys.size();
+		size_t valueCount = m_ptrData->m_vtValues.size();
+
+		nDataSize = sizeof(uint8_t) + (keyCount * sizeof(KeyType)) + (valueCount * sizeof(ValueType)) + sizeof(size_t) + sizeof(size_t);
+		char* szBuffer = new char[nDataSize];
+		memset(szBuffer, 0, nDataSize);
+
+		size_t offset = 0;
+		memcpy(szBuffer, &UID, sizeof(uint8_t));
+
+		offset += sizeof(uint8_t);
+		memcpy(szBuffer + offset, &keyCount, sizeof(size_t));
+
+		size_t t = 0;
+		memcpy(&t, szBuffer + offset, sizeof(size_t));
+
+		offset += sizeof(size_t);
+		memcpy(szBuffer + offset, &valueCount, sizeof(size_t));
+
+		t = 0;
+		memcpy(&t, szBuffer + offset, sizeof(size_t));
+
+		offset += sizeof(size_t);
+		memcpy(szBuffer + offset, m_ptrData->m_vtKeys.data(), keyCount * sizeof(KeyType));
+
+		//std::vector<KeyType> m_vt;
+		//memcpy(szBuffer + offset, m_ptrData->m_vtKeys.data(), keyCount * sizeof(KeyType));
+
+
+		offset += (keyCount * sizeof(KeyType));
+		memcpy(szBuffer + offset, m_ptrData->m_vtValues.data(), valueCount * sizeof(ValueType));
+
+		std::shared_ptr<SelfType> _p = std::make_shared<SelfType>(szBuffer);
+
 		nDataSize = sizeof(DATANODESTRUCT);
 		uidObjectType = UID;
 
 		return reinterpret_cast<const char*>(m_ptrData.get());
+	}
+
+	inline void writeToStream(std::fstream& os, uint8_t& uidObjectType, size_t& nDataSize)
+	{
+		static_assert(
+			std::is_trivial<KeyType>::value &&
+			std::is_standard_layout<KeyType>::value &&
+			std::is_trivial<ValueType>::value &&
+			std::is_standard_layout<ValueType>::value,
+			"Can only deserialize POD types with this function");
+
+		uidObjectType = UID;
+
+		size_t keyCount = m_ptrData->m_vtKeys.size();
+		size_t valueCount = m_ptrData->m_vtValues.size();
+
+		nDataSize = sizeof(uint8_t) + (keyCount * sizeof(KeyType)) + (valueCount * sizeof(ValueType)) + sizeof(size_t) + sizeof(size_t);
+
+		os.write(reinterpret_cast<const char*>(&UID), sizeof(uint8_t));
+		os.write(reinterpret_cast<const char*>(&keyCount), sizeof(size_t));
+		os.write(reinterpret_cast<const char*>(&valueCount), sizeof(size_t));
+		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtKeys.data()), keyCount * sizeof(KeyType));
+		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtValues.data()), valueCount * sizeof(ValueType));
 	}
 
 	void instantiateSelf(std::byte* bytes)

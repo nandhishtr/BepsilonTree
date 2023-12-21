@@ -126,13 +126,13 @@ public:
 
 		// Fetch from file.
 
-		char* szBuffer = new char[m_nBlockSize];
-		memset(szBuffer, 0, m_nBlockSize);
+		//char* szBuffer = new char[m_nBlockSize];
+		//memset(szBuffer, 0, m_nBlockSize);
 
 		m_fsStorage.seekg(uidObject.m_uid.FATPOINTER.m_ptrFile.m_nOffset);
-		m_fsStorage.read(szBuffer, uidObject.m_uid.FATPOINTER.m_ptrFile.m_nSize);
+		//m_fsStorage.read(szBuffer, uidObject.m_uid.FATPOINTER.m_ptrFile.m_nSize);
 
-		std::shared_ptr<ObjectType> ptrDeserializedObject = std::make_shared<ObjectType>(szBuffer);
+		std::shared_ptr<ObjectType> ptrDeserializedObject = std::make_shared<ObjectType>(m_fsStorage);
 
 		return ptrDeserializedObject;
 	}
@@ -158,11 +158,11 @@ public:
 		size_t nDataSize = 0;
 		uint8_t uidObjectType = 0;
 
-		const char* szData = ptrObject->serialize(uidObjectType, nDataSize);
-
 		m_fsStorage.seekp(m_nNextBlock * m_nBlockSize);
-		m_fsStorage.write((const char*)&uidObjectType, sizeof(uint8_t));
-		m_fsStorage.write((const char*)(szData), nDataSize);
+		ptrObject->serialize(m_fsStorage, uidObjectType, nDataSize);
+
+		//m_fsStorage.write((const char*)&uidObjectType, sizeof(uint8_t));
+		//m_fsStorage.write((const char*)(szData), nDataSize);
 
 		size_t nBlockRequired = std::ceil( (nDataSize + sizeof(uint8_t)) / (float)m_nBlockSize);
 
@@ -174,6 +174,18 @@ public:
 		}
 	
 		m_fsStorage.flush();
+
+		///
+		/*char* szBuffer = new char[m_nBlockSize];
+		memset(szBuffer, 0, m_nBlockSize);
+
+		m_fsStorage.seekg(uidUpdated.m_uid.FATPOINTER.m_ptrFile.m_nOffset);
+		m_fsStorage.read(szBuffer, uidUpdated.m_uid.FATPOINTER.m_ptrFile.m_nSize);
+
+		std::shared_ptr<ObjectType> ptrDeserializedObject = std::make_shared<ObjectType>(szBuffer);*/
+
+		///
+
 
 		m_ptrCallback->keyUpdate(uidParent, uidObject, uidUpdated);
 

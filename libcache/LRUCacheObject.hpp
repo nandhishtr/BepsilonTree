@@ -7,6 +7,9 @@
 #include <variant>
 #include <typeinfo>
 
+#include <iostream>
+#include <fstream>
+
 #include "ErrorCodes.h"
 
 template <typename ValueCoreTypesMarshaller, typename... ValueCoreTypes>
@@ -30,9 +33,9 @@ public:
 		data = ptrValue;
 	}
 
-	LRUCacheObject(char* szData)
+	LRUCacheObject(std::fstream& is)
 	{
-		ValueCoreTypesMarshaller::template deserialize<CacheValueType, ValueCoreTypes...>(szData, data);
+		ValueCoreTypesMarshaller::template deserialize<CacheValueType, ValueCoreTypes...>(is, data);
 	}
 
 	template<class Type, typename... ArgsType>
@@ -52,9 +55,9 @@ public:
 		return std::make_shared<LRUCacheObject>(ptrValue);
 	}
 
-	const char* serialize(uint8_t& uidObjectType, size_t& nDataSize)
+	inline void serialize(std::fstream& os, uint8_t& uidObjectType, size_t& nDataSize)
 	{
-		return ValueCoreTypesMarshaller::template serialize<ValueCoreTypes...>(*data, uidObjectType, nDataSize);
+		ValueCoreTypesMarshaller::template serialize<ValueCoreTypes...>(os, *data, uidObjectType, nDataSize);
 	}
 
 	void deserialize(uint8_t uid, std::byte* bytes) 

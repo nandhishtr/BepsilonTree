@@ -534,7 +534,7 @@ int main(int argc, char* argv[])
     {
         ptrTree->template insert<IndexNodeType, DataNodeType>(nCntr, nCntr);
     }
-    return 0;
+
     for (size_t nCntr = 0; nCntr < 10000; nCntr++)
     {
         int nValue = 0;

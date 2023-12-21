@@ -248,7 +248,7 @@ public:
     ErrorCode search(const KeyType& key, ValueType& value)
     {
         ErrorCode errCode = ErrorCode::Error;
-        /*
+        
 #ifdef __CONCURRENT__
         std::vector<std::shared_lock<std::shared_mutex>> vtLocks;
         vtLocks.push_back(std::shared_lock<std::shared_mutex>(mutex));
@@ -257,8 +257,9 @@ public:
         ObjectUIDType ckCurrentNode = m_cktRootNodeKey.value();
         do
         {
+            std::optional<ObjectUIDType> keyParent;
             ObjectTypePtr prNodeDetails = nullptr;
-            m_ptrCache->getObject(ckCurrentNode, prNodeDetails);    //TODO: lock
+            m_ptrCache->getObject(ckCurrentNode, prNodeDetails, keyParent);    //TODO: lock
 
 #ifdef __CONCURRENT__
             vtLocks.push_back(std::shared_lock<std::shared_mutex>(prNodeDetails->mutex));
@@ -285,7 +286,7 @@ public:
                 break;
             }
         } while (true);
-        */
+        
         return errCode;
     }
 

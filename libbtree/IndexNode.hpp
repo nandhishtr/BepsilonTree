@@ -48,11 +48,20 @@ public:
 	{	
 	}
 
-	IndexNode(char* szData)
+	IndexNode(std::fstream& is)
+		: m_ptrData(make_shared<INDEXNODESTRUCT>())
 	{
-		m_ptrData.reset(reinterpret_cast<INDEXNODESTRUCT*>(szData));
-		//	INDEXNODESTRUCT ptrData = reinterpret_cast<INDEXNODESTRUCT>(bytes);
-		//	m_ptrData(ptrData);
+		//uint8_t _k;
+		size_t keyCount, valueCount;
+		//is.read(reinterpret_cast<char*>(&_k), sizeof(uint8_t));
+		is.read(reinterpret_cast<char*>(&keyCount), sizeof(size_t));
+		is.read(reinterpret_cast<char*>(&valueCount), sizeof(size_t));
+
+		m_ptrData->m_vtPivots.resize(keyCount);
+		m_ptrData->m_vtChildren.resize(valueCount);
+
+		is.read(reinterpret_cast<char*>(m_ptrData->m_vtPivots.data()), keyCount * sizeof(KeyType));
+		is.read(reinterpret_cast<char*>(m_ptrData->m_vtChildren.data()), valueCount * sizeof(ObjectUIDType));
 	}
 
 	IndexNode(KeyTypeIterator itBeginPivots, KeyTypeIterator itEndPivots, CacheKeyTypeIterator itBeginChildren, CacheKeyTypeIterator itEndChildren)
@@ -329,10 +338,47 @@ public:
 public:
 	inline const char* getSerializedBytes(uint8_t& uidObjectType, size_t& nDataSize)
 	{
-		nDataSize = sizeof(INDEXNODESTRUCT);
+		nDataSize = sizeof(*m_ptrData);
 		uidObjectType = UID;
 
 		return reinterpret_cast<const char*>(m_ptrData.get());
+	}
+
+	inline void writeToStream(std::fstream& os, uint8_t& uidObjectType, size_t& nDataSize)
+	{
+		//std::fstream os("D:\\filestore.hdb", std::ios::binary | std::ios::in | std::ios::out);
+
+		static_assert(
+			std::is_trivial<KeyType>::value &&
+			std::is_standard_layout<KeyType>::value &&
+			std::is_trivial<ObjectUIDType::NodeUID>::value &&
+			std::is_standard_layout<ObjectUIDType::NodeUID>::value,
+			"Can only deserialize POD types with this function");
+
+		uidObjectType = UID;
+
+		size_t keyCount = m_ptrData->m_vtPivots.size();
+		size_t valueCount = m_ptrData->m_vtChildren.size();
+
+		nDataSize = sizeof(uint8_t) + (keyCount * sizeof(KeyType)) + (valueCount * sizeof(ValueType)) + sizeof(size_t) + sizeof(size_t);
+		//os.seekp(0);
+		os.write(reinterpret_cast<const char*>(&UID), sizeof(uint8_t));
+		os.write(reinterpret_cast<const char*>(&keyCount), sizeof(size_t));
+		os.write(reinterpret_cast<const char*>(&valueCount), sizeof(size_t));
+		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtPivots.data()), keyCount * sizeof(KeyType));
+		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtChildren.data()), valueCount * sizeof(ObjectUIDType));
+		//os.flush();
+		//os.seekg(0);
+
+		//uint8_t _k;
+		//size_t keyCount_, valueCount_;
+
+		/*os.read(reinterpret_cast<char*>(&_k), sizeof(uint8_t));
+		os.read(reinterpret_cast<char*>(&keyCount_), sizeof(size_t));
+		os.read(reinterpret_cast<char*>(&valueCount_), sizeof(size_t));*/
+
+		//std::ifstream file("D:\\abc.hdb", std::ios::binary);
+		//std::shared_ptr<SelfType> __ = std::make_shared<SelfType>(os);
 	}
 
 	void instantiateSelf(std::byte* bytes)
