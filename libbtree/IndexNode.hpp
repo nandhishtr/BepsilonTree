@@ -10,6 +10,7 @@
 #include <optional>
 
 #include "ErrorCodes.h"
+#define __POSITION_AWARE_ITEMS__
 
 using namespace std;
 
@@ -47,10 +48,11 @@ public:
 	{	
 	}
 
-	IndexNode(const std::vector<std::byte>& bytes)
+	IndexNode(char* szData)
 	{
-		INDEXNODESTRUCT ptrData = reinterpret_cast<INDEXNODESTRUCT>(bytes);
-		m_ptrData(ptrData);
+		m_ptrData.reset(reinterpret_cast<INDEXNODESTRUCT*>(szData));
+		//	INDEXNODESTRUCT ptrData = reinterpret_cast<INDEXNODESTRUCT>(bytes);
+		//	m_ptrData(ptrData);
 	}
 
 	IndexNode(KeyTypeIterator itBeginPivots, KeyTypeIterator itEndPivots, CacheKeyTypeIterator itBeginChildren, CacheKeyTypeIterator itEndChildren)
@@ -256,13 +258,25 @@ public:
 	}
 
 	template <typename Cache>
+#ifdef __POSITION_AWARE_ITEMS__
+	inline ErrorCode split(Cache ptrCache, std::optional<ObjectUIDType>& ptrSibling, std::optional<ObjectUIDType>& keyparent, KeyType& pivotKey)
+#else
 	inline ErrorCode split(Cache ptrCache, std::optional<ObjectUIDType>& ptrSibling, KeyType& pivotKey)
+#endif __POSITION_AWARE_ITEMS__
 	{
 		size_t nMid = m_ptrData->m_vtPivots.size() / 2;
 
-		ptrSibling = ptrCache->template createObjectOfType<SelfType>(
+#ifdef __POSITION_AWARE_ITEMS__
+		std::shared_ptr< SelfType> _ptr = nullptr;
+		ptrCache->template createObjectOfType<SelfType>(ptrSibling, keyparent, _ptr,
 			m_ptrData->m_vtPivots.begin() + nMid + 1, m_ptrData->m_vtPivots.end(),
 			m_ptrData->m_vtChildren.begin() + nMid + 1, m_ptrData->m_vtChildren.end());
+		_ptr->updateParent<Cache>(ptrCache, *ptrSibling);
+#else
+		ptrCache->template createObjectOfType<SelfType>(ptrSibling,
+			m_ptrData->m_vtPivots.begin() + nMid + 1, m_ptrData->m_vtPivots.end(),
+			m_ptrData->m_vtChildren.begin() + nMid + 1, m_ptrData->m_vtChildren.end());
+#endif __POSITION_AWARE_ITEMS__
 
 		if (!ptrSibling)
 		{
@@ -313,11 +327,12 @@ public:
 	}
 
 public:
-	std::tuple<uint8_t, const std::byte*, size_t> getSerializedBytes()
+	inline const char* getSerializedBytes(uint8_t& uidObjectType, size_t& nDataSize)
 	{
-		const std::byte* bytes = reinterpret_cast<const std::byte*>(m_ptrData.get());
-		return std::tuple<uint8_t, const std::byte*, size_t>(UID, bytes, sizeof(INDEXNODESTRUCT));
+		nDataSize = sizeof(INDEXNODESTRUCT);
+		uidObjectType = UID;
 
+		return reinterpret_cast<const char*>(m_ptrData.get());
 	}
 
 	void instantiateSelf(std::byte* bytes)
@@ -325,6 +340,32 @@ public:
 		//return make_shared<SelfType>(reinterpret_cast<INDEXNODESTRUCT*>(bytes));
 	}
 
+	ErrorCode updateChildUID(ObjectUIDType uidOld, ObjectUIDType uidNew)
+	{
+		auto it = m_ptrData->m_vtChildren.begin();
+		while (it != m_ptrData->m_vtChildren.end())
+		{
+			if (*it == uidOld)
+			{
+				*it = uidNew;
+				return ErrorCode::Success;
+			}
+			it++;
+		}
+		return ErrorCode::Error;
+	}
+
+	template <typename Cache>
+	ErrorCode updateParent(Cache ptrCache, ObjectUIDType parentuid)
+	{
+		auto it = m_ptrData->m_vtChildren.begin();
+		while (it != m_ptrData->m_vtChildren.end())
+		{
+			ptrCache->updateParentUID(*it, parentuid);
+			it++;
+		}
+		return ErrorCode::Error;
+	}
 public:
 	template <typename CacheType, typename CacheValueType, typename DataNodeType>
 	void print(CacheType ptrCache, size_t nLevel)

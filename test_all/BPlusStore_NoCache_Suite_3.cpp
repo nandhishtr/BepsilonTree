@@ -15,9 +15,10 @@
 #include "BPlusStore.hpp"
 #include "NoCacheObject.hpp"
 #include "TypeUID.h"
+
+#ifndef __POSITION_AWARE_ITEMS__
 namespace BPlusStore_NoCache_Suite
 {
-
     typedef int KeyType;
     typedef int ValueType;
     typedef uintptr_t ObjectUIDType;
@@ -25,7 +26,7 @@ namespace BPlusStore_NoCache_Suite
     typedef IFlushCallback<ObjectUIDType> ICallback;
 
     typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT > DataNodeType;
-    typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT > InternalNodeType;
+    typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT > InternalNodeType;
 
     typedef BPlusStore<ICallback, KeyType, ValueType, NoCache<ObjectUIDType, NoCacheObject, DataNodeType, InternalNodeType>> BPlusStoreType;
 
@@ -345,3 +346,4 @@ namespace BPlusStore_NoCache_Suite
             std::make_tuple(64, 10, 199999)));
 #endif __CONCURRENT__
 }
+#endif __POSITION_AWARE_ITEMS__

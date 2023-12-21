@@ -17,6 +17,7 @@ public:
 	typedef KeyType ObjectUIDType;
 	typedef ValueType<ValueCoreTypes...> ObjectType;
 	typedef ValueType<ValueCoreTypes...>* ObjectTypePtr;
+	typedef std::tuple<ValueCoreTypes...> ObjectCoreTypes;
 
 public:
 	~NoCache()
@@ -62,12 +63,13 @@ public:
 	}
 
 	template<class Type, typename... ArgsType>
-	ObjectUIDType createObjectOfType(ArgsType... args)
+	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& key, ArgsType... args)
 	{
 		//ObjectTypePtr ptrValue = new std::variant<ValueCoreTypes...>(std::make_shared<Type>(args...));
 		
 		ValueType<ValueCoreTypes...>* ptrValue = ValueType<ValueCoreTypes...>::template createObjectOfType<Type>(args...);
 
-		return reinterpret_cast<ObjectUIDType>(ptrValue);
+		key = reinterpret_cast<ObjectUIDType>(ptrValue);
+		return CacheErrorCode::Success;
 	}
 };

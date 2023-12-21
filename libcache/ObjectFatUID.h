@@ -7,7 +7,8 @@ class ObjectFatUID
 public:
 	enum Media
 	{
-		Volatile = 0,
+		None = 0,
+		Volatile,
 		PMem,
 		File
 	};

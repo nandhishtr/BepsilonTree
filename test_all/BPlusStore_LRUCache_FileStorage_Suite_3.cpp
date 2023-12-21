@@ -29,7 +29,7 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
     typedef IFlushCallback<ObjectUIDType> ICallback;
 
     typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT > DataNodeType;
-    typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> InternalNodeType;
+    typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> InternalNodeType;
 
     typedef IFlushCallback<ObjectUIDType> ICallback;
     

@@ -15,10 +15,11 @@
 #include "IFlushCallback.h"
 #include "VariadicNthType.h"
 
-#define __CONCURRENT__
+//#define __CONCURRENT__
+#define __POSITION_AWARE_ITEMS__
 
 template <typename ICallback, typename StorageType>
-class LRUCache
+class LRUCache : public ICallback
 {
 	typedef LRUCache<ICallback, StorageType> SelfType;
 
@@ -26,22 +27,35 @@ public:
 	typedef StorageType::ObjectUIDType ObjectUIDType;
 	typedef StorageType::ObjectType ObjectType;
 	typedef std::shared_ptr<ObjectType> ObjectTypePtr;
+	typedef StorageType::ObjectCoreTypes ObjectCoreTypes;
 
 private:
 	struct Item
 	{
 	public:
+#ifdef __POSITION_AWARE_ITEMS__
+		std::optional<ObjectUIDType> m_oKeyParent;
+#endif __POSITION_AWARE_ITEMS__
+
 		ObjectUIDType m_oKey;
 		ObjectTypePtr m_ptrValue;
 		std::shared_ptr<Item> m_ptrPrev;
 		std::shared_ptr<Item> m_ptrNext;
 
+#ifdef __POSITION_AWARE_ITEMS__
+		Item(ObjectUIDType& key, ObjectTypePtr ptrValue, std::optional<ObjectUIDType>& keyParent)
+#else
 		Item(ObjectUIDType& key, ObjectTypePtr ptrValue)
+#endif __POSITION_AWARE_ITEMS__
 			: m_ptrNext(nullptr)
 			, m_ptrPrev(nullptr)
 		{
 			m_oKey = key;
 			m_ptrValue = ptrValue;
+
+#ifdef __POSITION_AWARE_ITEMS__
+			m_oKeyParent = keyParent;
+#endif __POSITION_AWARE_ITEMS__
 		}
 
 		~Item()
@@ -68,6 +82,8 @@ private:
 #endif __CONCURRENT__
 
 	std::unique_ptr<StorageType> m_ptrStorage;
+
+	ICallback* m_ptrCallback;
 
 public:
 	~LRUCache()
@@ -99,10 +115,14 @@ public:
 	}
 
 	template <typename... InitArgs>
-	CacheErrorCode init(InitArgs... args)
+	CacheErrorCode init(ICallback* ptrCallback, InitArgs... args)
 	{	
-		//m_ptrCallback = ptrCallback;
-		return m_ptrStorage->init(getNthElement<0>(args...));
+#ifdef __CONCURRENT__
+		m_ptrCallback = ptrCallback;
+		return m_ptrStorage->init(this/*getNthElement<0>(args...)*/);
+#else __CONCURRENT__
+		return m_ptrStorage->init(ptrCallback/*getNthElement<0>(args...)*/);
+#endif __CONCURRENT__
 	}
 
 	CacheErrorCode remove(ObjectUIDType key)
@@ -122,7 +142,11 @@ public:
 		return CacheErrorCode::KeyDoesNotExist;
 	}
 
+#ifdef __POSITION_AWARE_ITEMS__
+	CacheErrorCode getObject(ObjectUIDType key, ObjectTypePtr& ptrObject, std::optional<ObjectUIDType>& keyParent)
+#else 
 	CacheErrorCode getObject(ObjectUIDType key, ObjectTypePtr& ptrObject)
+#endif __POSITION_AWARE_ITEMS__
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache); // std::unique_lock due to LRU's linked-list update! is there any better way?
@@ -133,6 +157,9 @@ public:
 			std::shared_ptr<Item> ptrItem = m_mpObject[key];
 			moveToFront(ptrItem);
 			ptrObject = ptrItem->m_ptrValue;
+#ifdef __POSITION_AWARE_ITEMS__
+			keyParent = ptrItem->m_oKeyParent;
+#endif __POSITION_AWARE_ITEMS__
 			return CacheErrorCode::Success;
 		}
 
@@ -149,7 +176,11 @@ public:
 
 		if (ptrValue != nullptr)
 		{
-			std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue);
+#ifdef __POSITION_AWARE_ITEMS__
+			std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue, keyParent);
+#else
+			std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue); 
+#endif __POSITION_AWARE_ITEMS__
 
 #ifdef __CONCURRENT__
 			std::unique_lock<std::shared_mutex> re_lock_cache(m_mtxCache);
@@ -176,8 +207,36 @@ public:
 		return CacheErrorCode::Error;
 	}
 
+#ifdef __POSITION_AWARE_ITEMS__
+	CacheErrorCode getObject_(ObjectUIDType key, ObjectTypePtr& ptrObject, std::optional<ObjectUIDType>& keyParent)
+#else 
+	CacheErrorCode getObject_(ObjectUIDType key, ObjectTypePtr& ptrObject)
+#endif __POSITION_AWARE_ITEMS__
+	{
+#ifdef __CONCURRENT__
+		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache); // std::unique_lock due to LRU's linked-list update! is there any better way?
+#endif __CONCURRENT__
+
+		if (m_mpObject.find(key) != m_mpObject.end())
+		{
+			std::shared_ptr<Item> ptrItem = m_mpObject[key];
+			//moveToFront(ptrItem);
+			ptrObject = ptrItem->m_ptrValue;
+#ifdef __POSITION_AWARE_ITEMS__
+			keyParent = ptrItem->m_oKeyParent;
+#endif __POSITION_AWARE_ITEMS__
+			return CacheErrorCode::Success;
+		}
+
+		return CacheErrorCode::Error;
+	}
+
 	template <typename Type>
+#ifdef __POSITION_AWARE_ITEMS__
+	CacheErrorCode getObjectOfType(ObjectUIDType key, Type& ptrObject, std::optional<ObjectUIDType>& keyParent)
+#else
 	CacheErrorCode getObjectOfType(ObjectUIDType key, Type& ptrObject)
+#endif __POSITION_AWARE_ITEMS__
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache);
@@ -195,6 +254,9 @@ public:
 			if (std::holds_alternative<Type>(*ptrItem->m_ptrValue->data))
 			{
 				ptrObject = std::get<Type>(*ptrItem->m_ptrValue->data);
+#ifdef __POSITION_AWARE_ITEMS__
+				keyParent = ptrItem->m_oKeyParent;
+#endif __POSITION_AWARE_ITEMS__
 				return CacheErrorCode::Success;
 			}
 
@@ -214,7 +276,11 @@ public:
 
 		if (ptrValue != nullptr)
 		{
+#ifdef __POSITION_AWARE_ITEMS__
+			std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue, keyParent);
+#else
 			std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue);
+#endif __POSITION_AWARE_ITEMS__
 
 #ifdef __CONCURRENT__
 			std::unique_lock<std::shared_mutex> re_lock_cache(m_mtxCache);
@@ -251,28 +317,35 @@ public:
 	}
 
 	template<class Type, typename... ArgsType>
-	ObjectUIDType createObjectOfType(ArgsType... args)
+#ifdef __POSITION_AWARE_ITEMS__
+	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& key, std::optional<ObjectUIDType> keyParent, ArgsType... args)
+#else
+	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& key, ArgsType... args)
+#endif __POSITION_AWARE_ITEMS__
 	{
-		ObjectUIDType key;
 		std::shared_ptr<ObjectType> ptrValue = ObjectType::template createObjectOfType<Type>(args...);
 
 		key = ObjectUIDType::createAddressFromVolatilePointer(reinterpret_cast<uintptr_t>(ptrValue.get()));
 
-		std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue);
+#ifdef __POSITION_AWARE_ITEMS__
+		std::shared_ptr<Item> ptrItem = std::make_shared<Item>(*key, ptrValue, keyParent);
+#else
+		std::shared_ptr<Item> ptrItem = std::make_shared<Item>(*key, ptrValue);
+#endif __POSITION_AWARE_ITEMS__
 
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache);
 #endif __CONCURRENT__
 
-		if (m_mpObject.find(key) != m_mpObject.end())
+		if (m_mpObject.find(*key) != m_mpObject.end())
 		{
-			std::shared_ptr<Item> ptrItem = m_mpObject[key];
+			std::shared_ptr<Item> ptrItem = m_mpObject[*key];
 			ptrItem->m_ptrValue = ptrValue;
 			moveToFront(ptrItem);
 		}
 		else
 		{
-			m_mpObject[key] = ptrItem;
+			m_mpObject[*key] = ptrItem;
 			if (!m_ptrHead) 
 			{
 				m_ptrHead = ptrItem;
@@ -292,7 +365,67 @@ public:
 		flushItemsToStorage();
 #endif __CONCURRENT__
 
-		return key;
+		return CacheErrorCode::Success;
+	}
+
+	template<class Type, typename... ArgsType>
+#ifdef __POSITION_AWARE_ITEMS__
+	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& key, std::optional<ObjectUIDType> keyParent, std::shared_ptr<Type>& ptrCoreObject, ArgsType... args)
+#else
+	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& key, std::shared_ptr<ObjectType>& ptrObject, ArgsType... args)
+#endif __POSITION_AWARE_ITEMS__
+	{
+		std::shared_ptr<ObjectType> ptrObject = ObjectType::template createObjectOfType<Type>(ptrCoreObject, args...);
+
+		key = ObjectUIDType::createAddressFromVolatilePointer(reinterpret_cast<uintptr_t>(ptrObject.get()));
+
+#ifdef __POSITION_AWARE_ITEMS__
+		std::shared_ptr<Item> ptrItem = std::make_shared<Item>(*key, ptrObject, keyParent);
+#else
+		std::shared_ptr<Item> ptrItem = std::make_shared<Item>(*key, ptrObject);
+#endif __POSITION_AWARE_ITEMS__
+
+#ifdef __CONCURRENT__
+		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache);
+#endif __CONCURRENT__
+
+		if (m_mpObject.find(*key) != m_mpObject.end())
+		{
+			std::shared_ptr<Item> ptrItem = m_mpObject[*key];
+			ptrItem->m_ptrValue = ptrObject;
+			moveToFront(ptrItem);
+		}
+		else
+		{
+			m_mpObject[*key] = ptrItem;
+			if (!m_ptrHead)
+			{
+				m_ptrHead = ptrItem;
+				m_ptrTail = ptrItem;
+			}
+			else
+			{
+				ptrItem->m_ptrNext = m_ptrHead;
+				m_ptrHead->m_ptrPrev = ptrItem;
+				m_ptrHead = ptrItem;
+			}
+		}
+
+#ifdef __CONCURRENT__
+		//..
+#else
+		flushItemsToStorage();
+#endif __CONCURRENT__
+
+		return CacheErrorCode::Success;
+	}
+
+	inline void updateParentUID(ObjectUIDType& child, ObjectUIDType& parent)
+	{
+		if (m_mpObject.find(child) != m_mpObject.end())
+		{
+			m_mpObject[child]->m_oKeyParent = parent;
+		}
 	}
 
 private:
@@ -409,7 +542,11 @@ private:
 #else
 		while (m_mpObject.size() >= m_nCapacity)
 		{
+#ifdef __POSITION_AWARE_ITEMS__
+			m_ptrStorage->addObject(m_ptrTail->m_oKey, m_ptrTail->m_ptrValue, m_ptrTail->m_oKeyParent);
+#else
 			m_ptrStorage->addObject(m_ptrTail->m_oKey, m_ptrTail->m_ptrValue);
+#endif __POSITION_AWARE_ITEMS__
 			m_mpObject.erase(m_ptrTail->m_oKey);
 
 			std::shared_ptr<Item> ptrTemp = m_ptrTail;
@@ -438,4 +575,15 @@ private:
 		} while (!ptrSelf->m_bStop);
 	}
 #endif __CONCURRENT__
+
+
+	CacheErrorCode keyUpdate(std::optional<ObjectUIDType>& uidParent, ObjectUIDType uidOld, ObjectUIDType uidNew)
+	{
+		return CacheErrorCode::Success;
+	}
+
+	CacheErrorCode keysUpdate(std::vector<std::pair<ObjectUIDType, std::pair<ObjectUIDType, ObjectUIDType>>> vtUpdatedUIDs)
+	{
+		return CacheErrorCode::Success;
+	}
 };

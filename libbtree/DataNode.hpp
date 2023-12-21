@@ -55,9 +55,9 @@ public:
 	{
 	}
 
-	DataNode(DATANODESTRUCT* bytes)
+	DataNode(char* szData)
 	{
-		//m_ptrData(ptrData);
+		m_ptrData.reset(reinterpret_cast<DATANODESTRUCT*>(szData));
 	}
 
 	DataNode(KeyTypeIterator itBeginKeys, KeyTypeIterator itEndKeys, ValueTypeIterator itBeginValues, ValueTypeIterator itEndValues)
@@ -128,13 +128,23 @@ public:
 	}
 
 	template <typename Cache, typename CacheKeyType>
+#ifdef __POSITION_AWARE_ITEMS__
+	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& ptrSibling, std::optional<CacheKeyType>& keyParent, KeyType& pivotKey)
+#else
 	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& ptrSibling, KeyType& pivotKey)
+#endif __POSITION_AWARE_ITEMS__
 	{
 		size_t nMid = m_ptrData->m_vtKeys.size() / 2;
 
-		ptrSibling = ptrCache->template createObjectOfType<SelfType>(
+#ifdef __POSITION_AWARE_ITEMS__
+		ptrCache->template createObjectOfType<SelfType>(ptrSibling, keyParent,
 			m_ptrData->m_vtKeys.begin() + nMid, m_ptrData->m_vtKeys.end(),
 			m_ptrData->m_vtValues.begin() + nMid, m_ptrData->m_vtValues.end());
+#else
+		ptrCache->template createObjectOfType<SelfType>(ptrSibling,
+			m_ptrData->m_vtKeys.begin() + nMid, m_ptrData->m_vtKeys.end(),
+			m_ptrData->m_vtValues.begin() + nMid, m_ptrData->m_vtValues.end());
+#endif __POSITION_AWARE_ITEMS__
 
 		if (!ptrSibling)
 		{
@@ -184,15 +194,12 @@ public:
 	}
 
 public:
-	std::tuple<uint8_t, const std::byte*, size_t> getSerializedBytes()
+	inline const char* getSerializedBytes(uint8_t& uidObjectType, size_t& nDataSize)
 	{
-		const std::byte* bytes = reinterpret_cast<const std::byte*>(m_ptrData.get());
+		nDataSize = sizeof(DATANODESTRUCT);
+		uidObjectType = UID;
 
-		//std::byte* _bytes = reinterpret_cast<std::byte*>(m_ptrData.get());
-		//DATANODESTRUCT* o = reinterpret_cast<DATANODESTRUCT*>(_bytes);
-
-		return std::tuple<uint8_t, const std::byte*, size_t>(UID, bytes, sizeof(DATANODESTRUCT));
-
+		return reinterpret_cast<const char*>(m_ptrData.get());
 	}
 
 	void instantiateSelf(std::byte* bytes)

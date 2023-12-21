@@ -35,4 +35,15 @@ public:
 
 		return ptr;
 	}
+
+	template<class Type, typename... ArgsType>
+	static NoCacheObject* createObjectOfType(std::shared_ptr<Type>& ptrCoreValue, ArgsType... args)
+	{
+		ptrCoreValue = std::make_shared<Type>(args...);
+		CacheValueTypePtr ptrValue = new CacheValueType(ptrCoreValue);
+
+		NoCacheObject* ptr = new NoCacheObject(ptrValue);
+
+		return ptr;
+	}
 };
