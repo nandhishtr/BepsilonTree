@@ -20,9 +20,9 @@
 #include "TypeUID.h"
 #include "ObjectUID.h"
 
+#ifndef __POSITION_AWARE_ITEMS__
 namespace BPlusStore_LRUCache_VolatileStorage_Suite
 {
-
     class BPlusStore_LRUCache_VolatileStorage_Suite_2 : public ::testing::TestWithParam<std::tuple<int, int, int, int, int>>
     {
     protected:
@@ -300,3 +300,4 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
             std::make_tuple(32, 0, 199999, 10000, 900000000),
             std::make_tuple(64, 0, 199999, 10000, 900000000)));    
 }
+#endif __POSITION_AWARE_ITEMS__

@@ -293,12 +293,18 @@ public:
     template <typename IndexNodeType, typename DataNodeType>
     ErrorCode remove(const KeyType& key)
     {
-        /*
+        
 #ifdef __CONCURRENT__
         std::vector<std::unique_lock<std::shared_mutex>> vtLocks;
 #endif __CONCURRENT__
 
+#ifdef __POSITION_AWARE_ITEMS__
+        std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, ObjectTypePtr>>> vtNodes;
+        std::optional<ObjectUIDType> uidCurrentNodeParent, uidLastNodeParent;
+#else
         std::vector<std::pair<ObjectUIDType, ObjectTypePtr>> vtNodes;
+#endif __POSITION_AWARE_ITEMS__
+
         ObjectTypePtr ptrLastNode = nullptr, ptrCurrentNode = nullptr;
         ObjectUIDType ckLastNode, ckCurrentNode;
 
@@ -310,7 +316,11 @@ public:
 
         do
         {
+#ifdef __POSITION_AWARE_ITEMS__
+            m_ptrCache->getObject(ckCurrentNode, ptrCurrentNode, uidCurrentNodeParent);    //TODO: lock
+#else
             m_ptrCache->getObject(ckCurrentNode, ptrCurrentNode);    //TODO: lock
+#endif __POSITION_AWARE_ITEMS__
             
 #ifdef __CONCURRENT__
             vtLocks.push_back(std::unique_lock<std::shared_mutex>(ptrCurrentNode->mutex));
@@ -327,7 +337,11 @@ public:
 
                 if (ptrIndexNode->canTriggerMerge(m_nDegree))
                 {
+#ifdef __POSITION_AWARE_ITEMS__
+                    vtNodes.push_back(std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, ObjectTypePtr>>(ckLastNode, std::pair<std::optional<ObjectUIDType>, ObjectTypePtr>(uidLastNodeParent, ptrLastNode)));
+#else
                     vtNodes.push_back(std::pair<ObjectUIDType, ObjectTypePtr>(ckLastNode, ptrLastNode));
+#endif __POSITION_AWARE_ITEMS__
                 }
                 else
                 {
@@ -353,8 +367,13 @@ public:
 
                 if (ptrDataNode->requireMerge(m_nDegree))
                 {
+#ifdef __POSITION_AWARE_ITEMS__
+                    vtNodes.push_back(std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, ObjectTypePtr>>(ckLastNode, std::pair<std::optional<ObjectUIDType>, ObjectTypePtr>(uidLastNodeParent, ptrLastNode)));
+                    vtNodes.push_back(std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, ObjectTypePtr>>(ckCurrentNode, std::pair<std::optional<ObjectUIDType>, ObjectTypePtr>(uidCurrentNodeParent, ptrCurrentNode)));
+#else
                     vtNodes.push_back(std::pair<ObjectUIDType, ObjectTypePtr>(ckLastNode, ptrLastNode));
                     vtNodes.push_back(std::pair<ObjectUIDType, ObjectTypePtr>(ckCurrentNode, ptrCurrentNode));
+#endif __POSITION_AWARE_ITEMS__
                 }
                 else
                 {
@@ -373,9 +392,17 @@ public:
 
         while (vtNodes.size() > 0)
         {
+#ifdef __POSITION_AWARE_ITEMS__
+            std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, ObjectTypePtr>> prNodeDetails = vtNodes.back();
+#else
             std::pair<ObjectUIDType, ObjectTypePtr> prNodeDetails = vtNodes.back();
+#endif __POSITION_AWARE_ITEMS__
 
+#ifdef __POSITION_AWARE_ITEMS__
+            if (prNodeDetails.second.second == nullptr)
+#else
             if (prNodeDetails.second == nullptr)
+#endif __POSITION_AWARE_ITEMS__
             {
                 if (vtNodes.size() != 1)
                 {
@@ -385,9 +412,15 @@ public:
                 break;
             }
 
+#ifdef __POSITION_AWARE_ITEMS__
+            if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*prNodeDetails.second.second->data))
+            {
+                std::shared_ptr<IndexNodeType> ptrParentIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*prNodeDetails.second.second->data);
+#else
             if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*prNodeDetails.second->data))
             {
                 std::shared_ptr<IndexNodeType> ptrParentIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*prNodeDetails.second->data);
+#endif __POSITION_AWARE_ITEMS__
 
                 if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrChildNode->data))
                 {
@@ -397,7 +430,12 @@ public:
 
                     if (ptrChildIndexNode->requireMerge(m_nDegree))
                     {
+#ifdef __POSITION_AWARE_ITEMS__
+                        ptrParentIndexNode->template rebalanceIndexNode<std::shared_ptr<CacheType>, shared_ptr<IndexNodeType>>(m_ptrCache, ptrChildIndexNode, key, m_nDegree, ckChildNode, uidToDelete, prNodeDetails.second.first);
+#else
                         ptrParentIndexNode->template rebalanceIndexNode<std::shared_ptr<CacheType>, shared_ptr<IndexNodeType>>(m_ptrCache, ptrChildIndexNode, key, m_nDegree, ckChildNode, uidToDelete);
+#endif __POSITION_AWARE_ITEMS__
+
 
                         if (uidToDelete)
                         {
@@ -433,6 +471,7 @@ public:
                     std::optional<ObjectUIDType> uidToDelete = std::nullopt;
 
                     std::shared_ptr<DataNodeType> ptrChildDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrChildNode->data);
+
                     ptrParentIndexNode->template rebalanceDataNode<std::shared_ptr<CacheType>, shared_ptr<DataNodeType>>(m_ptrCache, ptrChildDataNode, key, m_nDegree, ckChildNode, uidToDelete);
 
                     if (uidToDelete)
@@ -466,11 +505,14 @@ public:
             }
 
             ckChildNode = prNodeDetails.first;
-            ptrChildNode = prNodeDetails.second;
-
+#ifdef __POSITION_AWARE_ITEMS__
+            ptrChildNode = prNodeDetails.second.second;
+#else
+            ptrChildNode = prNodeDetails.second; 
+#endif __POSITION_AWARE_ITEMS__
             vtNodes.pop_back();
         }
-        */
+        
         return ErrorCode::Success;
     }
 
