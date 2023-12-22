@@ -1,28 +1,18 @@
 #pragma once
 #include <variant>
 #include <typeinfo>
-
 #include <iostream>
 #include <fstream>
-
-#include "DataNode.hpp"
-#include "IndexNode.hpp"
-#include "VariadicNthType.h"
-enum Types
-{
-	//DataNode = 0,
-	//IndexNode = 0
-} typedef TYPES_ID;
 
 class TypeMarshaller 
 {
 public:
 	template <typename... ObjectCoreTypes>
-	static void serialize(std::fstream& os, const std::variant<std::shared_ptr<ObjectCoreTypes>...>& myVariant, uint8_t& uidObjectType, size_t& nDataSize)
+	static void serialize(std::fstream& os, const std::variant<std::shared_ptr<ObjectCoreTypes>...>& objVariant, uint8_t& uidObjectType, size_t& nnBufferLength)
 	{
-		std::visit([&os, &uidObjectType, &nDataSize](const auto& value) {
-			value->writeToStream(os, uidObjectType, nDataSize);
-			}, myVariant);
+		std::visit([&os, &uidObjectType, &nnBufferLength](const auto& value) {
+			value->writeToStream(os, uidObjectType, nnBufferLength);
+			}, objVariant);
 	}
 
 	template <typename ObjectType, typename... ObjectCoreTypes>
@@ -30,12 +20,11 @@ public:
 	{
 		using TypeA = typename NthType<0, ObjectCoreTypes...>::type;
 		using TypeB = typename NthType<1, ObjectCoreTypes...>::type;
-		//using TypeC = typename NthType<2, ObjectCoreTypes...>::type;
 
-		uint8_t nTag;
-		is.read(reinterpret_cast<char*>(&nTag), sizeof(uint8_t));
+		uint8_t uidObjectType;
+		is.read(reinterpret_cast<char*>(&uidObjectType), sizeof(uint8_t));
 
-		switch (nTag)
+		switch (uidObjectType)
 		{
 		case TypeA::UID:
 			ptrObject = std::make_shared<ObjectType>(std::make_shared<TypeA>(is));

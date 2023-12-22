@@ -12,59 +12,50 @@
 
 #include "ErrorCodes.h"
 
-template <typename ValueCoreTypesMarshaller, typename... ValueCoreTypes>
+template <typename CoreTypesMarshaller, typename... CoreTypes>
 class LRUCacheObject
 {
 public:
-	typedef std::tuple<ValueCoreTypes...> ObjectCoreTypes;
+	typedef std::tuple<CoreTypes...> ObjectCoreTypes;
 
 private:
-	typedef std::variant<ValueCoreTypes...> CacheValueType_;
-	typedef std::variant<std::shared_ptr<ValueCoreTypes>...> CacheValueType;
-	typedef std::shared_ptr<std::variant<std::shared_ptr<ValueCoreTypes>...>> CacheValueTypePtr;
+	typedef std::variant<std::shared_ptr<CoreTypes>...> CoreTypesWrapper;
+	typedef std::shared_ptr<std::variant<std::shared_ptr<CoreTypes>...>> CoreTypesWrapperPtr;
 
 public:
-	CacheValueTypePtr data;
+	CoreTypesWrapperPtr data;
 	mutable std::shared_mutex mutex;
 
 public:
-	LRUCacheObject(CacheValueTypePtr ptrValue)
+	LRUCacheObject(CoreTypesWrapperPtr ptrObject)
 	{
-		data = ptrValue;
+		data = ptrObject;
 	}
 
 	LRUCacheObject(std::fstream& is)
 	{
-		ValueCoreTypesMarshaller::template deserialize<CacheValueType, ValueCoreTypes...>(is, data);
+		CoreTypesMarshaller::template deserialize<CoreTypesWrapper, CoreTypes...>(is, data);
 	}
 
 	template<class Type, typename... ArgsType>
 	static std::shared_ptr<LRUCacheObject> createObjectOfType(ArgsType... args)
 	{
-		CacheValueTypePtr ptrValue = std::make_shared<CacheValueType>(std::make_shared<Type>(args...));
+		CoreTypesWrapperPtr ptrValue = std::make_shared<CoreTypesWrapper>(std::make_shared<Type>(args...));
 
 		return std::make_shared<LRUCacheObject>(ptrValue);
 	}
 
 	template<class Type, typename... ArgsType>
-	static std::shared_ptr<LRUCacheObject> createObjectOfType(std::shared_ptr<Type>& ptrCoreValue, ArgsType... args)
+	static std::shared_ptr<LRUCacheObject> createObjectOfType(std::shared_ptr<Type>& ptrCoreObject, ArgsType... args)
 	{
-		ptrCoreValue = std::make_shared<Type>(args...);
-		CacheValueTypePtr ptrValue = std::make_shared<CacheValueType>(ptrCoreValue);
+		ptrCoreObject = std::make_shared<Type>(args...);
+		CoreTypesWrapperPtr ptrValue = std::make_shared<CoreTypesWrapper>(ptrCoreObject);
 
 		return std::make_shared<LRUCacheObject>(ptrValue);
 	}
 
-	inline void serialize(std::fstream& os, uint8_t& uidObjectType, size_t& nDataSize)
+	inline void serialize(std::fstream& os, uint8_t& uidObjectType, size_t& nBufferSize)
 	{
-		ValueCoreTypesMarshaller::template serialize<ValueCoreTypes...>(os, *data, uidObjectType, nDataSize);
+		CoreTypesMarshaller::template serialize<CoreTypes...>(os, *data, uidObjectType, nBufferSize);
 	}
-
-	void deserialize(uint8_t uid, std::byte* bytes) 
-	{
-		CacheValueType_ deserializedVariant;
-
-		ValueCoreTypesMarshaller::template deserialize<ValueCoreTypes...>(uid, bytes, deserializedVariant);
-	}
-
 };

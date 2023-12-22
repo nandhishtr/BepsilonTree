@@ -17,9 +17,9 @@ class DataNode
 public:
 	static const uint8_t UID = TYPE_UID;
 
-	ObjectUIDType m_keyParent;
 private:
 	typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID> SelfType;
+
 	typedef std::vector<KeyType>::const_iterator KeyTypeIterator;
 	typedef std::vector<ValueType>::const_iterator ValueTypeIterator;
 
@@ -165,24 +165,24 @@ public:
 
 	template <typename Cache, typename CacheKeyType>
 #ifdef __POSITION_AWARE_ITEMS__
-	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& ptrSibling, std::optional<CacheKeyType>& keyParent, KeyType& pivotKey)
+	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& uidSibling, std::optional<CacheKeyType>& keyParent, KeyType& pivotKey)
 #else
-	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& ptrSibling, KeyType& pivotKey)
+	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& uidSibling, KeyType& pivotKey)
 #endif __POSITION_AWARE_ITEMS__
 	{
 		size_t nMid = m_ptrData->m_vtKeys.size() / 2;
 
 #ifdef __POSITION_AWARE_ITEMS__
-		ptrCache->template createObjectOfType<SelfType>(ptrSibling, keyParent,
+		ptrCache->template createObjectOfType<SelfType>(uidSibling, keyParent,
 			m_ptrData->m_vtKeys.begin() + nMid, m_ptrData->m_vtKeys.end(),
 			m_ptrData->m_vtValues.begin() + nMid, m_ptrData->m_vtValues.end());
 #else
-		ptrCache->template createObjectOfType<SelfType>(ptrSibling,
+		ptrCache->template createObjectOfType<SelfType>(uidSibling,
 			m_ptrData->m_vtKeys.begin() + nMid, m_ptrData->m_vtKeys.end(),
 			m_ptrData->m_vtValues.begin() + nMid, m_ptrData->m_vtValues.end());
 #endif __POSITION_AWARE_ITEMS__
 
-		if (!ptrSibling)
+		if (!uidSibling)
 		{
 			return ErrorCode::Error;
 		}
@@ -230,7 +230,7 @@ public:
 	}
 
 public:
-	inline const char* getSerializedBytes(uint8_t& uidObjectType, size_t& nDataSize)
+	/*inline const char* serialize(uint8_t& uidObjectType, size_t& nDataSize)
 	{
 		static_assert(
 			std::is_trivial<KeyType>::value &&
@@ -277,7 +277,7 @@ public:
 		uidObjectType = UID;
 
 		return reinterpret_cast<const char*>(m_ptrData.get());
-	}
+	}*/
 
 	inline void writeToStream(std::fstream& os, uint8_t& uidObjectType, size_t& nDataSize)
 	{
@@ -290,21 +290,16 @@ public:
 
 		uidObjectType = UID;
 
-		size_t keyCount = m_ptrData->m_vtKeys.size();
-		size_t valueCount = m_ptrData->m_vtValues.size();
+		size_t nKeyCount = m_ptrData->m_vtKeys.size();
+		size_t nValueCount = m_ptrData->m_vtValues.size();
 
-		nDataSize = sizeof(uint8_t) + (keyCount * sizeof(KeyType)) + (valueCount * sizeof(ValueType)) + sizeof(size_t) + sizeof(size_t);
+		nDataSize = sizeof(uint8_t) + (nKeyCount * sizeof(KeyType)) + (nValueCount * sizeof(ValueType)) + sizeof(size_t) + sizeof(size_t);
 
 		os.write(reinterpret_cast<const char*>(&UID), sizeof(uint8_t));
-		os.write(reinterpret_cast<const char*>(&keyCount), sizeof(size_t));
-		os.write(reinterpret_cast<const char*>(&valueCount), sizeof(size_t));
-		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtKeys.data()), keyCount * sizeof(KeyType));
-		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtValues.data()), valueCount * sizeof(ValueType));
-	}
-
-	void instantiateSelf(std::byte* bytes)
-	{
-		m_ptrData.reset(reinterpret_cast<DATANODESTRUCT*>(bytes));
+		os.write(reinterpret_cast<const char*>(&nKeyCount), sizeof(size_t));
+		os.write(reinterpret_cast<const char*>(&nValueCount), sizeof(size_t));
+		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtKeys.data()), nKeyCount * sizeof(KeyType));
+		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtValues.data()), nValueCount * sizeof(ValueType));
 	}
 
 public:

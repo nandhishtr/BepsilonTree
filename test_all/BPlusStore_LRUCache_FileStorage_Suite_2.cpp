@@ -20,9 +20,9 @@
 #include "TypeUID.h"
 #include "ObjectFatUID.h"
 
+#ifdef __POSITION_AWARE_ITEMS__
 namespace BPlusStore_LRUCache_FileStorage_Suite
 {
-
     class BPlusStore_LRUCache_FileStorage_Suite_2 : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, int, string>>
     {
     protected:
@@ -286,18 +286,19 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
         delete ptrTree;
     }
 
-    //INSTANTIATE_TEST_CASE_P(
-    //    Bulk_Insert_Search_Delete,
-    //    BPlusStore_LRUCache_FileStorage_Suite_2,
-    //    ::testing::Values(
-    //        std::make_tuple(3, 0, 99999, 100, 1024, 1024, ""),
-    //        std::make_tuple(4, 0, 99999, 100, 1024, 1024, ""),
-    //        std::make_tuple(5, 0, 99999, 100, 1024, 1024, ""),
-    //        std::make_tuple(6, 0, 99999, 100, 1024, 1024, ""),
-    //        std::make_tuple(7, 0, 99999, 100, 1024, 1024, ""),
-    //        std::make_tuple(8, 0, 99999, 100, 1024, 1024, ""),
-    //        std::make_tuple(15, 0, 199999, 100, 1024, 1024, ""),
-    //        std::make_tuple(16, 0, 199999, 100, 1024, 1024, ""),
-    //        std::make_tuple(32, 0, 199999, 100, 1024, 1024, ""),
-    //        std::make_tuple(64, 0, 199999, 100, 1024, 1024, "")));
+    INSTANTIATE_TEST_CASE_P(
+        Bulk_Insert_Search_Delete,
+        BPlusStore_LRUCache_FileStorage_Suite_2,
+        ::testing::Values(
+            std::make_tuple(3, 0, 99999, 100, 1024, 1024, ""),
+            std::make_tuple(4, 0, 99999, 100, 1024, 1024, ""),
+            std::make_tuple(5, 0, 99999, 100, 1024, 1024, ""),
+            std::make_tuple(6, 0, 99999, 100, 1024, 1024, ""),
+            std::make_tuple(7, 0, 99999, 100, 1024, 1024, ""),
+            std::make_tuple(8, 0, 99999, 100, 1024, 1024, ""),
+            std::make_tuple(15, 0, 199999, 100, 1024, 1024, ""),
+            std::make_tuple(16, 0, 199999, 100, 1024, 1024, ""),
+            std::make_tuple(32, 0, 199999, 100, 1024, 1024, ""),
+            std::make_tuple(64, 0, 199999, 100, 1024, 1024, "")));
 }
+#endif __POSITION_AWARE_ITEMS__

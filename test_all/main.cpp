@@ -3,7 +3,7 @@
 #include "gtest/gtest.h"
 
 //#define __CONCURRENT__
-#define __POSITION_AWARE_ITEMS__
+//#define __POSITION_AWARE_ITEMS__
 
 int main(int argc, char** argv)
 {

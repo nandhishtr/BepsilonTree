@@ -20,6 +20,7 @@
 #include "TypeUID.h"
 #include "ObjectFatUID.h"
 
+#ifdef __POSITION_AWARE_ITEMS__
 namespace BPlusStore_LRUCache_FileStorage_Suite
 {
     typedef int KeyType;
@@ -338,18 +339,21 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
         delete ptrTree;
     }
 
-    //INSTANTIATE_TEST_CASE_P(
-    //    Bulk_Insert_Search_Delete,
-    //    BPlusStore_LRUCache_FileStorage_Suite_3,
-    //    ::testing::Values(
-    //        std::make_tuple(3, 10, 99999, 100, 1024, 1024, ""),
-    //        std::make_tuple(4, 10, 99999, 100, 1024, 1024, ""),
-    //        std::make_tuple(5, 10, 99999, 100, 1024, 1024, ""),
-    //        std::make_tuple(6, 10, 99999, 100, 1024, 1024, ""),
-    //        std::make_tuple(7, 10, 99999, 100, 1024, 1024, ""),
-    //        std::make_tuple(8, 10, 99999, 100, 1024, 1024, ""),
-    //        std::make_tuple(15, 10, 199999, 100, 1024, 1024, ""),
-    //        std::make_tuple(16, 10, 199999, 100, 1024, 1024, ""),
-    //        std::make_tuple(32, 10, 199999, 100, 1024, 1024, ""),
-    //        std::make_tuple(64, 10, 199999, 100, 1024, 1024, "")));
+#ifdef __CONCURRENT__
+    INSTANTIATE_TEST_CASE_P(
+        Bulk_Insert_Search_Delete,
+        BPlusStore_LRUCache_FileStorage_Suite_3,
+        ::testing::Values(
+            std::make_tuple(3, 10, 99999, 100, 1024, 1024, ""),
+            std::make_tuple(4, 10, 99999, 100, 1024, 1024, ""),
+            std::make_tuple(5, 10, 99999, 100, 1024, 1024, ""),
+            std::make_tuple(6, 10, 99999, 100, 1024, 1024, ""),
+            std::make_tuple(7, 10, 99999, 100, 1024, 1024, ""),
+            std::make_tuple(8, 10, 99999, 100, 1024, 1024, ""),
+            std::make_tuple(15, 10, 199999, 100, 1024, 1024, ""),
+            std::make_tuple(16, 10, 199999, 100, 1024, 1024, ""),
+            std::make_tuple(32, 10, 199999, 100, 1024, 1024, ""),
+            std::make_tuple(64, 10, 199999, 100, 1024, 1024, "")));
+#endif __CONCURRENT__
 }
+#endif __POSITION_AWARE_ITEMS__
