@@ -89,7 +89,19 @@ public:
         do
         {
 #ifdef __POSITION_AWARE_ITEMS__
+            uidCurrentNodeParent = uidLastNode;
             m_ptrCache->getObject(uidCurrentNode, ptrCurrentNode, uidCurrentNodeParent);    //TODO: lock
+
+
+            if (ptrLastNode != nullptr && !uidCurrentNodeParent)
+            {
+                throw new std::exception("should not occur!");   // TODO: critical log.
+            }
+            if (ptrLastNode != nullptr && uidCurrentNodeParent != uidLastNode)
+            {
+                throw new std::exception("should not occur!");   // TODO: critical log.
+            }
+
 #else
             m_ptrCache->getObject(uidCurrentNode, ptrCurrentNode);    //TODO: lock
 #endif __POSITION_AWARE_ITEMS__

@@ -540,6 +540,62 @@ public:
 	}
 
 private:
+	void moveToTail(std::shared_ptr<Item> tail, std::shared_ptr<Item> nodeToMove) {
+		if (tail == nullptr || nodeToMove == nullptr)
+			return; // Invalid input
+
+		// Detach the node from its current position
+		if (nodeToMove->m_ptrPrev != nullptr)
+			nodeToMove->m_ptrPrev->m_ptrNext = nodeToMove->m_ptrNext;
+		else
+			tail = nodeToMove->m_ptrNext;
+
+		if (nodeToMove->m_ptrNext != nullptr)
+			nodeToMove->m_ptrNext->m_ptrPrev = nodeToMove->m_ptrPrev;
+
+		// Attach the node to the tail
+		if (tail != nullptr) {
+			tail->m_ptrNext = nodeToMove;
+			nodeToMove->m_ptrPrev = tail;
+			nodeToMove->m_ptrNext = nullptr;
+			tail = nodeToMove;
+		}
+		else {
+			// If the list is empty, set both head and tail to the node
+			tail = nodeToMove;
+		}
+	}
+
+	void interchangeWithTail(std::shared_ptr<Item> currentNode) {
+		if (currentNode == nullptr || currentNode == m_ptrTail) {
+			// Node is already the tail or is null
+			return;
+		}
+
+		// Adjust prev and next pointers of adjacent nodes
+		if (currentNode->m_ptrPrev) {
+			currentNode->m_ptrPrev->m_ptrNext = currentNode->m_ptrNext;
+		}
+		else {
+			// If currentNode is the head, update head
+			m_ptrHead = currentNode->m_ptrNext;
+		}
+
+		if (currentNode->m_ptrNext) {
+			currentNode->m_ptrNext->m_ptrPrev = currentNode->m_ptrPrev;
+		}
+
+		// Update prev and next pointers of the currentNode
+		currentNode->m_ptrPrev = m_ptrTail;
+		currentNode->m_ptrNext = nullptr;
+
+		// Update tail's next pointer to the currentNode
+		m_ptrTail->m_ptrNext = currentNode;
+
+		// Update tail to be the currentNode
+		m_ptrTail = currentNode;
+	}
+
 	inline void moveToFront(std::shared_ptr<Item> ptrItem)
 	{
 		if (ptrItem == m_ptrHead)
@@ -587,6 +643,19 @@ private:
 
 		ptrItem->m_ptrPrev = nullptr;
 		ptrItem->m_ptrNext = nullptr;
+	}
+
+	int getlrucount()
+	{
+		int cnt = 0;
+		std::shared_ptr<Item> _ptrItem = m_ptrHead;
+		do
+		{
+			cnt++;
+			_ptrItem = _ptrItem->m_ptrNext;
+
+		} while (_ptrItem != nullptr);
+		return cnt;
 	}
 
 	inline void flushItemsToStorage()
@@ -654,6 +723,25 @@ private:
 		while (m_ptrObjects.size() >= m_nCacheCapacity)
 		{
 #ifdef __POSITION_AWARE_ITEMS__
+
+			std::shared_ptr<Item> _ptrPrev = m_ptrTail->m_ptrPrev;
+			while (_ptrPrev->m_ptrPrev != nullptr)
+			{
+				if (m_ptrTail->m_uidSelf == _ptrPrev->m_uidParent)
+				{
+					int b = getlrucount();
+					interchangeWithTail(_ptrPrev);
+					int a = getlrucount();
+					if (a!=b)
+						std::cout << "mismatch" << std::endl;
+
+					_ptrPrev = m_ptrTail->m_ptrPrev;
+					continue;
+				}
+				_ptrPrev = _ptrPrev->m_ptrPrev;
+			}
+
+
 			m_ptrStorage->addObject(m_ptrTail->m_uidSelf, m_ptrTail->m_ptrObject, m_ptrTail->m_uidParent);
 #else
 			m_ptrStorage->addObject(m_ptrTail->m_uidSelf, m_ptrTail->m_ptrObject);
