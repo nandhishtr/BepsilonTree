@@ -16,11 +16,19 @@
 #include "VariadicNthType.h"
 #include <tuple>
 
+#include <iostream>
+#include <fstream>
+
 //#define __CONCURRENT__
 #define __POSITION_AWARE_ITEMS__
 
+#ifdef __POSITION_AWARE_ITEMS__
 template <typename ICallback, typename KeyType, typename ValueType, typename CacheType>
 class BPlusStore : public ICallback
+#else //__POSITION_AWARE_ITEMS__
+template <typename KeyType, typename ValueType, typename CacheType>
+class BPlusStore
+#endif __POSITION_AWARE_ITEMS__
 {
     typedef CacheType::ObjectUIDType ObjectUIDType;
     typedef CacheType::ObjectType ObjectType;
@@ -54,9 +62,9 @@ public:
     template <typename DefaultNodeType>
     void init()
     {
+#ifdef __POSITION_AWARE_ITEMS__
         m_ptrCache->init(this);
 
-#ifdef __POSITION_AWARE_ITEMS__
         std::optional<ObjectUIDType> uidParent = std::nullopt;
         m_ptrCache->template createObjectOfType<DefaultNodeType>(m_uidRootNode, uidParent);
 #else
@@ -138,7 +146,9 @@ public:
                 uidLastNode = uidCurrentNode;
                 ptrLastNode = ptrCurrentNode;
 
+#ifdef __POSITION_AWARE_ITEMS__
                 uidLastNodeParent = uidCurrentNodeParent;
+#endif __POSITION_AWARE_ITEMS__
 
                 uidCurrentNode = ptrIndexNode->getChild(key); // fid it.. there are two kinds of methods..
             }
@@ -269,12 +279,26 @@ public:
         vtLocks.push_back(std::shared_lock<std::shared_mutex>(m_mutex));
 #endif __CONCURRENT__
 
+#ifdef __POSITION_AWARE_ITEMS__
+        std::optional<ObjectUIDType> uidCurrentNodeParent, uidLastNode;
+#endif __POSITION_AWARE_ITEMS__
+
         ObjectUIDType uidCurrentNode = m_uidRootNode.value();
         do
         {
-            std::optional<ObjectUIDType> uidParent;
             ObjectTypePtr prNodeDetails = nullptr;
-            m_ptrCache->getObject(uidCurrentNode, prNodeDetails, uidParent);    //TODO: lock
+
+#ifdef __POSITION_AWARE_ITEMS__
+            uidCurrentNodeParent = uidLastNode;
+            m_ptrCache->getObject(uidCurrentNode, prNodeDetails, uidCurrentNodeParent);    //TODO: lock
+
+            if (uidLastNode != uidCurrentNodeParent)
+            {
+                throw new std::exception("should not occur!");   // TODO: critical log.
+            }
+#else __POSITION_AWARE_ITEMS__
+            m_ptrCache->getObject(uidCurrentNode, prNodeDetails);    //TODO: lock
+#endif __POSITION_AWARE_ITEMS__
 
 #ifdef __CONCURRENT__
             vtLocks.push_back(std::shared_lock<std::shared_mutex>(prNodeDetails->mutex));
@@ -300,6 +324,8 @@ public:
 
                 break;
             }
+
+            uidLastNode = uidCurrentNode;
         } while (true);
         
         return errCode;
@@ -377,6 +403,11 @@ public:
             {
                 std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrCurrentNode->data);
 
+                if (ptrDataNode->remove(key) == ErrorCode::KeyDoesNotExist)
+                {
+                    throw new std::exception("should not occur!");
+                }
+
                 ptrDataNode->remove(key);
 
                 if (ptrDataNode->requireMerge(m_nDegree))
@@ -422,6 +453,45 @@ public:
                 {
                     throw new std::exception("should not occur!");
                 }
+
+                if (*m_uidRootNode != ckChildNode)
+                {
+                    throw new std::exception("should not occur!");
+                }
+
+                ObjectTypePtr ptrCurrentRoot;
+                m_ptrCache->getObject(*m_uidRootNode, ptrCurrentRoot);
+                if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrCurrentRoot->data))
+                {
+                    std::shared_ptr<IndexNodeType> ptrInnerNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrCurrentRoot->data);
+                    if (ptrInnerNode->getKeysCount() == 0) {
+                        ObjectUIDType _tmp = ptrInnerNode->getChildAt(0);
+                        m_ptrCache->remove(*m_uidRootNode);
+                        m_uidRootNode = _tmp;
+                    }
+                }
+                else //if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrCurrentRoot->data))
+                {
+                    /*std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrCurrentRoot->data);
+                    if (ptrDataNode->getKeysCount() == 0) {
+                        m_ptrCache->remove(*m_uidRootNode);
+                    }*/
+                }
+
+                //if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrChildNode->data))
+                //{
+                //    std::shared_ptr<IndexNodeType> ptrChildIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrChildNode->data);
+
+                //    if (ptrChildIndexNode->getKeysCount() == 0)
+                //    {
+                //        m_uidRootNode = ptrChildIndexNode->getChildAt(0);
+                //    }
+
+                //}
+                //else //if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrChildNode->data))
+                //{
+                //    m_uidRootNode = ckChildNode;
+                //}
 
                 break;
             }
@@ -473,11 +543,11 @@ public:
                             m_ptrCache->remove(*uidToDelete);
                         }
 
-                        if (ptrParentIndexNode->getKeysCount() == 0)
-                        {
-                            m_uidRootNode = ptrParentIndexNode->getChildAt(0);
-                            //throw new exception("should not occur!");
-                        }
+                        //if (ptrParentIndexNode->getKeysCount() == 0)
+                        //{
+                        //    m_uidRootNode = ptrParentIndexNode->getChildAt(0);
+                        //    //throw new exception("should not occur!");
+                        //}
                     }
                 }
                 else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrChildNode->data))
@@ -510,11 +580,11 @@ public:
                         m_ptrCache->remove(*uidToDelete);
                     }
 
-                    if (ptrParentIndexNode->getKeysCount() == 0)
-                    {
-                        m_uidRootNode = ptrParentIndexNode->getChildAt(0);
-                        //throw new exception("should not occur!");
-                    }
+                    //if (ptrParentIndexNode->getKeysCount() == 0)
+                    //{
+                    //    m_uidRootNode = ptrParentIndexNode->getChildAt(0);
+                    //    //throw new exception("should not occur!");
+                    //}
                 }
             }
 
@@ -530,25 +600,39 @@ public:
         return ErrorCode::Success;
     }
 
-    void print()
+    void print(std::ofstream & out)
     {
-        /*
+        int nSpace = 7;
+
+        std::string prefix;
+
+        out << prefix << "|" << std::endl;
+        out << prefix << "|" << std::string(nSpace, '-').c_str() << "(root)" << std::endl;
+
         ObjectTypePtr ptrRootNode = nullptr;
-        m_ptrCache->getObjectOfType(m_uidRootNode.value(), ptrRootNode);
+        m_ptrCache->getObject(m_uidRootNode.value(), ptrRootNode);
 
         if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrRootNode->data))
         {
             std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrRootNode->data);
 
-            ptrIndexNode->template print<std::shared_ptr<CacheType>, ObjectTypePtr, DataNodeType>(m_ptrCache, 0);
+#ifdef __POSITION_AWARE_ITEMS__
+            ptrIndexNode->template print<std::shared_ptr<CacheType>, ObjectTypePtr, DataNodeType>(out, m_ptrCache, 0, prefix, m_uidRootNode);
+#else //__POSITION_AWARE_ITEMS__
+            ptrIndexNode->template print<std::shared_ptr<CacheType>, ObjectTypePtr, DataNodeType>(out, m_ptrCache, 0, prefix);
+#endif __POSITION_AWARE_ITEMS__
         }
         else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrRootNode->data))
         {
             std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrRootNode->data);
 
-            ptrDataNode->print(0);
+            ptrDataNode->print(out, 0, prefix);
         }
-        */
+    }
+
+    void getstate(size_t& lru, size_t& map)
+    {
+        return m_ptrCache->getstate(lru, map);
     }
 
 #ifdef __POSITION_AWARE_ITEMS__

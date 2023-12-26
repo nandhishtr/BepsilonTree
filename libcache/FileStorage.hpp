@@ -115,6 +115,11 @@ public:
 		return ptrObject;
 	}
 
+	CacheErrorCode remove(ObjectUIDType ptrKey)
+	{
+		return CacheErrorCode::KeyDoesNotExist;
+	}
+
 #ifdef __POSITION_AWARE_ITEMS__
 	CacheErrorCode addObject(ObjectUIDType uidObject, std::shared_ptr<ObjectType> ptrObject, std::optional<ObjectUIDType>& uidParent)
 #else
@@ -151,7 +156,10 @@ public:
 	
 		m_fsStorage.flush();
 
+#ifdef __POSITION_AWARE_ITEMS__
 		m_ptrCallback->updateChildUID(uidParent, uidObject, uidUpdated);
+#endif __POSITION_AWARE_ITEMS__
+
 #endif __CONCURRENT__
 
 		return CacheErrorCode::Success;

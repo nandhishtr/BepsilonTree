@@ -16,6 +16,9 @@ class NoCacheObject
 	typedef std::variant<std::shared_ptr<ValueCoreTypes>...>* CacheValueTypePtr;
 
 public:
+	typedef std::tuple<ValueCoreTypes...> ObjectCoreTypes;
+
+public:
 
 	CacheValueTypePtr data;
 	mutable std::shared_mutex mutex;

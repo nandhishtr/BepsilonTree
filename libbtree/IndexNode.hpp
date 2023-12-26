@@ -1,4 +1,4 @@
-	#pragma once
+#pragma once
 #include <memory>
 #include <vector>
 #include <string>
@@ -31,6 +31,7 @@ private:
 	typedef std::vector<KeyType>::const_iterator KeyTypeIterator;
 	typedef std::vector<ObjectUIDType>::const_iterator CacheKeyTypeIterator;
 
+public:
 	struct INDEXNODESTRUCT
 	{
 		std::vector<KeyType> m_vtPivots;
@@ -153,10 +154,16 @@ public:
 			ptrLHSNode->mergeNodes(ptrChild, m_ptrData->m_vtPivots[nChildIdx - 1]);
 #endif __POSITION_AWARE_ITEMS__
 
+			uidObjectToDelete = m_ptrData->m_vtChildren[nChildIdx];
+			if (uidObjectToDelete != uidChild)
+			{
+				throw new std::exception("should not occur!");
+			}
+
 			m_ptrData->m_vtPivots.erase(m_ptrData->m_vtPivots.begin() + nChildIdx - 1);
 			m_ptrData->m_vtChildren.erase(m_ptrData->m_vtChildren.begin() + nChildIdx);
 
-			uidObjectToDelete = uidChild;
+			//uidObjectToDelete = uidChild;
 
 			return ErrorCode::Success;
 		}
@@ -221,12 +228,16 @@ public:
 		{
 			ptrLHSNode->mergeNode(ptrChild);
 
-			//ptrCache->remove(ptrChildptr);
+			uidObjectToDelete = m_ptrData->m_vtChildren[nChildIdx];
+			if (uidObjectToDelete != uidChild)
+			{
+				throw new std::exception("should not occur!");
+			}
 
 			m_ptrData->m_vtPivots.erase(m_ptrData->m_vtPivots.begin() + nChildIdx - 1);
 			m_ptrData->m_vtChildren.erase(m_ptrData->m_vtChildren.begin() + nChildIdx);
 
-			uidObjectToDelete = uidChild;
+			//uidObjectToDelete = uidChild;
 
 			return ErrorCode::Success;
 		}
@@ -284,7 +295,7 @@ public:
 
 	inline bool canTriggerMerge(size_t nDegree)
 	{
-		return m_ptrData->m_vtPivots.size() - 1 <= std::ceil(nDegree / 2.0f);	// TODO: macro!
+		return m_ptrData->m_vtPivots.size() <= std::ceil(nDegree / 2.0f) + 1;	// TODO: macro!
 
 	}
 
@@ -340,6 +351,11 @@ public:
 		ptrLHSSibling->m_ptrData->m_vtPivots.pop_back();
 		ptrLHSSibling->m_ptrData->m_vtChildren.pop_back();
 
+		if (ptrLHSSibling->m_ptrData->m_vtPivots.size() == 0)
+		{
+			throw new std::exception("should not occur!");
+		}
+
 		m_ptrData->m_vtPivots.insert(m_ptrData->m_vtPivots.begin(), keytoassign);
 		m_ptrData->m_vtChildren.insert(m_ptrData->m_vtChildren.begin(), value);
 
@@ -364,6 +380,12 @@ public:
 
 		ptrRHSSibling->m_ptrData->m_vtPivots.erase(ptrRHSSibling->m_ptrData->m_vtPivots.begin());
 		ptrRHSSibling->m_ptrData->m_vtChildren.erase(ptrRHSSibling->m_ptrData->m_vtChildren.begin());
+
+		if (ptrRHSSibling->m_ptrData->m_vtPivots.size() == 0)
+		{
+			throw new std::exception("should not occur!");
+
+		}
 
 		m_ptrData->m_vtPivots.push_back(keytoassign);
 		m_ptrData->m_vtChildren.push_back(value);
@@ -445,7 +467,8 @@ public:
 		auto it = m_ptrData->m_vtChildren.begin();
 		while (it != m_ptrData->m_vtChildren.end())
 		{
-			ptrCache->updateParentUID(*it, parentuid);
+			if( ptrCache->updateParentUID(*it, parentuid) != CacheErrorCode::Success)
+				throw new std::exception("should not occur!");
 			it++;
 		}
 		return ErrorCode::Error;
@@ -453,34 +476,63 @@ public:
 
 public:
 	template <typename CacheType, typename ObjectType, typename DataNodeType>
-	void print(CacheType ptrCache, size_t nLevel)
+#ifdef __POSITION_AWARE_ITEMS__
+	void print(std::ofstream& out, CacheType ptrCache, size_t nLevel, string prefix, std::optional<ObjectUIDType> uidParent)
+#else //__POSITION_AWARE_ITEMS__
+	void print(std::ofstream& out, CacheType ptrCache, size_t nLevel, string prefix)
+#endif __POSITION_AWARE_ITEMS__
 	{
-		std::cout << std::string(nLevel, '.').c_str() << " **LEVEL**:[" << nLevel << "] BEGIN" << std::endl;
+		int nSpace = 7;
 
+		prefix.append(std::string(nSpace - 1, ' '));
+		prefix.append("|");
 		for (size_t nIndex = 0; nIndex < m_ptrData->m_vtChildren.size(); nIndex++)
 		{
-			if (nIndex < m_ptrData->m_vtPivots.size()) 
+			out << " " << prefix << std::endl;
+			out << " " << prefix << std::string(nSpace, '-').c_str();// << std::endl;
+
+			if (nIndex < m_ptrData->m_vtPivots.size())
 			{
-				std::cout << std::string(nLevel, '.').c_str() << " ==> pivot: " << m_ptrData->m_vtPivots[nIndex] << std::endl;
+				out << " < (" << m_ptrData->m_vtPivots[nIndex] << ")";// << std::endl;
+			}
+			else {
+				out << " >= (" << m_ptrData->m_vtPivots[nIndex - 1] << ")";// << std::endl;
 			}
 
-			std::cout << std::string(nLevel, '.').c_str() << " ==> child: " << std::endl;
+
+			out << std::endl;
 
 			ObjectType ptrNode = nullptr;
-			ptrCache->getObjectOfType(m_ptrData->m_vtChildren[nIndex], ptrNode);
+#ifdef __POSITION_AWARE_ITEMS__
+			std::optional<ObjectUIDType> uidCurrentNodeParent;
+
+			uidCurrentNodeParent = uidParent;
+			ptrCache->getObject(m_ptrData->m_vtChildren[nIndex], ptrNode, uidCurrentNodeParent);    //TODO: lock
+
+			if (uidCurrentNodeParent != uidParent)
+			{
+				throw new std::exception("should not occur!");   // TODO: critical log.
+			}
+#else
+			ptrCache->getObject(m_ptrData->m_vtChildren[nIndex], ptrNode);
+#endif __POSITION_AWARE_ITEMS__
+
 			if (std::holds_alternative<shared_ptr<SelfType>>(*ptrNode->data))
 			{
 				shared_ptr<SelfType> ptrIndexNode = std::get<shared_ptr<SelfType>>(*ptrNode->data);
-				ptrIndexNode->template print<CacheType, ObjectType, DataNodeType>(ptrCache, nLevel + 1);
+
+#ifdef __POSITION_AWARE_ITEMS__
+				ptrIndexNode->template print<CacheType, ObjectType, DataNodeType>(out, ptrCache, nLevel + 1, prefix, m_ptrData->m_vtChildren[nIndex]);
+#else //__POSITION_AWARE_ITEMS__
+				ptrIndexNode->template print<CacheType, ObjectType, DataNodeType>(out, ptrCache, nLevel + 1, prefix);
+#endif __POSITION_AWARE_ITEMS__
 			}
 			else if (std::holds_alternative<shared_ptr<DataNodeType>>(*ptrNode->data))
 			{
 				shared_ptr<DataNodeType> ptrDataNode = std::get<shared_ptr<DataNodeType>>(*ptrNode->data);
-				ptrDataNode->print(nLevel + 1);
+				ptrDataNode->print(out, nLevel + 1, prefix);
 			}
 		}
-
-		std::cout << std::string(nLevel, '.').c_str() << " **LEVEL**:[" << nLevel << "] END" << std::endl;
 	}
 
 	void wieHiestDu() {

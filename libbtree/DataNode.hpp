@@ -203,6 +203,11 @@ public:
 		ptrLHSSibling->m_ptrData->m_vtKeys.pop_back();
 		ptrLHSSibling->m_ptrData->m_vtValues.pop_back();
 
+		if (ptrLHSSibling->m_ptrData->m_vtKeys.size() == 0)
+		{
+			throw new std::exception("should not occur!");
+		}
+
 		m_ptrData->m_vtKeys.insert(m_ptrData->m_vtKeys.begin(), key);
 		m_ptrData->m_vtValues.insert(m_ptrData->m_vtValues.begin(), value);
 
@@ -216,6 +221,11 @@ public:
 
 		ptrRHSSibling->m_ptrData->m_vtKeys.erase(ptrRHSSibling->m_ptrData->m_vtKeys.begin());
 		ptrRHSSibling->m_ptrData->m_vtValues.erase(ptrRHSSibling->m_ptrData->m_vtValues.begin());
+
+		if (ptrRHSSibling->m_ptrData->m_vtKeys.size() == 0)
+		{
+			throw new std::exception("should not occur!");
+		}
 
 		m_ptrData->m_vtKeys.push_back(key);
 		m_ptrData->m_vtValues.push_back(value);
@@ -303,16 +313,17 @@ public:
 	}
 
 public:
-	void print(size_t nLevel)
+	void print(std::ofstream& out, size_t nLevel, std::string prefix)
 	{
-		std::cout << std::string(nLevel, '.').c_str() << " **LEVEL**:[" << nLevel << "] BEGIN" << std::endl;
+		int nSpace = 7;
+
+		prefix.append(std::string(nSpace - 1, ' '));
+		prefix.append("|");
 
 		for (size_t nIndex = 0; nIndex < m_ptrData->m_vtKeys.size(); nIndex++)
 		{
-			std::cout << std::string(nLevel, '.').c_str() << " ==> key: " << m_ptrData->m_vtKeys[nIndex] << ", value: " << m_ptrData->m_vtValues[nIndex] << std::endl;
+			out << " " << prefix << std::string(nSpace, '-').c_str() << "(K: " << m_ptrData->m_vtKeys[nIndex] << ", V: " << m_ptrData->m_vtValues[nIndex] << ")" << std::endl;
 		}
-
-		std::cout << std::string(nLevel, '.').c_str() << " **LEVEL**:[" << nLevel << "] END" << std::endl;
 	}
 
 	void wieHiestDu() {

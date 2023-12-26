@@ -5,7 +5,6 @@
 #include "ErrorCodes.h"
 
 template<
-	typename ICallback,
 	typename ObjectUIDType, 
 	template <typename, typename...> typename ObjectWrapperType, 
 	typename ObjectTypeMarshaller, 
@@ -21,8 +20,6 @@ private:
 	size_t m_nPoolSize;
 	std::unordered_map<ObjectUIDType, std::shared_ptr<ObjectType>> m_mpObject;
 
-	ICallback* m_ptrCallback;
-
 public:
 	VolatileStorage(size_t nPoolSize)
 		: m_nPoolSize(nPoolSize)
@@ -32,7 +29,6 @@ public:
 	template <typename... InitArgs>
 	CacheErrorCode init(InitArgs... args)
 	{
-		m_ptrCallback = getNthElement<0>(args...);
 		return CacheErrorCode::Success;
 	}
 
@@ -44,6 +40,18 @@ public:
 		}
 
 		return nullptr;
+	}
+
+	CacheErrorCode remove(ObjectUIDType ptrKey)
+	{
+		auto it = m_mpObject.find(ptrKey);
+		if (it != m_mpObject.end())
+		{
+			m_mpObject.erase((*it).first);
+			return CacheErrorCode::Success;
+		}
+
+		return CacheErrorCode::KeyDoesNotExist;
 	}
 
 	CacheErrorCode addObject(ObjectUIDType ptrKey, std::shared_ptr<ObjectType> ptrValue)
