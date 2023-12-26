@@ -175,21 +175,37 @@ void int_test(BPlusStoreType* ptrTree, int degree, int total_entries)
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
     int i = 0;
-    while (i++ < 10) {
+    while (i++ < 2) {
         std::cout << i << ",";
+        //total_entries = 33;
         for (size_t nCntr = 0; nCntr < total_entries; nCntr = nCntr + 2)
         {
             ptrTree->insert(nCntr, nCntr);
         }
+
+        //std::ofstream out_1("d:\\tree_post_insert_1.txt");
+        //ptrTree->print(out_1);
+        //out_1.flush();
+        //out_1.close();
+
         for (size_t nCntr = 1; nCntr < total_entries; nCntr = nCntr + 2)
         {
             ptrTree->insert(nCntr, nCntr);
+
+            //std::string _fn = "d:\\tree_post_insert_file_";
+            //_fn.append(to_string(nCntr));
+            //_fn.append(".txt");
+            //std::ofstream out_t(_fn);
+            //ptrTree->print(out_t);
+            //out_t.flush();
+            //out_t.close();
+
         }
 
-        std::ofstream out_t("d:\\tree_post_insert_file.txt");
+        /*std::ofstream out_t("d:\\tree_post_insert_file.txt");
         ptrTree->print(out_t);
         out_t.flush();
-        out_t.close();
+        out_t.close();*/
 
 
         for (size_t nCntr = 0; nCntr < total_entries; nCntr++)
@@ -222,7 +238,7 @@ void int_test(BPlusStoreType* ptrTree, int degree, int total_entries)
         assert(lru == 1 && map == 1);
     }
     i = 0;
-    while (i++ < 10) {
+    while (i++ < 2) {
         std::cout << "rev:" << i << ",";
         for (int nCntr = total_entries; nCntr >= 0; nCntr = nCntr - 2)
         {
@@ -274,7 +290,7 @@ void string_test(BPlusStoreType* ptrTree, int degree, int total_entries)
 
     int i = 0;
 
-    while (i++ < 10) {
+    while (i++ < 2) {
         std::cout << i << ",";;
         for (size_t nCntr = 0; nCntr < total_entries; nCntr = nCntr + 2)
         {
@@ -315,7 +331,7 @@ void string_test(BPlusStoreType* ptrTree, int degree, int total_entries)
     }
 
     i = 0;
-    while (i++ < 10) {
+    while (i++ < 2) {
         std::cout << "rev:" << i << ",";
 
         for (int nCntr = total_entries - 1; nCntr >= 0; nCntr = nCntr - 2)
@@ -467,10 +483,10 @@ void test_for_string()
             typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_STRING_STRING> IndexNodeType;
 
             typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, FileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
-            BPlusStoreType* ptrTree3 = new BPlusStoreType(idx, 10, 1024, 1024 * 1024, "D:\\filestore.hdb");
-            ptrTree3->init<DataNodeType>();*/
+            BPlusStoreType* ptrTree = new BPlusStoreType(3, 100, 1024, 1024 * 1024 * 1024, "D:\\filestore.hdb");
+            ptrTree->init<DataNodeType>();
 
-            //string_test<BPlusStoreType, IndexNodeType, DataNodeType>(ptrTree3, idx, 10000);
+            string_test<BPlusStoreType, IndexNodeType, DataNodeType>(ptrTree, idx, 10000);*/
 #endif __POSITION_AWARE_ITEMS__
         }
         std::cout << std::endl;

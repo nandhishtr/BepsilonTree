@@ -149,7 +149,8 @@ public:
 		if (nChildIdx > 0)
 		{
 #ifdef __POSITION_AWARE_ITEMS__
-			ptrLHSNode->mergeNodes<CacheType>(ptrChild, m_ptrData->m_vtPivots[nChildIdx - 1], uidparent, ptrCache);
+			std::optional<ObjectUIDType> __k = m_ptrData->m_vtChildren[nChildIdx - 1];
+			ptrLHSNode->mergeNodes<CacheType>(ptrChild, m_ptrData->m_vtPivots[nChildIdx - 1], __k, ptrCache);
 #else
 			ptrLHSNode->mergeNodes(ptrChild, m_ptrData->m_vtPivots[nChildIdx - 1]);
 #endif __POSITION_AWARE_ITEMS__
@@ -467,8 +468,10 @@ public:
 		auto it = m_ptrData->m_vtChildren.begin();
 		while (it != m_ptrData->m_vtChildren.end())
 		{
-			if( ptrCache->updateParentUID(*it, parentuid) != CacheErrorCode::Success)
-				throw new std::exception("should not occur!");
+			if (ptrCache->updateParentUID(*it, parentuid) != CacheErrorCode::Success)
+			{
+				//throw new std::exception("should not occur!");
+			}
 			it++;
 		}
 		return ErrorCode::Error;
@@ -500,8 +503,6 @@ public:
 			}
 
 
-			out << std::endl;
-
 			ObjectType ptrNode = nullptr;
 #ifdef __POSITION_AWARE_ITEMS__
 			std::optional<ObjectUIDType> uidCurrentNodeParent;
@@ -513,9 +514,21 @@ public:
 			{
 				throw new std::exception("should not occur!");   // TODO: critical log.
 			}
+
+			if (uidCurrentNodeParent)
+			{
+				out << " P[" << (*uidCurrentNodeParent).toString().c_str() <<"], S[" << m_ptrData->m_vtChildren[nIndex].toString().c_str() << "]";
+			}
+			else
+			{
+				out << " [NULL]";
+			}
 #else
 			ptrCache->getObject(m_ptrData->m_vtChildren[nIndex], ptrNode);
 #endif __POSITION_AWARE_ITEMS__
+
+			out << std::endl;
+
 
 			if (std::holds_alternative<shared_ptr<SelfType>>(*ptrNode->data))
 			{

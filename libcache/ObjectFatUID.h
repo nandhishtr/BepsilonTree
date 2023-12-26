@@ -1,6 +1,7 @@
 #pragma once
 #include <cstdint>
 #include <memory>
+#include <string>
 
 class ObjectFatUID
 {
@@ -85,6 +86,30 @@ public:
 public:
 	ObjectFatUID()
 	{
+	}
+
+	std::string toString()
+	{
+		std::string szData;
+		switch (m_uid.m_nMediaType)
+		{
+		case None:
+			break;
+		case Volatile:
+			szData.append("V:");
+			szData.append(std::to_string(m_uid.FATPOINTER.m_ptrVolatile));
+			break;
+		case PMem:
+			szData.append("P:");
+			break;
+		case File:
+			szData.append("F:");
+			szData.append(std::to_string(m_uid.FATPOINTER.m_ptrFile.m_nOffset));
+			szData.append(":");
+			szData.append(std::to_string(m_uid.FATPOINTER.m_ptrFile.m_nSize));
+			break;
+		}
+		return szData;
 	}
 };
 

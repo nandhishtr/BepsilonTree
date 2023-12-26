@@ -314,6 +314,8 @@ public:
             {
                 std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*prNodeDetails->data);
 
+                uidLastNode = uidCurrentNode;
+
                 uidCurrentNode = ptrIndexNode->getChild(key);
             }
             else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*prNodeDetails->data))
@@ -325,7 +327,7 @@ public:
                 break;
             }
 
-            uidLastNode = uidCurrentNode;
+            
         } while (true);
         
         return errCode;
@@ -357,7 +359,19 @@ public:
         do
         {
 #ifdef __POSITION_AWARE_ITEMS__
+            uidCurrentNodeParent = uidLastNode;
             m_ptrCache->getObject(uidCurrentNode, ptrCurrentNode, uidCurrentNodeParent);    //TODO: lock
+
+
+            if (ptrLastNode != nullptr && !uidCurrentNodeParent)
+            {
+                uidCurrentNodeParent = uidLastNode;
+                //throw new std::exception("should not occur!");   // TODO: critical log.
+            }
+            if (ptrLastNode != nullptr && uidCurrentNodeParent != uidLastNode)
+            {
+                throw new std::exception("should not occur!");   // TODO: critical log.
+            }
 #else
             m_ptrCache->getObject(uidCurrentNode, ptrCurrentNode);    //TODO: lock
 #endif __POSITION_AWARE_ITEMS__
@@ -396,6 +410,10 @@ public:
 
                 uidLastNode = uidCurrentNode;
                 ptrLastNode = ptrCurrentNode;
+
+#ifdef __POSITION_AWARE_ITEMS__
+                uidLastNodeParent = uidCurrentNodeParent;
+#endif __POSITION_AWARE_ITEMS__
 
                 uidCurrentNode = ptrIndexNode->getChild(key); // fid it.. there are two kinds of methods..
             }
@@ -468,15 +486,20 @@ public:
                         ObjectUIDType _tmp = ptrInnerNode->getChildAt(0);
                         m_ptrCache->remove(*m_uidRootNode);
                         m_uidRootNode = _tmp;
+
+                        std::optional< ObjectUIDType> null_pk;
+                        m_ptrCache->updateParentUID(*m_uidRootNode, null_pk);
                     }
                 }
-                else //if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrCurrentRoot->data))
+                else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrCurrentRoot->data))
                 {
+                    int i = 0;
                     /*std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrCurrentRoot->data);
                     if (ptrDataNode->getKeysCount() == 0) {
                         m_ptrCache->remove(*m_uidRootNode);
                     }*/
                 }
+
 
                 //if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrChildNode->data))
                 //{
@@ -515,7 +538,8 @@ public:
                     if (ptrChildIndexNode->requireMerge(m_nDegree))
                     {
 #ifdef __POSITION_AWARE_ITEMS__
-                        ptrParentIndexNode->template rebalanceIndexNode<std::shared_ptr<CacheType>, shared_ptr<IndexNodeType>>(m_ptrCache, ptrChildIndexNode, key, m_nDegree, ckChildNode, uidToDelete, prNodeDetails.second.first);
+                        std::optional<ObjectUIDType> __k = ckChildNode;// prNodeDetails.first;
+                        ptrParentIndexNode->template rebalanceIndexNode<std::shared_ptr<CacheType>, shared_ptr<IndexNodeType>>(m_ptrCache, ptrChildIndexNode, key, m_nDegree, ckChildNode, uidToDelete, __k);
 #else
                         ptrParentIndexNode->template rebalanceIndexNode<std::shared_ptr<CacheType>, shared_ptr<IndexNodeType>>(m_ptrCache, ptrChildIndexNode, key, m_nDegree, ckChildNode, uidToDelete);
 #endif __POSITION_AWARE_ITEMS__
@@ -607,7 +631,13 @@ public:
         std::string prefix;
 
         out << prefix << "|" << std::endl;
-        out << prefix << "|" << std::string(nSpace, '-').c_str() << "(root)" << std::endl;
+        out << prefix << "|" << std::string(nSpace, '-').c_str() << "(root)";
+
+#ifdef __POSITION_AWARE_ITEMS__
+        out << " P[], S[" << (*m_uidRootNode).toString().c_str() << "]";
+#endif __POSITION_AWARE_ITEMS__
+
+        out << std::endl;
 
         ObjectTypePtr ptrRootNode = nullptr;
         m_ptrCache->getObject(m_uidRootNode.value(), ptrRootNode);

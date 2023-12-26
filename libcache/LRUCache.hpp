@@ -842,6 +842,11 @@ private:
 		while (m_ptrObjects.size() >= m_nCacheCapacity)
 		{
 #ifdef __POSITION_AWARE_ITEMS__
+			if (m_ptrTail->m_uidParent == std::nullopt)
+			{
+				//moveToFront(m_ptrTail);
+				return;
+			}
 
 			std::shared_ptr<Item> _ptrPrev = m_ptrTail->m_ptrPrev;
 			while (_ptrPrev->m_ptrPrev != nullptr)
@@ -858,6 +863,12 @@ private:
 					continue;
 				}
 				_ptrPrev = _ptrPrev->m_ptrPrev;
+			}
+
+			if (m_ptrTail->m_uidParent == std::nullopt)
+			{
+				//moveToFront(m_ptrTail);
+				return;
 			}
 
 
