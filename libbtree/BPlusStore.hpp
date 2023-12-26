@@ -156,6 +156,7 @@ public:
             {
                 std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrCurrentNode->data);
 
+                ptrCurrentNode->dirty = true;
                 ptrDataNode->insert(key, value);
 
                 if (ptrDataNode->requireSplit(m_nDegree))
@@ -224,6 +225,8 @@ public:
                 std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*prNodeDetails.second->data);
 #endif __POSITION_AWARE_ITEMS__
 
+                prNodeDetails.second.second->dirty = true;
+
                 ptrIndexNode->insert(pivotKey, *uidRHSNode);
 
                 uidRHSNode = std::nullopt;
@@ -246,6 +249,8 @@ public:
             else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*prNodeDetails.second.second->data))
             {
                 std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*prNodeDetails.second.second->data);
+
+                prNodeDetails.second.second->dirty = true;
 
                 ErrorCode errCode = ptrDataNode->template split<std::shared_ptr<CacheType>, ObjectUIDType>(m_ptrCache, uidRHSNode, prNodeDetails.second.first, pivotKey);
 #else
@@ -421,6 +426,7 @@ public:
             {
                 std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrCurrentNode->data);
 
+                ptrCurrentNode->dirty = true;
                 if (ptrDataNode->remove(key) == ErrorCode::KeyDoesNotExist)
                 {
                     throw new std::exception("should not occur!");
@@ -479,6 +485,7 @@ public:
 
                 ObjectTypePtr ptrCurrentRoot;
                 m_ptrCache->getObject(*m_uidRootNode, ptrCurrentRoot);
+                ptrCurrentRoot->dirty = true;
                 if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrCurrentRoot->data))
                 {
                     std::shared_ptr<IndexNodeType> ptrInnerNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrCurrentRoot->data);
@@ -538,6 +545,8 @@ public:
                     if (ptrChildIndexNode->requireMerge(m_nDegree))
                     {
 #ifdef __POSITION_AWARE_ITEMS__
+                        ptrChildNode->dirty = true;
+                        prNodeDetails.second.second->dirty = true;
                         std::optional<ObjectUIDType> __k = ckChildNode;// prNodeDetails.first;
                         ptrParentIndexNode->template rebalanceIndexNode<std::shared_ptr<CacheType>, shared_ptr<IndexNodeType>>(m_ptrCache, ptrChildIndexNode, key, m_nDegree, ckChildNode, uidToDelete, __k);
 #else
@@ -579,6 +588,9 @@ public:
                     std::optional<ObjectUIDType> uidToDelete = std::nullopt;
 
                     std::shared_ptr<DataNodeType> ptrChildDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrChildNode->data);
+
+                    ptrChildNode->dirty = true;
+                    prNodeDetails.second.second->dirty = true;
 
                     ptrParentIndexNode->template rebalanceDataNode<std::shared_ptr<CacheType>, shared_ptr<DataNodeType>>(m_ptrCache, ptrChildDataNode, key, m_nDegree, ckChildNode, uidToDelete);
 
@@ -677,11 +689,17 @@ public:
 
         std::optional< ObjectUIDType> t;
         ObjectTypePtr ptrObject = nullptr;
-        m_ptrCache->getObjectFromCacheOnly(*uidObject, ptrObject, t);
+        m_ptrCache->getObject(*uidObject, ptrObject, t, true);
 
         if (ptrObject == nullptr)
         {
             throw new std::exception("should not occur!");   // TODO: critical log.
+        }
+
+        if (!ptrObject->dirty)
+        {
+            ptrObject->dirty = true;
+            //throw new std::exception("should not occur!");   // TODO: critical log.
         }
 
         if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrObject->data))

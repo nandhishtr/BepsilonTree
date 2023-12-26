@@ -111,6 +111,7 @@ public:
 		m_fsStorage.seekg(uidObject.m_uid.FATPOINTER.m_ptrFile.m_nOffset);
 
 		std::shared_ptr<ObjectType> ptrObject = std::make_shared<ObjectType>(m_fsStorage);
+		ptrObject->dirty = false;
 
 		return ptrObject;
 	}

@@ -52,7 +52,7 @@ private:
 		std::shared_ptr<Item> m_ptrNext;
 
 #ifdef __POSITION_AWARE_ITEMS__
-		Item(ObjectUIDType& key, ObjectTypePtr ptrObject, std::optional<ObjectUIDType>& uidParent)
+		Item(const ObjectUIDType& key, const ObjectTypePtr ptrObject, const std::optional<ObjectUIDType>& uidParent)
 			: m_ptrNext(nullptr)
 			, m_ptrPrev(nullptr)
 		{
@@ -63,7 +63,7 @@ private:
 		}
 #endif __POSITION_AWARE_ITEMS__
 
-		Item(ObjectUIDType& key, ObjectTypePtr ptrObject)
+		Item(const ObjectUIDType& key, const ObjectTypePtr ptrObject)
 			: m_ptrNext(nullptr)
 			, m_ptrPrev(nullptr)
 		{
@@ -154,7 +154,7 @@ public:
 #endif __POSITION_AWARE_ITEMS__
 	}
 
-	CacheErrorCode remove(ObjectUIDType uidObject)
+	CacheErrorCode remove(const ObjectUIDType& uidObject)
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex>  lock_cache(m_mtxCache);
@@ -179,7 +179,7 @@ public:
 	}
 
 #ifdef __POSITION_AWARE_ITEMS__
-	CacheErrorCode getObject(ObjectUIDType uidObject, ObjectTypePtr& ptrObject, std::optional<ObjectUIDType>& keyParent)
+	CacheErrorCode getObject(const ObjectUIDType& uidObject, ObjectTypePtr& ptrObject, std::optional<ObjectUIDType>& uidParent, bool bCacheOnly = false)
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache); // std::unique_lock due to LRU's linked-list update! is there any better way?
@@ -190,9 +190,15 @@ public:
 			std::shared_ptr<Item> ptrItem = m_ptrObjects[uidObject];
 			moveToFront(ptrItem);
 			ptrObject = ptrItem->m_ptrObject;
-			keyParent = ptrItem->m_uidParent;
+			uidParent = ptrItem->m_uidParent;
 			return CacheErrorCode::Success;
 		}
+
+		if (bCacheOnly)
+		{
+			return CacheErrorCode::Error;
+		}
+
 
 #ifdef __CONCURRENT__
 		std::shared_lock<std::shared_mutex> lock_storage(m_mtxStorage); // TODO: requesting the same key?
@@ -207,7 +213,7 @@ public:
 
 		if (_ptrObject != nullptr)
 		{
-			std::shared_ptr<Item> ptrItem = std::make_shared<Item>(uidObject, _ptrObject, keyParent);
+			std::shared_ptr<Item> ptrItem = std::make_shared<Item>(uidObject, _ptrObject, uidParent);
 
 #ifdef __CONCURRENT__
 			std::unique_lock<std::shared_mutex> re_lock_cache(m_mtxCache);
@@ -218,7 +224,7 @@ public:
 				std::shared_ptr<Item> ptrItem = m_ptrObjects[uidObject];
 				moveToFront(ptrItem);
 				ptrObject = ptrItem->m_ptrObject;
-				keyParent = ptrItem->m_uidParent;
+				uidParent = ptrItem->m_uidParent;
 				return CacheErrorCode::Success;
 			}
 
@@ -249,7 +255,7 @@ public:
 	}
 #endif __POSITION_AWARE_ITEMS__
 
-	CacheErrorCode getObject(ObjectUIDType uidObject, ObjectTypePtr & ptrObject)
+	CacheErrorCode getObject(const ObjectUIDType uidObject, ObjectTypePtr & ptrObject)
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache); // std::unique_lock due to LRU's linked-list update! is there any better way?
@@ -317,28 +323,8 @@ public:
 	}
 
 #ifdef __POSITION_AWARE_ITEMS__
-	CacheErrorCode getObjectFromCacheOnly(ObjectUIDType uidObject, ObjectTypePtr& ptrObject, std::optional<ObjectUIDType>& uidParent)
-	{
-#ifdef __CONCURRENT__
-		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache); // std::unique_lock due to LRU's linked-list update! is there any better way?
-#endif __CONCURRENT__
-
-		if (m_ptrObjects.find(uidObject) != m_ptrObjects.end())
-		{
-			std::shared_ptr<Item> ptrItem = m_ptrObjects[uidObject];
-			//moveToFront(ptrItem);
-			ptrObject = ptrItem->m_ptrObject;
-			uidParent = ptrItem->m_uidParent;
-			return CacheErrorCode::Success;
-		}
-
-		return CacheErrorCode::Error;
-	}
-#endif __POSITION_AWARE_ITEMS__
-
-#ifdef __POSITION_AWARE_ITEMS__
 	template <typename Type>
-	CacheErrorCode getObjectOfType(ObjectUIDType key, Type& ptrObject, std::optional<ObjectUIDType>& keyParent)
+	CacheErrorCode getObjectOfType(const ObjectUIDType key, Type& ptrObject, std::optional<ObjectUIDType>& keyParent)
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache);
@@ -347,6 +333,7 @@ public:
 		if (m_ptrObjects.find(key) != m_ptrObjects.end())
 		{
 			std::shared_ptr<Item> ptrItem = m_ptrObjects[key];
+			ptrItem->m_ptrObject->dirty = true;
 			moveToFront(ptrItem);
 
 //#ifdef __CONCURRENT__
@@ -397,6 +384,7 @@ public:
 
 				return CacheErrorCode::Error;
 			}
+			ptrItem->m_ptrObject->dirty = true;
 
 			m_ptrObjects[key] = ptrItem;
 
@@ -434,7 +422,7 @@ public:
 #endif __POSITION_AWARE_ITEMS__
 
 	template <typename Type>
-	CacheErrorCode getObjectOfType(ObjectUIDType key, Type& ptrObject)
+	CacheErrorCode getObjectOfType(const ObjectUIDType key, Type& ptrObject)
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache);
@@ -443,6 +431,7 @@ public:
 		if (m_ptrObjects.find(key) != m_ptrObjects.end())
 		{
 			std::shared_ptr<Item> ptrItem = m_ptrObjects[key];
+			ptrItem->m_ptrObject->dirty = true;
 			moveToFront(ptrItem);
 
 			//#ifdef __CONCURRENT__
@@ -490,6 +479,7 @@ public:
 
 				return CacheErrorCode::Error;
 			}
+			ptrItem->m_ptrObject->dirty = true;
 
 			m_ptrObjects[key] = ptrItem;
 
@@ -527,9 +517,9 @@ public:
 
 	template<class Type, typename... ArgsType>
 #ifdef __POSITION_AWARE_ITEMS__
-	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, std::optional<ObjectUIDType>& uidParent, ArgsType... args)
+	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, std::optional<ObjectUIDType>& uidParent, const ArgsType... args)
 #else
-	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, ArgsType... args)
+	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, const ArgsType... args)
 #endif __POSITION_AWARE_ITEMS__
 	{
 		std::shared_ptr<ObjectType> ptrValue = ObjectType::template createObjectOfType<Type>(args...);
@@ -579,9 +569,9 @@ public:
 
 	template<class Type, typename... ArgsType>
 #ifdef __POSITION_AWARE_ITEMS__
-	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, std::optional<ObjectUIDType>& uidParent, std::shared_ptr<Type>& ptrCoreObject, ArgsType... args)
+	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, std::optional<ObjectUIDType>& uidParent, std::shared_ptr<Type>& ptrCoreObject, const ArgsType... args)
 #else
-	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, std::shared_ptr<Type>& ptrCoreObject, ArgsType... args)
+	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, std::shared_ptr<Type>& ptrCoreObject, const ArgsType... args)
 #endif __POSITION_AWARE_ITEMS__
 	{
 		std::shared_ptr<ObjectType> ptrObject = ObjectType::template createObjectOfType<Type>(ptrCoreObject, args...);
@@ -629,11 +619,12 @@ public:
 		return CacheErrorCode::Success;
 	}
 
-	CacheErrorCode updateParentUID(ObjectUIDType& uidChild, std::optional<ObjectUIDType>& uidParent)
+	CacheErrorCode updateParentUID(const ObjectUIDType& uidChild, const std::optional<ObjectUIDType>& uidParent)
 	{
 		if (m_ptrObjects.find(uidChild) != m_ptrObjects.end())
 		{
 			m_ptrObjects[uidChild]->m_uidParent = uidParent;
+			m_ptrObjects[uidChild]->m_ptrObject->dirty = true;
 			return CacheErrorCode::Success;
 		}
 		return CacheErrorCode::Error;
@@ -871,8 +862,13 @@ private:
 				return;
 			}
 
-
-			m_ptrStorage->addObject(m_ptrTail->m_uidSelf, m_ptrTail->m_ptrObject, m_ptrTail->m_uidParent);
+			//m_ptrStorage->addObject(m_ptrTail->m_uidSelf, m_ptrTail->m_ptrObject, m_ptrTail->m_uidParent);
+			if (m_ptrTail->m_ptrObject->dirty) {
+				m_ptrStorage->addObject(m_ptrTail->m_uidSelf, m_ptrTail->m_ptrObject, m_ptrTail->m_uidParent);
+			}
+			else {
+				int i = 0;
+			}
 #else
 			m_ptrStorage->addObject(m_ptrTail->m_uidSelf, m_ptrTail->m_ptrObject);
 #endif __POSITION_AWARE_ITEMS__

@@ -23,17 +23,20 @@ private:
 	typedef std::shared_ptr<std::variant<std::shared_ptr<CoreTypes>...>> CoreTypesWrapperPtr;
 
 public:
+	bool dirty;
 	CoreTypesWrapperPtr data;
 	mutable std::shared_mutex mutex;
 
 public:
 	LRUCacheObject(CoreTypesWrapperPtr ptrObject)
 	{
+		dirty = true;
 		data = ptrObject;
 	}
 
 	LRUCacheObject(std::fstream& is)
 	{
+		dirty = true;
 		CoreTypesMarshaller::template deserialize<CoreTypesWrapper, CoreTypes...>(is, data);
 	}
 
