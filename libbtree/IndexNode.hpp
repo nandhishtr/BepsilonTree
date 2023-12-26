@@ -82,7 +82,7 @@ public:
 
 	}
 
-	inline void insert(const KeyType& pivotKey, const ObjectUIDType& uidSibling)
+	inline ErrorCode insert(const KeyType& pivotKey, const ObjectUIDType& uidSibling)
 	{
 		size_t nChildIdx = m_ptrData->m_vtPivots.size();
 		for (int nIdx = 0; nIdx < m_ptrData->m_vtPivots.size(); ++nIdx)
@@ -96,29 +96,27 @@ public:
 
 		m_ptrData->m_vtPivots.insert(m_ptrData->m_vtPivots.begin() + nChildIdx, pivotKey);
 		m_ptrData->m_vtChildren.insert(m_ptrData->m_vtChildren.begin() + nChildIdx + 1, uidSibling);
+
+		return ErrorCode::Success;
 	}
 
-	template <typename CacheType, typename ObjectType>
-#ifdef __POSITION_AWARE_ITEMS__
-	inline ErrorCode rebalanceIndexNode(CacheType ptrCache, ObjectType ptrChild, const KeyType& key, size_t nDegree, ObjectUIDType& uidChild, std::optional<ObjectUIDType>& uidObjectToDelete, std::optional<ObjectUIDType>& uidparent)
-#else
-	inline ErrorCode rebalanceIndexNode(CacheType ptrCache, ObjectType ptrChild, const KeyType& key, size_t nDegree, ObjectUIDType& uidChild, std::optional<ObjectUIDType>& uidObjectToDelete)
-#endif __POSITION_AWARE_ITEMS__
+	template <typename CacheType, typename ObjectCoreType>
+	inline ErrorCode rebalanceIndexNode(CacheType ptrCache, const ObjectUIDType& uidChild, ObjectCoreType ptrChild, const KeyType& key, size_t nDegree, std::optional<ObjectUIDType>& uidObjectToDelete)
 	{
-		ObjectType ptrLHSNode = nullptr;
-		ObjectType ptrRHSNode = nullptr;
+		ObjectCoreType ptrLHSNode = nullptr;
+		ObjectCoreType ptrRHSNode = nullptr;
 
 		size_t nChildIdx = getChildNodeIdx(key);
 
 		if (nChildIdx > 0)
 		{
-			ptrCache->template getObjectOfType<ObjectType>(m_ptrData->m_vtChildren[nChildIdx - 1], ptrLHSNode);    //TODO: lock
+			ptrCache->template getObjectOfType<ObjectCoreType>(m_ptrData->m_vtChildren[nChildIdx - 1], ptrLHSNode);    //TODO: lock
 
 			if (ptrLHSNode->getKeysCount() > std::ceil(nDegree / 2.0f))	// TODO: macro?
 			{
 				KeyType key;
 #ifdef __POSITION_AWARE_ITEMS__
-				ptrChild->moveAnEntityFromLHSSibling<CacheType>(ptrLHSNode, m_ptrData->m_vtPivots[nChildIdx - 1], key, uidparent, ptrCache);
+				ptrChild->moveAnEntityFromLHSSibling<CacheType>(ptrLHSNode, m_ptrData->m_vtPivots[nChildIdx - 1], key, uidChild, ptrCache);
 #else
 				ptrChild->moveAnEntityFromLHSSibling(ptrLHSNode, m_ptrData->m_vtPivots[nChildIdx - 1], key);
 #endif __POSITION_AWARE_ITEMS__
@@ -130,13 +128,13 @@ public:
 
 		if (nChildIdx < m_ptrData->m_vtPivots.size())
 		{
-			ptrCache->template getObjectOfType<ObjectType>(m_ptrData->m_vtChildren[nChildIdx + 1], ptrRHSNode);    //TODO: lock
+			ptrCache->template getObjectOfType<ObjectCoreType>(m_ptrData->m_vtChildren[nChildIdx + 1], ptrRHSNode);    //TODO: lock
 
 			if (ptrRHSNode->getKeysCount() > std::ceil(nDegree / 2.0f))
 			{
 				KeyType key;
 #ifdef __POSITION_AWARE_ITEMS__
-				ptrChild->moveAnEntityFromRHSSibling<CacheType>(ptrRHSNode, m_ptrData->m_vtPivots[nChildIdx], key, uidparent, ptrCache);
+				ptrChild->moveAnEntityFromRHSSibling<CacheType>(ptrRHSNode, m_ptrData->m_vtPivots[nChildIdx], key, uidChild, ptrCache);
 #else
 				ptrChild->moveAnEntityFromRHSSibling(ptrRHSNode, m_ptrData->m_vtPivots[nChildIdx], key);
 #endif __POSITION_AWARE_ITEMS__
@@ -149,8 +147,7 @@ public:
 		if (nChildIdx > 0)
 		{
 #ifdef __POSITION_AWARE_ITEMS__
-			std::optional<ObjectUIDType> __k = m_ptrData->m_vtChildren[nChildIdx - 1];
-			ptrLHSNode->mergeNodes<CacheType>(ptrChild, m_ptrData->m_vtPivots[nChildIdx - 1], __k, ptrCache);
+			ptrLHSNode->mergeNodes<CacheType>(ptrChild, m_ptrData->m_vtPivots[nChildIdx - 1], m_ptrData->m_vtChildren[nChildIdx - 1], ptrCache);
 #else
 			ptrLHSNode->mergeNodes(ptrChild, m_ptrData->m_vtPivots[nChildIdx - 1]);
 #endif __POSITION_AWARE_ITEMS__
@@ -172,7 +169,7 @@ public:
 		if (nChildIdx < m_ptrData->m_vtPivots.size())
 		{
 #ifdef __POSITION_AWARE_ITEMS__
-			ptrChild->mergeNodes<CacheType>(ptrRHSNode, m_ptrData->m_vtPivots[nChildIdx], uidparent, ptrCache);
+			ptrChild->mergeNodes<CacheType>(ptrRHSNode, m_ptrData->m_vtPivots[nChildIdx], uidChild, ptrCache);
 #else
 			ptrChild->mergeNodes(ptrRHSNode, m_ptrData->m_vtPivots[nChildIdx]);
 #endif __POSITION_AWARE_ITEMS__
@@ -188,18 +185,17 @@ public:
 		throw new exception("should not occur!"); // TODO: critical log entry.
 	}
 
-	template <typename CacheType, typename ObjectType>
-	inline ErrorCode rebalanceDataNode(CacheType ptrCache, ObjectType ptrChild, const KeyType& key, size_t nDegree, ObjectUIDType& uidChild, std::optional<ObjectUIDType>& uidObjectToDelete)
+	template <typename CacheType, typename ObjectCoreType>
+	inline ErrorCode rebalanceDataNode(CacheType ptrCache, const ObjectUIDType& uidChild, ObjectCoreType ptrChild, const KeyType& key, size_t nDegree, std::optional<ObjectUIDType>& uidObjectToDelete)
 	{
-		ObjectType ptrLHSNode = nullptr;
-		ObjectType ptrRHSNode = nullptr;
+		ObjectCoreType ptrLHSNode = nullptr;
+		ObjectCoreType ptrRHSNode = nullptr;
 
 		size_t nChildIdx = getChildNodeIdx(key);
 
-
 		if (nChildIdx > 0)
 		{
-			ptrCache->template getObjectOfType<ObjectType>(m_ptrData->m_vtChildren[nChildIdx - 1], ptrLHSNode);    //TODO: lock
+			ptrCache->template getObjectOfType<ObjectCoreType>(m_ptrData->m_vtChildren[nChildIdx - 1], ptrLHSNode);    //TODO: lock
 
 			if (ptrLHSNode->getKeysCount() > std::ceil(nDegree / 2.0f))
 			{
@@ -213,7 +209,7 @@ public:
 
 		if (nChildIdx < m_ptrData->m_vtPivots.size())
 		{
-			ptrCache->template getObjectOfType<ObjectType>(m_ptrData->m_vtChildren[nChildIdx + 1], ptrRHSNode);    //TODO: lock
+			ptrCache->template getObjectOfType<ObjectCoreType>(m_ptrData->m_vtChildren[nChildIdx + 1], ptrRHSNode);    //TODO: lock
 
 			if (ptrRHSNode->getKeysCount() > std::ceil(nDegree / 2.0f))
 			{
@@ -307,31 +303,31 @@ public:
 
 	template <typename Cache>
 #ifdef __POSITION_AWARE_ITEMS__
-	inline ErrorCode split(Cache ptrCache, std::optional<ObjectUIDType>& ptrSibling, std::optional<ObjectUIDType>& keyparent, KeyType& pivotKey)
+	inline ErrorCode split(Cache ptrCache, std::optional<ObjectUIDType>& uidSibling, KeyType& pivotKeyForParent, const std::optional<ObjectUIDType>& uidParent)
 #else
-	inline ErrorCode split(Cache ptrCache, std::optional<ObjectUIDType>& ptrSibling, KeyType& pivotKey)
+	inline ErrorCode split(Cache ptrCache, std::optional<ObjectUIDType>& uidSibling, KeyType& pivotKeyForParent)
 #endif __POSITION_AWARE_ITEMS__
 	{
 		size_t nMid = m_ptrData->m_vtPivots.size() / 2;
 
 #ifdef __POSITION_AWARE_ITEMS__
-		std::shared_ptr< SelfType> _ptr = nullptr;
-		ptrCache->template createObjectOfType<SelfType>(ptrSibling, keyparent, _ptr,
+		std::shared_ptr< SelfType> ptrSibling = nullptr;
+		ptrCache->template createObjectOfType<SelfType>(uidSibling, uidParent, ptrSibling,
 			m_ptrData->m_vtPivots.begin() + nMid + 1, m_ptrData->m_vtPivots.end(),
 			m_ptrData->m_vtChildren.begin() + nMid + 1, m_ptrData->m_vtChildren.end());
-		_ptr->updateParent<Cache>(ptrCache, ptrSibling);
+		ptrSibling->tryUpdateChilrenParent<Cache>(ptrCache, uidSibling);
 #else
-		ptrCache->template createObjectOfType<SelfType>(ptrSibling,
+		ptrCache->template createObjectOfType<SelfType>(uidSibling,
 			m_ptrData->m_vtPivots.begin() + nMid + 1, m_ptrData->m_vtPivots.end(),
 			m_ptrData->m_vtChildren.begin() + nMid + 1, m_ptrData->m_vtChildren.end());
 #endif __POSITION_AWARE_ITEMS__
 
-		if (!ptrSibling)
+		if (!uidSibling)
 		{
 			return ErrorCode::Error;
 		}
 
-		pivotKey = m_ptrData->m_vtPivots[nMid];
+		pivotKeyForParent = m_ptrData->m_vtPivots[nMid];
 
 		m_ptrData->m_vtPivots.resize(nMid);
 		m_ptrData->m_vtChildren.resize(nMid + 1);
@@ -341,9 +337,9 @@ public:
 
 #ifdef __POSITION_AWARE_ITEMS__
 	template <typename CacheType>
-	inline void moveAnEntityFromLHSSibling(shared_ptr<SelfType> ptrLHSSibling, KeyType& keytoassign, KeyType& pivotKey, std::optional<ObjectUIDType>& uidparent, CacheType ptrCache)
+	inline void moveAnEntityFromLHSSibling(shared_ptr<SelfType> ptrLHSSibling, KeyType& pivotKeyForEntity, KeyType& pivotKeyForParent, const ObjectUIDType& uidParent, CacheType ptrCache)
 #else
-	inline void moveAnEntityFromLHSSibling(shared_ptr<SelfType> ptrLHSSibling, KeyType& keytoassign, KeyType& pivotKey)
+	inline void moveAnEntityFromLHSSibling(shared_ptr<SelfType> ptrLHSSibling, KeyType& pivotKeyForEntity, KeyType& pivotKeyForParent)
 #endif __POSITION_AWARE_ITEMS__
 	{
 		KeyType key = ptrLHSSibling->m_ptrData->m_vtPivots.back();
@@ -357,23 +353,22 @@ public:
 			throw new std::exception("should not occur!");
 		}
 
-		m_ptrData->m_vtPivots.insert(m_ptrData->m_vtPivots.begin(), keytoassign);
+		m_ptrData->m_vtPivots.insert(m_ptrData->m_vtPivots.begin(), pivotKeyForEntity);
 		m_ptrData->m_vtChildren.insert(m_ptrData->m_vtChildren.begin(), value);
 
-		pivotKey = key;
+		pivotKeyForParent = key;
 
 #ifdef __POSITION_AWARE_ITEMS__
-		if (uidparent)
-		ptrCache->updateParentUID(value, uidparent);
+		ptrCache->tryUpdateParentUID(value, uidParent);
 #endif __POSITION_AWARE_ITEMS__
 
 	}
 
 #ifdef __POSITION_AWARE_ITEMS__
 	template <typename CacheType>
-	inline void moveAnEntityFromRHSSibling(shared_ptr<SelfType> ptrRHSSibling, KeyType& keytoassign, KeyType& pivotKey, std::optional<ObjectUIDType>& uidparent, CacheType ptrCache)
+	inline void moveAnEntityFromRHSSibling(shared_ptr<SelfType> ptrRHSSibling, KeyType& pivotKeyForEntity, KeyType& pivotKeyForParent, const ObjectUIDType& uidParent, CacheType ptrCache)
 #else
-	inline void moveAnEntityFromRHSSibling(shared_ptr<SelfType> ptrRHSSibling, KeyType& keytoassign, KeyType& pivotKey)
+	inline void moveAnEntityFromRHSSibling(shared_ptr<SelfType> ptrRHSSibling, KeyType& pivotKeyForEntity, KeyType& pivotKeyForParent)
 #endif __POSITION_AWARE_ITEMS__
 	{
 		KeyType key = ptrRHSSibling->m_ptrData->m_vtPivots.front();
@@ -388,20 +383,19 @@ public:
 
 		}
 
-		m_ptrData->m_vtPivots.push_back(keytoassign);
+		m_ptrData->m_vtPivots.push_back(pivotKeyForEntity);
 		m_ptrData->m_vtChildren.push_back(value);
 
-		pivotKey = key;// ptrRHSSibling->m_ptrData->m_vtPivots.front();
+		pivotKeyForParent = key;// ptrRHSSibling->m_ptrData->m_vtPivots.front();
 
 #ifdef __POSITION_AWARE_ITEMS__
-		if (uidparent)
-		ptrCache->updateParentUID(value, uidparent);
+		ptrCache->tryUpdateParentUID(value, uidParent);
 #endif __POSITION_AWARE_ITEMS__
 	}
 
 #ifdef __POSITION_AWARE_ITEMS__
 	template <typename CacheType>
-	inline void mergeNodes(shared_ptr<SelfType> ptrSibling, KeyType& pivotKey, std::optional<ObjectUIDType>& uidparent, CacheType ptrCache)
+	inline void mergeNodes(shared_ptr<SelfType> ptrSibling, KeyType& pivotKey, const ObjectUIDType& uidParent, CacheType ptrCache)
 #else
 	inline void mergeNodes(shared_ptr<SelfType> ptrSibling, KeyType& pivotKey)
 #endif __POSITION_AWARE_ITEMS__
@@ -411,14 +405,11 @@ public:
 		m_ptrData->m_vtChildren.insert(m_ptrData->m_vtChildren.end(), ptrSibling->m_ptrData->m_vtChildren.begin(), ptrSibling->m_ptrData->m_vtChildren.end());
 
 #ifdef __POSITION_AWARE_ITEMS__
-		if (uidparent)
+		auto it = ptrSibling->m_ptrData->m_vtChildren.begin();
+		while (it != ptrSibling->m_ptrData->m_vtChildren.end())
 		{
-			auto it = ptrSibling->m_ptrData->m_vtChildren.begin();
-			while (it != ptrSibling->m_ptrData->m_vtChildren.end())
-			{
-				ptrCache->updateParentUID(*it, uidparent);
-				it++;
-			}
+			ptrCache->tryUpdateParentUID(*it, uidParent);
+			it++;
 		}
 #endif __POSITION_AWARE_ITEMS__
 	}
@@ -447,7 +438,7 @@ public:
 		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtChildren.data()), nValueCount * sizeof(ObjectUIDType));
 	}
 
-	ErrorCode updateChildUID(ObjectUIDType uidOld, ObjectUIDType uidNew)
+	void updateChildUID(const ObjectUIDType& uidOld, const ObjectUIDType& uidNew)
 	{
 		auto it = m_ptrData->m_vtChildren.begin();
 		while (it != m_ptrData->m_vtChildren.end())
@@ -455,26 +446,22 @@ public:
 			if (*it == uidOld)
 			{
 				*it = uidNew;
-				return ErrorCode::Success;
+				return;
 			}
 			it++;
 		}
-		return ErrorCode::Error;
+		throw new std::exception("should not occur!");
 	}
 
 	template <typename Cache>
-	ErrorCode updateParent(Cache ptrCache, std::optional<ObjectUIDType>& parentuid)
+	void tryUpdateChilrenParent(Cache ptrCache, const std::optional<ObjectUIDType>& parentuid)
 	{
 		auto it = m_ptrData->m_vtChildren.begin();
 		while (it != m_ptrData->m_vtChildren.end())
 		{
-			if (ptrCache->updateParentUID(*it, parentuid) != CacheErrorCode::Success)
-			{
-				//throw new std::exception("should not occur!");
-			}
+			ptrCache->tryUpdateParentUID(*it, parentuid);
 			it++;
 		}
-		return ErrorCode::Error;
 	}
 
 public:

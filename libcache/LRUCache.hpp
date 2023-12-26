@@ -136,9 +136,6 @@ public:
 	CacheErrorCode init(InitArgs... args)
 #endif  __POSITION_AWARE_ITEMS__
 	{
-
-
-
 #ifdef __POSITION_AWARE_ITEMS__
 
 #ifdef __CONCURRENT__
@@ -148,7 +145,7 @@ public:
 		return m_ptrStorage->init(ptrCallback/*getNthElement<0>(args...)*/);
 #endif __CONCURRENT__
 
-#else //__POSITION_AWARE_ITEMS__
+#else // !__POSITION_AWARE_ITEMS__
 		//return m_ptrStorage->template init<InitArgs>(args...);
 		return m_ptrStorage->init();
 #endif __POSITION_AWARE_ITEMS__
@@ -168,14 +165,7 @@ public:
 			return CacheErrorCode::Success;
 		}
 
-		CacheErrorCode errCode = m_ptrStorage->remove(uidObject);
-		if (errCode != CacheErrorCode::Success)
-		{
-			throw new std::exception("should not occur!");
-		}
-
-		return CacheErrorCode::Success;
-		//return CacheErrorCode::KeyDoesNotExist;
+		return m_ptrStorage->remove(uidObject);
 	}
 
 #ifdef __POSITION_AWARE_ITEMS__
@@ -199,7 +189,6 @@ public:
 			return CacheErrorCode::Error;
 		}
 
-
 #ifdef __CONCURRENT__
 		std::shared_lock<std::shared_mutex> lock_storage(m_mtxStorage); // TODO: requesting the same key?
 		lock_cache.unlock();
@@ -217,7 +206,6 @@ public:
 
 #ifdef __CONCURRENT__
 			std::unique_lock<std::shared_mutex> re_lock_cache(m_mtxCache);
-#endif __CONCURRENT__
 
 			if (m_ptrObjects.find(uidObject) != m_ptrObjects.end())
 			{
@@ -227,6 +215,7 @@ public:
 				uidParent = ptrItem->m_uidParent;
 				return CacheErrorCode::Success;
 			}
+#endif __CONCURRENT__
 
 			m_ptrObjects[uidObject] = ptrItem;
 
@@ -255,7 +244,7 @@ public:
 	}
 #endif __POSITION_AWARE_ITEMS__
 
-	CacheErrorCode getObject(const ObjectUIDType uidObject, ObjectTypePtr & ptrObject)
+	CacheErrorCode getObject(const ObjectUIDType uidObject, ObjectTypePtr & ptrObject, bool bCacheOnly = false)
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache); // std::unique_lock due to LRU's linked-list update! is there any better way?
@@ -267,6 +256,11 @@ public:
 			moveToFront(ptrItem);
 			ptrObject = ptrItem->m_ptrObject;
 			return CacheErrorCode::Success;
+		}
+
+		if (bCacheOnly)
+		{
+			return CacheErrorCode::Error;
 		}
 
 #ifdef __CONCURRENT__
@@ -286,7 +280,6 @@ public:
 
 #ifdef __CONCURRENT__
 			std::unique_lock<std::shared_mutex> re_lock_cache(m_mtxCache);
-#endif __CONCURRENT__
 
 			if (m_ptrObjects.find(uidObject) != m_ptrObjects.end())
 			{
@@ -295,6 +288,7 @@ public:
 				ptrObject = ptrItem->m_ptrObject;
 				return CacheErrorCode::Success;
 			}
+#endif __CONCURRENT__
 
 			m_ptrObjects[uidObject] = ptrItem;
 
@@ -324,7 +318,7 @@ public:
 
 #ifdef __POSITION_AWARE_ITEMS__
 	template <typename Type>
-	CacheErrorCode getObjectOfType(const ObjectUIDType key, Type& ptrObject, std::optional<ObjectUIDType>& keyParent)
+	CacheErrorCode getObjectOfType(const ObjectUIDType key, Type& ptrObject, std::optional<ObjectUIDType>& uidParent)
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache);
@@ -343,7 +337,7 @@ public:
 			if (std::holds_alternative<Type>(*ptrItem->m_ptrObject->data))
 			{
 				ptrObject = std::get<Type>(*ptrItem->m_ptrObject->data);
-				keyParent = ptrItem->m_uidParent;
+				uidParent = ptrItem->m_uidParent;
 				return CacheErrorCode::Success;
 			}
 
@@ -363,12 +357,10 @@ public:
 
 		if (ptrValue != nullptr)
 		{
-			std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue, keyParent);
+			std::shared_ptr<Item> ptrItem = std::make_shared<Item>(key, ptrValue, uidParent);
 
 #ifdef __CONCURRENT__
 			std::unique_lock<std::shared_mutex> re_lock_cache(m_mtxCache);
-#endif __CONCURRENT__
-
 
 			if (m_ptrObjects.find(key) != m_ptrObjects.end())
 			{
@@ -378,13 +370,14 @@ public:
 				if (std::holds_alternative<Type>(*ptrItem->m_ptrObject->data))
 				{
 					ptrObject = std::get<Type>(*ptrItem->m_ptrObject->data);
-					keyParent = ptrItem->m_uidParent;
+					uidParent = ptrItem->m_uidParent;
 					return CacheErrorCode::Success;
 				}
 
 				return CacheErrorCode::Error;
 			}
-			ptrItem->m_ptrObject->dirty = true;
+
+#endif __CONCURRENT__
 
 			m_ptrObjects[key] = ptrItem;
 
@@ -434,9 +427,9 @@ public:
 			ptrItem->m_ptrObject->dirty = true;
 			moveToFront(ptrItem);
 
-			//#ifdef __CONCURRENT__
-			//			lock_cache.unlock();
-			//#endif __CONCURRENT__
+//#ifdef __CONCURRENT__
+//			lock_cache.unlock();
+//#endif __CONCURRENT__
 
 			if (std::holds_alternative<Type>(*ptrItem->m_ptrObject->data))
 			{
@@ -464,7 +457,6 @@ public:
 
 #ifdef __CONCURRENT__
 			std::unique_lock<std::shared_mutex> re_lock_cache(m_mtxCache);
-#endif __CONCURRENT__
 
 			if (m_ptrObjects.find(key) != m_ptrObjects.end())
 			{
@@ -479,7 +471,7 @@ public:
 
 				return CacheErrorCode::Error;
 			}
-			ptrItem->m_ptrObject->dirty = true;
+#endif __CONCURRENT__
 
 			m_ptrObjects[key] = ptrItem;
 
@@ -495,9 +487,9 @@ public:
 				m_ptrHead = ptrItem;
 			}
 
-			//#ifdef __CONCURRENT__
-			//			lock_cache.unlock();
-			//#endif __CONCURRENT__
+//#ifdef __CONCURRENT__
+//			lock_cache.unlock();
+//#endif __CONCURRENT__
 
 			if (std::holds_alternative<Type>(*ptrValue->data))
 			{
@@ -517,7 +509,7 @@ public:
 
 	template<class Type, typename... ArgsType>
 #ifdef __POSITION_AWARE_ITEMS__
-	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, std::optional<ObjectUIDType>& uidParent, const ArgsType... args)
+	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, const std::optional<ObjectUIDType>& uidParent, const ArgsType... args)
 #else
 	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, const ArgsType... args)
 #endif __POSITION_AWARE_ITEMS__
@@ -569,7 +561,7 @@ public:
 
 	template<class Type, typename... ArgsType>
 #ifdef __POSITION_AWARE_ITEMS__
-	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, std::optional<ObjectUIDType>& uidParent, std::shared_ptr<Type>& ptrCoreObject, const ArgsType... args)
+	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, const std::optional<ObjectUIDType>& uidParent, std::shared_ptr<Type>& ptrCoreObject, const ArgsType... args)
 #else
 	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, std::shared_ptr<Type>& ptrCoreObject, const ArgsType... args)
 #endif __POSITION_AWARE_ITEMS__
@@ -619,7 +611,8 @@ public:
 		return CacheErrorCode::Success;
 	}
 
-	CacheErrorCode updateParentUID(const ObjectUIDType& uidChild, const std::optional<ObjectUIDType>& uidParent)
+#ifdef __POSITION_AWARE_ITEMS__
+	CacheErrorCode tryUpdateParentUID(const ObjectUIDType& uidChild, const std::optional<ObjectUIDType>& uidParent)
 	{
 		if (m_ptrObjects.find(uidChild) != m_ptrObjects.end())
 		{
@@ -629,8 +622,9 @@ public:
 		}
 		return CacheErrorCode::Error;
 	}
+#endif __POSITION_AWARE_ITEMS__
 
-	void getstate(size_t& lru, size_t& map)
+	void getCacheState(size_t& lru, size_t& map)
 	{
 		lru = 0;
 		std::shared_ptr<Item> _ptrItem = m_ptrHead;
@@ -645,59 +639,65 @@ public:
 	}
 
 private:
-	void moveToTail(std::shared_ptr<Item> tail, std::shared_ptr<Item> nodeToMove) {
+	void moveToTail(std::shared_ptr<Item> tail, std::shared_ptr<Item> nodeToMove) 
+	{
 		if (tail == nullptr || nodeToMove == nullptr)
-			return; // Invalid input
+		{
+			return;
+		}
 
-		// Detach the node from its current position
 		if (nodeToMove->m_ptrPrev != nullptr)
+		{
 			nodeToMove->m_ptrPrev->m_ptrNext = nodeToMove->m_ptrNext;
+		}
 		else
+		{
 			tail = nodeToMove->m_ptrNext;
+		}
 
 		if (nodeToMove->m_ptrNext != nullptr)
+		{
 			nodeToMove->m_ptrNext->m_ptrPrev = nodeToMove->m_ptrPrev;
+		}
 
-		// Attach the node to the tail
-		if (tail != nullptr) {
+		if (tail != nullptr) 
+		{
 			tail->m_ptrNext = nodeToMove;
 			nodeToMove->m_ptrPrev = tail;
 			nodeToMove->m_ptrNext = nullptr;
 			tail = nodeToMove;
 		}
-		else {
-			// If the list is empty, set both head and tail to the node
+		else 
+		{
 			tail = nodeToMove;
 		}
 	}
 
 	void interchangeWithTail(std::shared_ptr<Item> currentNode) {
-		if (currentNode == nullptr || currentNode == m_ptrTail) {
-			// Node is already the tail or is null
+		if (currentNode == nullptr || currentNode == m_ptrTail) 
+		{
 			return;
 		}
 
-		// Adjust prev and next pointers of adjacent nodes
-		if (currentNode->m_ptrPrev) {
+		if (currentNode->m_ptrPrev) 
+		{
 			currentNode->m_ptrPrev->m_ptrNext = currentNode->m_ptrNext;
 		}
-		else {
-			// If currentNode is the head, update head
+		else 
+		{
 			m_ptrHead = currentNode->m_ptrNext;
 		}
 
-		if (currentNode->m_ptrNext) {
+		if (currentNode->m_ptrNext) 
+		{
 			currentNode->m_ptrNext->m_ptrPrev = currentNode->m_ptrPrev;
 		}
 
-		// Update prev and next pointers of the currentNode
 		currentNode->m_ptrPrev = m_ptrTail;
 		currentNode->m_ptrNext = nullptr;
 
-		// Update tail's next pointer to the currentNode
 		m_ptrTail->m_ptrNext = currentNode;
 
-		// Update tail to be the currentNode
 		m_ptrTail = currentNode;
 	}
 
@@ -705,26 +705,29 @@ private:
 	{
 		if (ptrItem == m_ptrHead)
 		{
-			//m_ptrHead->m_ptrPrev = nullptr;
 			return;
 		}
 
-		if (ptrItem->m_ptrPrev) {
+		if (ptrItem->m_ptrPrev) 
+		{
 			ptrItem->m_ptrPrev->m_ptrNext = ptrItem->m_ptrNext;
 		}
 
-		if (ptrItem->m_ptrNext) {
+		if (ptrItem->m_ptrNext) 
+		{
 			ptrItem->m_ptrNext->m_ptrPrev = ptrItem->m_ptrPrev;
 		}
 
-		if (ptrItem == m_ptrTail) {
+		if (ptrItem == m_ptrTail) 
+		{
 			m_ptrTail = ptrItem->m_ptrPrev;
 		}
 
 		ptrItem->m_ptrPrev = nullptr;
 		ptrItem->m_ptrNext = m_ptrHead;
 
-		if (m_ptrHead) {
+		if (m_ptrHead) 
+		{
 			m_ptrHead->m_ptrPrev = ptrItem;
 		}
 		m_ptrHead = ptrItem;
@@ -732,30 +735,34 @@ private:
 
 	inline void removeFromLRU(std::shared_ptr<Item> ptrItem)
 	{
-		if (ptrItem->m_ptrPrev != nullptr) {
+		if (ptrItem->m_ptrPrev != nullptr) 
+		{
 			ptrItem->m_ptrPrev->m_ptrNext = ptrItem->m_ptrNext;
 		}
-		else {
-			// If the node to be removed is the head
+		else 
+		{
 			m_ptrHead = ptrItem->m_ptrNext;
 			if (m_ptrHead != nullptr)
+			{
 				m_ptrHead->m_ptrPrev = nullptr;
-
+			}
 		}
 
-		if (ptrItem->m_ptrNext != nullptr) {
+		if (ptrItem->m_ptrNext != nullptr) 
+		{
 			ptrItem->m_ptrNext->m_ptrPrev = ptrItem->m_ptrPrev;
 		}
-		else {
-			// If the node to be removed is the tail
+		else 
+		{
 			m_ptrTail = ptrItem->m_ptrPrev;
 			if (m_ptrTail != nullptr)
-
+			{
 				m_ptrTail->m_ptrNext = nullptr;
+			}
 		}
 	}
 
-	int getlrucount()
+	int getLRUListCount()
 	{
 		int cnt = 0;
 		std::shared_ptr<Item> _ptrItem = m_ptrHead;
@@ -835,7 +842,6 @@ private:
 #ifdef __POSITION_AWARE_ITEMS__
 			if (m_ptrTail->m_uidParent == std::nullopt)
 			{
-				//moveToFront(m_ptrTail);
 				return;
 			}
 
@@ -844,11 +850,10 @@ private:
 			{
 				if (m_ptrTail->m_uidSelf == _ptrPrev->m_uidParent)
 				{
-					int b = getlrucount();
+					int pre = getLRUListCount();
 					interchangeWithTail(_ptrPrev);
-					int a = getlrucount();
-					if (a!=b)
-						std::cout << "mismatch" << std::endl;
+					int post = getLRUListCount();
+					assert(pre == post);
 
 					_ptrPrev = m_ptrTail->m_ptrPrev;
 					continue;
@@ -856,18 +861,9 @@ private:
 				_ptrPrev = _ptrPrev->m_ptrPrev;
 			}
 
-			if (m_ptrTail->m_uidParent == std::nullopt)
+			if (m_ptrTail->m_ptrObject->dirty) 
 			{
-				//moveToFront(m_ptrTail);
-				return;
-			}
-
-			//m_ptrStorage->addObject(m_ptrTail->m_uidSelf, m_ptrTail->m_ptrObject, m_ptrTail->m_uidParent);
-			if (m_ptrTail->m_ptrObject->dirty) {
 				m_ptrStorage->addObject(m_ptrTail->m_uidSelf, m_ptrTail->m_ptrObject, m_ptrTail->m_uidParent);
-			}
-			else {
-				int i = 0;
 			}
 #else
 			m_ptrStorage->addObject(m_ptrTail->m_uidSelf, m_ptrTail->m_ptrObject);
@@ -903,7 +899,7 @@ private:
 
 #ifdef __POSITION_AWARE_ITEMS__
 public:
-	CacheErrorCode updateChildUID(std::optional<ObjectUIDType>& uidObject, ObjectUIDType uidChildOld, ObjectUIDType uidChildNew)
+	CacheErrorCode updateChildUID(const std::optional<ObjectUIDType>& uidObject, const ObjectUIDType& uidChildOld, const ObjectUIDType& uidChildNew)
 	{
 		return CacheErrorCode::Success;
 	}

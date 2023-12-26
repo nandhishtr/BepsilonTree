@@ -61,11 +61,12 @@ public:
 #endif __CONCURRENT__
 	}
 
-	FileStorage(size_t nBlockSize, size_t nFileSize, std::string stFilename)
+	FileStorage(size_t nBlockSize, size_t nFileSize, const std::string& stFilename)
 		: m_nFileSize(nFileSize)
 		, m_nBlockSize(nBlockSize)
 		, m_stFilename(stFilename)
 		, m_nNextBlock(0)
+		, m_ptrCallback(NULL)
 	{
 		m_vtAllocationTable.resize(nFileSize/nBlockSize, false);
 
@@ -90,7 +91,7 @@ public:
 		return CacheErrorCode::Success;
 	}
 
-	std::shared_ptr<ObjectType> getObject(ObjectUIDType uidObject)
+	std::shared_ptr<ObjectType> getObject(const ObjectUIDType& uidObject)
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_file_storage(m_mtxCache);
@@ -116,15 +117,15 @@ public:
 		return ptrObject;
 	}
 
-	CacheErrorCode remove(ObjectUIDType ptrKey)
+	CacheErrorCode remove(const ObjectUIDType& ptrKey)
 	{
-		return CacheErrorCode::KeyDoesNotExist;
+		throw new std::exception("no implementation!");
 	}
 
 #ifdef __POSITION_AWARE_ITEMS__
-	CacheErrorCode addObject(ObjectUIDType uidObject, std::shared_ptr<ObjectType> ptrObject, std::optional<ObjectUIDType>& uidParent)
+	CacheErrorCode addObject(const ObjectUIDType& uidObject, const std::shared_ptr<ObjectType> ptrObject, const std::optional<ObjectUIDType>& uidParent)
 #else
-	CacheErrorCode addObject(ObjectUIDType uidObject, std::shared_ptr<ObjectType> ptrObject)
+	CacheErrorCode addObject(const ObjectUIDType& uidObject, const std::shared_ptr<ObjectType> ptrObject)
 #endif __POSITION_AWARE_ITEMS__
 	{
 #ifdef __CONCURRENT__

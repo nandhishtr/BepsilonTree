@@ -10,6 +10,6 @@ protected:
 	std::unordered_map<ObjectUIDType, ObjectUIDType> m_mpUIDsUpdate;
 
 public:
-	virtual CacheErrorCode updateChildUID(std::optional<ObjectUIDType>& uidObject, ObjectUIDType uidChildOld, ObjectUIDType uidChildNew) = 0;
+	virtual CacheErrorCode updateChildUID(const std::optional<ObjectUIDType>& uidObject, const ObjectUIDType& uidChildOld, const ObjectUIDType& uidChildNew) = 0;
 	virtual CacheErrorCode updateChildUID(std::vector<std::pair<ObjectUIDType, std::pair<ObjectUIDType, ObjectUIDType>>> vtUpdatedUIDs) = 0;
 };

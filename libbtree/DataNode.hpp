@@ -27,20 +27,6 @@ private:
 	{
 		std::vector<KeyType> m_vtKeys;
 		std::vector<ValueType> m_vtValues;
-
-/*		DATANODESTRUCT()
-		{}
-
-		DATANODESTRUCT(DATANODESTRUCT&& o)
-			: m_vtKeys(std::move(o.m_vtKeys))
-			, m_vtValues(std::move(o.m_vtValuesk))
-		{}
-
-		DATANODESTRUCT(DATANODESTRUCT* o)
-			: m_vtKeys(std::move(o->m_vtKeys))
-			, m_vtValues(std::move(o->m_vtValuesk))
-		{}
-*/
 	};
 
 private:
@@ -58,14 +44,11 @@ public:
 	{
 	}
 
-	DataNode(char* szData)
+	DataNode(const char* szData)
 		: m_ptrData(make_shared<DATANODESTRUCT>())
 	{
 		size_t keyCount, valueCount;
 
-		//memcpy(&UID, reinterpret_cast<char*>(szData), sizeof(uint8_t));
-
-		// Deserialize the size of vectors
 		uint8_t t;
 
 		memcpy(&t, szData , sizeof(uint8_t));
@@ -103,7 +86,7 @@ public:
 		m_ptrData->m_vtValues.assign(itBeginValues, itEndValues);
 	}
 
-	inline void insert(const KeyType& key, const ValueType& value)
+	inline ErrorCode insert(const KeyType& key, const ValueType& value)
 	{
 		size_t nChildIdx = m_ptrData->m_vtKeys.size();
 		for (int nIdx = 0; nIdx < m_ptrData->m_vtKeys.size(); ++nIdx)
@@ -117,6 +100,8 @@ public:
 
 		m_ptrData->m_vtKeys.insert(m_ptrData->m_vtKeys.begin() + nChildIdx, key);
 		m_ptrData->m_vtValues.insert(m_ptrData->m_vtValues.begin() + nChildIdx, value);
+
+		return ErrorCode::Success;
 	}
 
 	inline ErrorCode remove(const KeyType& key)
@@ -165,7 +150,7 @@ public:
 
 	template <typename Cache, typename CacheKeyType>
 #ifdef __POSITION_AWARE_ITEMS__
-	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& uidSibling, std::optional<CacheKeyType>& keyParent, KeyType& pivotKey)
+	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& uidSibling, const std::optional<CacheKeyType>& uidParent, KeyType& pivotKeyForParent)
 #else
 	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& uidSibling, KeyType& pivotKey)
 #endif __POSITION_AWARE_ITEMS__
@@ -173,7 +158,7 @@ public:
 		size_t nMid = m_ptrData->m_vtKeys.size() / 2;
 
 #ifdef __POSITION_AWARE_ITEMS__
-		ptrCache->template createObjectOfType<SelfType>(uidSibling, keyParent,
+		ptrCache->template createObjectOfType<SelfType>(uidSibling, uidParent,
 			m_ptrData->m_vtKeys.begin() + nMid, m_ptrData->m_vtKeys.end(),
 			m_ptrData->m_vtValues.begin() + nMid, m_ptrData->m_vtValues.end());
 #else
@@ -187,7 +172,7 @@ public:
 			return ErrorCode::Error;
 		}
 
-		pivotKey = m_ptrData->m_vtKeys[nMid];
+		pivotKeyForParent = m_ptrData->m_vtKeys[nMid];
 
 		m_ptrData->m_vtKeys.resize(nMid);
 		m_ptrData->m_vtValues.resize(nMid);
@@ -195,7 +180,7 @@ public:
 		return ErrorCode::Success;
 	}
 
-	inline void moveAnEntityFromLHSSibling(std::shared_ptr<SelfType> ptrLHSSibling, KeyType& pivotKey)
+	inline void moveAnEntityFromLHSSibling(std::shared_ptr<SelfType> ptrLHSSibling, KeyType& pivotKeyForParent)
 	{
 		KeyType key = ptrLHSSibling->m_ptrData->m_vtKeys.back();
 		ValueType value = ptrLHSSibling->m_ptrData->m_vtValues.back();
@@ -211,10 +196,10 @@ public:
 		m_ptrData->m_vtKeys.insert(m_ptrData->m_vtKeys.begin(), key);
 		m_ptrData->m_vtValues.insert(m_ptrData->m_vtValues.begin(), value);
 
-		pivotKey = key;
+		pivotKeyForParent = key;
 	}
 
-	inline void moveAnEntityFromRHSSibling(std::shared_ptr<SelfType> ptrRHSSibling, KeyType& pivotKey)
+	inline void moveAnEntityFromRHSSibling(std::shared_ptr<SelfType> ptrRHSSibling, KeyType& pivotKeyForParent)
 	{
 		KeyType key = ptrRHSSibling->m_ptrData->m_vtKeys.front();
 		ValueType value = ptrRHSSibling->m_ptrData->m_vtValues.front();
@@ -230,7 +215,7 @@ public:
 		m_ptrData->m_vtKeys.push_back(key);
 		m_ptrData->m_vtValues.push_back(value);
 
-		pivotKey = ptrRHSSibling->m_ptrData->m_vtKeys.front();
+		pivotKeyForParent = ptrRHSSibling->m_ptrData->m_vtKeys.front();
 	}
 
 	inline void mergeNode(std::shared_ptr<SelfType> ptrSibling)
