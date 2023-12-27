@@ -11,7 +11,7 @@
 
 #include <iostream>
 #include <fstream>
-
+#include <assert.h>
 
 #include "ErrorCodes.h"
 
@@ -52,6 +52,30 @@ public:
 	{	
 	}
 
+	IndexNode(const char* szData)
+		: m_ptrData(make_shared<INDEXNODESTRUCT>())
+	{
+		size_t nKeyCount, nValueCount = 0;
+
+		size_t nOffset = sizeof(uint8_t);
+
+		memcpy(&nKeyCount, szData + nOffset, sizeof(size_t));
+		nOffset += sizeof(size_t);
+
+		memcpy(&nValueCount, szData + nOffset, sizeof(size_t));
+		nOffset += sizeof(size_t);
+
+		m_ptrData->m_vtPivots.resize(nKeyCount);
+		m_ptrData->m_vtChildren.resize(nValueCount);
+
+		size_t nKeysSize = nKeyCount * sizeof(KeyType);
+		memcpy(m_ptrData->m_vtPivots.data(), szData + nOffset, nKeysSize);
+		nOffset += nKeysSize;
+
+		size_t nValuesSize = nValueCount * sizeof(ObjectUIDType::NodeUID);
+		memcpy(m_ptrData->m_vtChildren.data(), szData + nOffset, nValuesSize);
+	}
+
 	IndexNode(std::fstream& is)
 		: m_ptrData(make_shared<INDEXNODESTRUCT>())
 	{
@@ -63,7 +87,7 @@ public:
 		m_ptrData->m_vtChildren.resize(nValueCount);
 
 		is.read(reinterpret_cast<char*>(m_ptrData->m_vtPivots.data()), nKeyCount * sizeof(KeyType));
-		is.read(reinterpret_cast<char*>(m_ptrData->m_vtChildren.data()), nValueCount * sizeof(ObjectUIDType));
+		is.read(reinterpret_cast<char*>(m_ptrData->m_vtChildren.data()), nValueCount * sizeof(ObjectUIDType::NodeUID));
 	}
 
 	IndexNode(KeyTypeIterator itBeginPivots, KeyTypeIterator itEndPivots, CacheKeyTypeIterator itBeginChildren, CacheKeyTypeIterator itEndChildren)
@@ -173,6 +197,8 @@ public:
 #else
 			ptrChild->mergeNodes(ptrRHSNode, m_ptrData->m_vtPivots[nChildIdx]);
 #endif __POSITION_AWARE_ITEMS__
+
+			assert(uidChild == m_ptrData->m_vtChildren[nChildIdx]);
 
 			uidObjectToDelete = m_ptrData->m_vtChildren[nChildIdx + 1];
 
@@ -312,9 +338,15 @@ public:
 
 #ifdef __POSITION_AWARE_ITEMS__
 		std::shared_ptr< SelfType> ptrSibling = nullptr;
-		ptrCache->template createObjectOfType<SelfType>(uidSibling, uidParent, ptrSibling,
+		ptrCache->template createObjectOfType<SelfType>(uidSibling, uidParent, ptrSibling
+			/*,
 			m_ptrData->m_vtPivots.begin() + nMid + 1, m_ptrData->m_vtPivots.end(),
-			m_ptrData->m_vtChildren.begin() + nMid + 1, m_ptrData->m_vtChildren.end());
+			m_ptrData->m_vtChildren.begin() + nMid + 1, m_ptrData->m_vtChildren.end()*/);
+		// fix.. make it better later.
+		// bug.. item were copied first..and the callback from ICallback was updating the item later.. look for other areas as well.
+
+		ptrSibling->m_ptrData->m_vtPivots.assign(m_ptrData->m_vtPivots.begin() + nMid + 1, m_ptrData->m_vtPivots.end());
+		ptrSibling->m_ptrData->m_vtChildren.assign(m_ptrData->m_vtChildren.begin() + nMid + 1, m_ptrData->m_vtChildren.end());
 		ptrSibling->tryUpdateChilrenParent<Cache>(ptrCache, uidSibling);
 #else
 		ptrCache->template createObjectOfType<SelfType>(uidSibling,
@@ -429,13 +461,82 @@ public:
 		size_t nKeyCount = m_ptrData->m_vtPivots.size();
 		size_t nValueCount = m_ptrData->m_vtChildren.size();
 
-		nDataSize = sizeof(uint8_t) + (nKeyCount * sizeof(KeyType)) + (nValueCount * sizeof(ValueType)) + sizeof(size_t) + sizeof(size_t);
+		nDataSize = sizeof(uint8_t) + (nKeyCount * sizeof(KeyType)) + (nValueCount * sizeof(ObjectUIDType::NodeUID)) + sizeof(size_t) + sizeof(size_t);
 
 		os.write(reinterpret_cast<const char*>(&UID), sizeof(uint8_t));
 		os.write(reinterpret_cast<const char*>(&nKeyCount), sizeof(size_t));
 		os.write(reinterpret_cast<const char*>(&nValueCount), sizeof(size_t));
 		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtPivots.data()), nKeyCount * sizeof(KeyType));
-		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtChildren.data()), nValueCount * sizeof(ObjectUIDType));
+		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtChildren.data()), nValueCount * sizeof(ObjectUIDType::NodeUID));	// fix it!
+
+		// hint
+		/*
+		if (std::is_trivial<ObjectUIDType>::value && std::is_standard_layout<ObjectUIDType>::value)
+		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtChildren.data()), nValueCount * sizeof(ObjectUIDType::NodeUID));
+		else
+		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtChildren.data()), nValueCount * sizeof(ObjectUIDType::PODType));	
+
+		*/
+	}
+
+	inline void serialize(char*& szBuffer, uint8_t& uidObjectType, size_t& nBufferSize)
+	{
+		static_assert(
+			std::is_trivial<KeyType>::value &&
+			std::is_standard_layout<KeyType>::value &&
+			std::is_trivial<ObjectUIDType::NodeUID>::value &&
+			std::is_standard_layout<ObjectUIDType::NodeUID>::value,
+			"Can only deserialize POD types with this function");
+
+		uidObjectType = UID;
+
+		size_t nKeyCount = m_ptrData->m_vtPivots.size();
+		size_t nValueCount = m_ptrData->m_vtChildren.size();
+
+		nBufferSize = sizeof(uint8_t) + (nKeyCount * sizeof(KeyType)) + (nValueCount * sizeof(ObjectUIDType::NodeUID)) + sizeof(size_t) + sizeof(size_t);
+
+		szBuffer = new char[nBufferSize  + 1];
+		memset(szBuffer, '\0', nBufferSize + 1);
+
+		size_t nOffset = 0;
+		memcpy(szBuffer, &UID, sizeof(uint8_t));
+		nOffset += sizeof(uint8_t);
+
+		memcpy(szBuffer + nOffset, &nKeyCount, sizeof(size_t));
+		nOffset += sizeof(size_t);
+
+		memcpy(szBuffer + nOffset, &nValueCount, sizeof(size_t));
+		nOffset += sizeof(size_t);
+
+		size_t nKeysSize = nKeyCount * sizeof(KeyType);
+		memcpy(szBuffer + nOffset, m_ptrData->m_vtPivots.data(), nKeysSize);
+		nOffset += nKeysSize;
+
+		size_t nValuesSize = nValueCount * sizeof(ObjectUIDType::NodeUID);
+		memcpy(szBuffer + nOffset, m_ptrData->m_vtChildren.data(), nValuesSize);
+		nOffset += nValuesSize;
+
+		assert(nBufferSize == nOffset);
+
+		SelfType* _t = new SelfType(szBuffer);
+		for (int i = 0; i < _t->m_ptrData->m_vtPivots.size(); i++) 
+		{
+			assert(_t->m_ptrData->m_vtPivots[i] == m_ptrData->m_vtPivots[i]);
+		}
+		for (int i = 0; i < _t->m_ptrData->m_vtChildren.size(); i++)
+		{
+			assert(_t->m_ptrData->m_vtChildren[i] == m_ptrData->m_vtChildren[i]);
+		}
+		delete _t;
+
+		// hint
+		/*
+		if (std::is_trivial<ObjectUIDType>::value && std::is_standard_layout<ObjectUIDType>::value)
+		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtChildren.data()), nValueCount * sizeof(ObjectUIDType::NodeUID));
+		else
+		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtChildren.data()), nValueCount * sizeof(ObjectUIDType::PODType));
+
+		*/
 	}
 
 	void updateChildUID(const ObjectUIDType& uidOld, const ObjectUIDType& uidNew)

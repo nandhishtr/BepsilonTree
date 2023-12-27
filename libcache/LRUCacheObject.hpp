@@ -48,6 +48,14 @@ public:
 		CoreTypesMarshaller::template deserialize<CoreTypesWrapper, CoreTypes...>(is, data);
 	}
 
+	LRUCacheObject(const char* szBuffer)
+	{
+#ifdef __POSITION_AWARE_ITEMS__
+		dirty = true;
+#endif __POSITION_AWARE_ITEMS__
+		CoreTypesMarshaller::template deserialize<CoreTypesWrapper, CoreTypes...>(szBuffer, data);
+	}
+
 	template<class Type, typename... ArgsType>
 	static std::shared_ptr<LRUCacheObject> createObjectOfType(ArgsType... args)
 	{
@@ -68,5 +76,10 @@ public:
 	inline void serialize(std::fstream& os, uint8_t& uidObjectType, size_t& nBufferSize)
 	{
 		CoreTypesMarshaller::template serialize<CoreTypes...>(os, *data, uidObjectType, nBufferSize);
+	}
+
+	inline void serialize(char*& szBuffer, uint8_t& uidObjectType, size_t& nBufferSize)
+	{
+		CoreTypesMarshaller::template serialize<CoreTypes...>(szBuffer, *data, uidObjectType, nBufferSize);
 	}
 };

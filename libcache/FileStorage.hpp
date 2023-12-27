@@ -111,8 +111,16 @@ public:
 
 		m_fsStorage.seekg(uidObject.m_uid.FATPOINTER.m_ptrFile.m_nOffset);
 
-		std::shared_ptr<ObjectType> ptrObject = std::make_shared<ObjectType>(m_fsStorage);
+		//char* szBuffer = new char[uidObject.m_uid.FATPOINTER.m_ptrFile.m_nSize + 1]; //2
+		//memset(szBuffer, '\0', uidObject.m_uid.FATPOINTER.m_ptrFile.m_nSize + 1); //2
+		//m_fsStorage.read(szBuffer, uidObject.m_uid.FATPOINTER.m_ptrFile.m_nSize); //2
+
+
+		std::shared_ptr<ObjectType> ptrObject = std::make_shared<ObjectType>(m_fsStorage); //1
+		//std::shared_ptr<ObjectType> ptrObject = std::make_shared<ObjectType>(szBuffer); //2
 		ptrObject->dirty = false;
+
+		//delete[] szBuffer; //2
 
 		return ptrObject;
 	}
@@ -143,9 +151,21 @@ public:
 
 		size_t nBufferSize = 0;
 		uint8_t uidObjectType = 0;
+		
+		//char* szBuffer = NULL; //2
+		//ptrObject->serialize(szBuffer, uidObjectType, nBufferSize); //2
 
 		m_fsStorage.seekp(m_nNextBlock * m_nBlockSize);
-		ptrObject->serialize(m_fsStorage, uidObjectType, nBufferSize);
+		ptrObject->serialize(m_fsStorage, uidObjectType, nBufferSize); //1
+		//m_fsStorage.write(szBuffer, nBufferSize); //2
+
+		//std::streampos writePos = m_fsStorage.tellp();
+		//std::size_t dataSize = static_cast<std::size_t>(writePos) - m_nNextBlock * m_nBlockSize;
+		//assert(nBufferSize == dataSize);
+
+		m_fsStorage.flush();
+
+		//delete[] szBuffer; //2
 
 		size_t nRequiredBlocks = std::ceil( (nBufferSize + sizeof(uint8_t)) / (float)m_nBlockSize);
 
@@ -155,8 +175,6 @@ public:
 		{
 			m_vtAllocationTable[m_nNextBlock++] = true;
 		}
-	
-		m_fsStorage.flush();
 
 #ifdef __POSITION_AWARE_ITEMS__
 		m_ptrCallback->updateChildUID(uidParent, uidObject, uidUpdated);

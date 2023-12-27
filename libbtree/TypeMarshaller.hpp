@@ -15,6 +15,14 @@ public:
 			}, objVariant);
 	}
 
+	template <typename... ObjectCoreTypes>
+	static void serialize(char*& szBuffer, const std::variant<std::shared_ptr<ObjectCoreTypes>...>& objVariant, uint8_t& uidObjectType, size_t& nnBufferLength)
+	{
+		std::visit([&szBuffer, &uidObjectType, &nnBufferLength](const auto& value) {
+			value->serialize(szBuffer, uidObjectType, nnBufferLength);
+			}, objVariant);
+	}
+
 	template <typename ObjectType, typename... ObjectCoreTypes>
 	static void deserialize(std::fstream& is, std::shared_ptr<ObjectType>& ptrObject)
 	{
@@ -31,6 +39,25 @@ public:
 			break;
 		case TypeB::UID:
 			ptrObject = std::make_shared<ObjectType>(std::make_shared<TypeB>(is));
+			break;
+		}
+	}
+
+	template <typename ObjectType, typename... ObjectCoreTypes>
+	static void deserialize(const char* szData, std::shared_ptr<ObjectType>& ptrObject)
+	{
+		using TypeA = typename NthType<0, ObjectCoreTypes...>::type;
+		using TypeB = typename NthType<1, ObjectCoreTypes...>::type;
+
+		uint8_t uidObjectType;
+		
+		switch (szData[0])
+		{
+		case TypeA::UID:
+			ptrObject = std::make_shared<ObjectType>(std::make_shared<TypeA>(szData));
+			break;
+		case TypeB::UID:
+			ptrObject = std::make_shared<ObjectType>(std::make_shared<TypeB>(szData));
 			break;
 		}
 	}

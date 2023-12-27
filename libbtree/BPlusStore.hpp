@@ -18,7 +18,7 @@
 
 #include <iostream>
 #include <fstream>
-
+#include <assert.h>
 //#define __CONCURRENT__
 #define __POSITION_AWARE_ITEMS__
 
@@ -216,8 +216,8 @@ public:
 #ifdef __POSITION_AWARE_ITEMS__
                 std::optional<ObjectUIDType> uidParent = std::nullopt;
                 m_ptrCache->template createObjectOfType<IndexNodeType>(m_uidRootNode, uidParent, pivotKey, uidLHSNode, *uidRHSNode);
-                m_ptrCache->tryUpdateParentUID(uidLHSNode, m_uidRootNode);
-                m_ptrCache->tryUpdateParentUID(*uidRHSNode, m_uidRootNode);
+                assert(m_ptrCache->tryUpdateParentUID(uidLHSNode, m_uidRootNode) == CacheErrorCode::Success);
+                assert(m_ptrCache->tryUpdateParentUID(*uidRHSNode, m_uidRootNode) == CacheErrorCode::Success);
 #else
                 m_ptrCache->template createObjectOfType<IndexNodeType>(m_uidRootNode, pivotKey, uidLHSNode, * uidRHSNode); 
 #endif __POSITION_AWARE_ITEMS__
@@ -386,7 +386,7 @@ public:
             }
             if (ptrLastNode != nullptr && uidCurrentNodeParent != uidLastNode)
             {
-                throw new std::exception("should not occur!");   // TODO: critical log.
+                //throw new std::exception("should not occur!");   // TODO: critical log.
             }
 #else
             m_ptrCache->getObject(uidCurrentNode, ptrCurrentNode);    //TODO: lock

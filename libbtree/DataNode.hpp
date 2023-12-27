@@ -8,7 +8,7 @@
 
 #include <iostream>
 #include <fstream>
-
+#include <assert.h>
 #include "ErrorCodes.h"
 
 template <typename KeyType, typename ValueType, typename ObjectUIDType, uint8_t TYPE_UID>
@@ -47,21 +47,25 @@ public:
 	DataNode(const char* szData)
 		: m_ptrData(make_shared<DATANODESTRUCT>())
 	{
-		size_t keyCount, valueCount;
+		size_t nKeyCount, nValueCount = 0;
 
-		uint8_t t;
+		size_t nOffset = sizeof(uint8_t);
 
-		memcpy(&t, szData , sizeof(uint8_t));
-		memcpy( &keyCount, szData + sizeof(uint8_t), sizeof(size_t));
-		memcpy(&valueCount, szData + sizeof(uint8_t) + sizeof(size_t), sizeof(size_t));
+		memcpy(&nKeyCount, szData + nOffset, sizeof(size_t));
+		nOffset += sizeof(size_t);
 
-		// Resize vectors to accommodate the data
-		m_ptrData->m_vtKeys.resize(keyCount);
-		m_ptrData->m_vtValues.resize(valueCount);
+		memcpy(&nValueCount, szData + nOffset, sizeof(size_t));
+		nOffset += sizeof(size_t);
 
-		// Deserialize vector elements
-		memcpy(m_ptrData->m_vtKeys.data(), szData + sizeof(uint8_t) + sizeof(size_t) + sizeof(size_t), keyCount * sizeof(KeyType));
-		memcpy(m_ptrData->m_vtValues.data(), szData + sizeof(uint8_t) + sizeof(size_t) + sizeof(size_t) + (keyCount * sizeof(KeyType)), valueCount * sizeof(ValueType));
+		m_ptrData->m_vtKeys.resize(nKeyCount);
+		m_ptrData->m_vtValues.resize(nValueCount);
+
+		size_t nKeysSize = nKeyCount * sizeof(KeyType);
+		memcpy(m_ptrData->m_vtKeys.data(), szData + nOffset, nKeysSize);
+		nOffset += nKeysSize;
+
+		size_t nValuesSize = nValueCount * sizeof(ValueType);
+		memcpy(m_ptrData->m_vtValues.data(), szData + nOffset, nValuesSize);
 	}
 
 	DataNode(std::fstream& is)
@@ -225,54 +229,65 @@ public:
 	}
 
 public:
-	/*inline const char* serialize(uint8_t& uidObjectType, size_t& nDataSize)
+	inline void serialize(char*& szBuffer, uint8_t& uidObjectType, size_t& nBufferSize)
 	{
 		static_assert(
 			std::is_trivial<KeyType>::value &&
 			std::is_standard_layout<KeyType>::value &&
-			std::is_trivial<ValueType>::value &&
-			std::is_standard_layout<ValueType>::value,
+			std::is_trivial<ObjectUIDType::NodeUID>::value &&
+			std::is_standard_layout<ObjectUIDType::NodeUID>::value,
 			"Can only deserialize POD types with this function");
 
-		size_t keyCount = m_ptrData->m_vtKeys.size();
-		size_t valueCount = m_ptrData->m_vtValues.size();
-
-		nDataSize = sizeof(uint8_t) + (keyCount * sizeof(KeyType)) + (valueCount * sizeof(ValueType)) + sizeof(size_t) + sizeof(size_t);
-		char* szBuffer = new char[nDataSize];
-		memset(szBuffer, 0, nDataSize);
-
-		size_t offset = 0;
-		memcpy(szBuffer, &UID, sizeof(uint8_t));
-
-		offset += sizeof(uint8_t);
-		memcpy(szBuffer + offset, &keyCount, sizeof(size_t));
-
-		size_t t = 0;
-		memcpy(&t, szBuffer + offset, sizeof(size_t));
-
-		offset += sizeof(size_t);
-		memcpy(szBuffer + offset, &valueCount, sizeof(size_t));
-
-		t = 0;
-		memcpy(&t, szBuffer + offset, sizeof(size_t));
-
-		offset += sizeof(size_t);
-		memcpy(szBuffer + offset, m_ptrData->m_vtKeys.data(), keyCount * sizeof(KeyType));
-
-		//std::vector<KeyType> m_vt;
-		//memcpy(szBuffer + offset, m_ptrData->m_vtKeys.data(), keyCount * sizeof(KeyType));
-
-
-		offset += (keyCount * sizeof(KeyType));
-		memcpy(szBuffer + offset, m_ptrData->m_vtValues.data(), valueCount * sizeof(ValueType));
-
-		std::shared_ptr<SelfType> _p = std::make_shared<SelfType>(szBuffer);
-
-		nDataSize = sizeof(DATANODESTRUCT);
 		uidObjectType = UID;
 
-		return reinterpret_cast<const char*>(m_ptrData.get());
-	}*/
+		size_t nKeyCount = m_ptrData->m_vtKeys.size();
+		size_t nValueCount = m_ptrData->m_vtValues.size();
+
+		nBufferSize = sizeof(uint8_t) + (nKeyCount * sizeof(KeyType)) + (nValueCount * sizeof(ValueType)) + sizeof(size_t) + sizeof(size_t);
+
+		szBuffer = new char[nBufferSize + 1];
+		memset(szBuffer, '\0', nBufferSize + 1);
+
+		size_t nOffset = 0;
+		memcpy(szBuffer, &UID, sizeof(uint8_t));
+		nOffset += sizeof(uint8_t);
+
+		memcpy(szBuffer + nOffset, &nKeyCount, sizeof(size_t));
+		nOffset += sizeof(size_t);
+
+		memcpy(szBuffer + nOffset, &nValueCount, sizeof(size_t));
+		nOffset += sizeof(size_t);
+
+		size_t nKeysSize = nKeyCount * sizeof(KeyType);
+		memcpy(szBuffer + nOffset, m_ptrData->m_vtKeys.data(), nKeysSize);
+		nOffset += nKeysSize;
+
+		size_t nValuesSize = nValueCount * sizeof(ValueType);
+		memcpy(szBuffer + nOffset, m_ptrData->m_vtValues.data(), nValuesSize);
+		nOffset += nValuesSize;
+
+		assert(nBufferSize == nOffset);
+
+		SelfType* _t = new SelfType(szBuffer);
+		for (int i = 0; i < _t->m_ptrData->m_vtKeys.size(); i++)
+		{
+			assert(_t->m_ptrData->m_vtKeys[i] == m_ptrData->m_vtKeys[i]);
+		}
+		for (int i = 0; i < _t->m_ptrData->m_vtValues.size(); i++)
+		{
+			assert(_t->m_ptrData->m_vtValues[i] == m_ptrData->m_vtValues[i]);
+		}
+		delete _t;
+
+		// hint
+		/*
+		if (std::is_trivial<ObjectUIDType>::value && std::is_standard_layout<ObjectUIDType>::value)
+		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtChildren.data()), nValueCount * sizeof(ObjectUIDType::NodeUID));
+		else
+		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtChildren.data()), nValueCount * sizeof(ObjectUIDType::PODType));
+
+		*/
+	}
 
 	inline void writeToStream(std::fstream& os, uint8_t& uidObjectType, size_t& nDataSize)
 	{
