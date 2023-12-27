@@ -152,7 +152,7 @@ public:
 #ifdef __POSITION_AWARE_ITEMS__
 	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& uidSibling, const std::optional<CacheKeyType>& uidParent, KeyType& pivotKeyForParent)
 #else
-	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& uidSibling, KeyType& pivotKey)
+	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& uidSibling, KeyType& pivotKeyForParent)
 #endif __POSITION_AWARE_ITEMS__
 	{
 		size_t nMid = m_ptrData->m_vtKeys.size() / 2;

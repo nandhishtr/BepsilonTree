@@ -20,7 +20,7 @@
 #include "TypeUID.h"
 #include "ObjectFatUID.h"
 
-#ifdef __POSITION_AWARE_ITEMS__
+#ifndef __POSITION_AWARE_ITEMS__
 namespace BPlusStore_LRUCache_FileStorage_Suite
 {
     class BPlusStore_LRUCache_FileStorage_Suite_2 : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, int, string>>
@@ -68,7 +68,7 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         delete ptrTree;
@@ -81,12 +81,12 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert + 1; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         delete ptrTree;
@@ -99,7 +99,7 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
 
         for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         delete ptrTree;
@@ -112,13 +112,13 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
 
             ASSERT_EQ(nValue, to_string(nCntr));
         }
@@ -133,18 +133,18 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert + 1; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
 
             ASSERT_EQ(nValue, to_string(nCntr));
         }
@@ -159,13 +159,13 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
 
         for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
 
             ASSERT_EQ(nValue, to_string(nCntr));
         }
@@ -180,20 +180,20 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
 
             ASSERT_EQ(nValue, to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, DataNodeType>(to_string(nCntr));
+            ErrorCode code = ptrTree->remove(to_string(nCntr));
 
             ASSERT_EQ(code, ErrorCode::Success);
         }
@@ -201,7 +201,7 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
 
             ASSERT_EQ(code, ErrorCode::KeyDoesNotExist);
         }
@@ -216,25 +216,25 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert + 1; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
 
             ASSERT_EQ(nValue, to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, DataNodeType>(to_string(nCntr));
+            ErrorCode code = ptrTree->remove(to_string(nCntr));
 
             ASSERT_EQ(code, ErrorCode::Success);
         }
@@ -242,7 +242,7 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string  nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
             ASSERT_EQ(code, ErrorCode::KeyDoesNotExist);
         }
 
@@ -256,20 +256,20 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
 
         for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
 
             ASSERT_EQ(nValue, to_string(nCntr));
         }
 
         for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, DataNodeType>(to_string(nCntr));
+            ErrorCode code = ptrTree->remove(to_string(nCntr));
 
             ASSERT_EQ(code, ErrorCode::Success);
         }
@@ -277,7 +277,7 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
 
             ASSERT_EQ(code, ErrorCode::KeyDoesNotExist);
         }

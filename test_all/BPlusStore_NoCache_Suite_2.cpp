@@ -31,7 +31,7 @@ namespace BPlusStore_NoCache_Suite
         typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_STRING_STRING> DataNodeType;
         typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_STRING_STRING> InternalNodeType;
 
-        typedef BPlusStore<ICallback, KeyType, ValueType, NoCache<ObjectUIDType, NoCacheObject, DataNodeType, InternalNodeType>> BPlusStoreType;
+        typedef BPlusStore<KeyType, ValueType, NoCache<ObjectUIDType, NoCacheObject, DataNodeType, InternalNodeType>> BPlusStoreType;
 
         BPlusStoreType* m_ptrTree;
 
@@ -59,7 +59,7 @@ namespace BPlusStore_NoCache_Suite
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         delete ptrTree;
@@ -72,12 +72,12 @@ namespace BPlusStore_NoCache_Suite
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert + 1; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         delete ptrTree;
@@ -90,7 +90,7 @@ namespace BPlusStore_NoCache_Suite
 
         for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         delete ptrTree;
@@ -103,13 +103,13 @@ namespace BPlusStore_NoCache_Suite
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
 
             ASSERT_EQ(nValue, to_string(nCntr));
         }
@@ -124,18 +124,18 @@ namespace BPlusStore_NoCache_Suite
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert + 1; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
 
             ASSERT_EQ(nValue, to_string(nCntr));
         }
@@ -150,13 +150,13 @@ namespace BPlusStore_NoCache_Suite
 
         for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
 
             ASSERT_EQ(nValue, to_string(nCntr));
         }
@@ -171,20 +171,20 @@ namespace BPlusStore_NoCache_Suite
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
 
             ASSERT_EQ(nValue, to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, DataNodeType>(to_string(nCntr));
+            ErrorCode code = ptrTree->remove(to_string(nCntr));
 
             ASSERT_EQ(code, ErrorCode::Success);
         }
@@ -192,7 +192,7 @@ namespace BPlusStore_NoCache_Suite
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
 
             ASSERT_EQ(code, ErrorCode::KeyDoesNotExist);
         }
@@ -207,25 +207,25 @@ namespace BPlusStore_NoCache_Suite
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert + 1; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
 
             ASSERT_EQ(nValue, to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, DataNodeType>(to_string(nCntr));
+            ErrorCode code = ptrTree->remove(to_string(nCntr));
 
             ASSERT_EQ(code, ErrorCode::Success);
         }
@@ -233,7 +233,7 @@ namespace BPlusStore_NoCache_Suite
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string  nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
             ASSERT_EQ(code, ErrorCode::KeyDoesNotExist);
         }
 
@@ -247,20 +247,20 @@ namespace BPlusStore_NoCache_Suite
 
         for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(to_string(nCntr), to_string(nCntr));
+            ptrTree->insert(to_string(nCntr), to_string(nCntr));
         }
 
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
 
             ASSERT_EQ(nValue, to_string(nCntr));
         }
 
         for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, DataNodeType>(to_string(nCntr));
+            ErrorCode code = ptrTree->remove(to_string(nCntr));
 
             ASSERT_EQ(code, ErrorCode::Success);
         }
@@ -268,7 +268,7 @@ namespace BPlusStore_NoCache_Suite
         for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
         {
             string nValue;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(to_string(nCntr), nValue);
+            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
 
             ASSERT_EQ(code, ErrorCode::KeyDoesNotExist);
         }

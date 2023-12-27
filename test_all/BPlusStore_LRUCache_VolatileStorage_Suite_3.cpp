@@ -33,7 +33,7 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
 
     typedef IFlushCallback<ObjectUIDType> ICallback;
 
-    typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, VolatileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, InternalNodeType>>> BPlusStoreType;
+    typedef BPlusStore<KeyType, ValueType, LRUCache<VolatileStorage<ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, InternalNodeType>>> BPlusStoreType;
 
     class BPlusStore_LRUCache_VolatileStorage_Suite_3 : public ::testing::TestWithParam<std::tuple<int, int, int, int, int>>
     {
@@ -62,14 +62,14 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
     void insert_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
         for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(nCntr, nCntr);
+            ptrTree->insert(nCntr, nCntr);
         }
     }
 
     void reverse_insert_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
         for (int nCntr = nRangeEnd - 1; nCntr >= nRangeStart; nCntr--)
         {
-            ptrTree->template insert<InternalNodeType, DataNodeType>(nCntr, nCntr);
+            ptrTree->insert(nCntr, nCntr);
         }
     }
 
@@ -77,7 +77,7 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
         for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->template search<InternalNodeType, DataNodeType>(nCntr, nValue);
+            ErrorCode code = ptrTree->search(nCntr, nValue);
 
             ASSERT_EQ(nCntr, nValue);
         }
@@ -87,7 +87,7 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
         for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
         {
             int nValue = 0;
-            ErrorCode errCode = ptrTree->template search<InternalNodeType, DataNodeType>(nCntr, nValue);
+            ErrorCode errCode = ptrTree->search(nCntr, nValue);
 
             ASSERT_EQ(errCode, ErrorCode::KeyDoesNotExist);
         }
@@ -96,14 +96,14 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
     void delete_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
         for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, DataNodeType>(nCntr);
+            ErrorCode code = ptrTree->remove(nCntr);
         }
     }
 
     void reverse_delete_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
         for (int nCntr = nRangeEnd - 1; nCntr >= nRangeStart; nCntr--)
         {
-            ErrorCode code = ptrTree->template remove<InternalNodeType, DataNodeType>(nCntr);
+            ErrorCode code = ptrTree->remove(nCntr);
         }
     }
 

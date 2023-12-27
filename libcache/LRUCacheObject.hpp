@@ -12,6 +12,8 @@
 
 #include "ErrorCodes.h"
 
+#define __POSITION_AWARE_ITEMS__
+
 template <typename CoreTypesMarshaller, typename... CoreTypes>
 class LRUCacheObject
 {

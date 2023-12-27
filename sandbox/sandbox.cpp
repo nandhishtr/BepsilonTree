@@ -175,9 +175,8 @@ void int_test(BPlusStoreType* ptrTree, int degree, int total_entries)
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
     int i = 0;
-    while (i++ < 2) {
+    while (i++ < 10) {
         std::cout << i << ",";
-        //total_entries = 33;
         for (size_t nCntr = 0; nCntr < total_entries; nCntr = nCntr + 2)
         {
             ptrTree->insert(nCntr, nCntr);
@@ -234,11 +233,11 @@ void int_test(BPlusStoreType* ptrTree, int degree, int total_entries)
         }
 
         size_t lru, map;
-        ptrTree->getstate(lru, map);
+        ptrTree->getCacheState(lru, map);
         assert(lru == 1 && map == 1);
     }
     i = 0;
-    while (i++ < 2) {
+    while (i++ < 10) {
         std::cout << "rev:" << i << ",";
         for (int nCntr = total_entries; nCntr >= 0; nCntr = nCntr - 2)
         {
@@ -275,7 +274,7 @@ void int_test(BPlusStoreType* ptrTree, int degree, int total_entries)
         }
 
         size_t lru, map;
-        ptrTree->getstate(lru, map);
+        ptrTree->getCacheState(lru, map);
         assert(lru == 1 && map == 1);
     }
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
@@ -290,7 +289,7 @@ void string_test(BPlusStoreType* ptrTree, int degree, int total_entries)
 
     int i = 0;
 
-    while (i++ < 2) {
+    while (i++ < 10) {
         std::cout << i << ",";;
         for (size_t nCntr = 0; nCntr < total_entries; nCntr = nCntr + 2)
         {
@@ -325,13 +324,14 @@ void string_test(BPlusStoreType* ptrTree, int degree, int total_entries)
 
             assert(code == ErrorCode::KeyDoesNotExist);
         }
+
         size_t lru, map;
-        ptrTree->getstate(lru, map);
+        ptrTree->getCacheState(lru, map);
         assert(lru == 1 && map == 1);
     }
 
     i = 0;
-    while (i++ < 2) {
+    while (i++ < 10) {
         std::cout << "rev:" << i << ",";
 
         for (int nCntr = total_entries - 1; nCntr >= 0; nCntr = nCntr - 2)
@@ -368,7 +368,7 @@ void string_test(BPlusStoreType* ptrTree, int degree, int total_entries)
             assert(code == ErrorCode::KeyDoesNotExist);
         }
         size_t lru, map;
-        ptrTree->getstate(lru, map);
+        ptrTree->getCacheState(lru, map);
         assert(lru == 1 && map == 1);
     }
 
@@ -425,7 +425,7 @@ void test_for_ints()
             typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> IndexNodeType;
 
             typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, FileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
-            BPlusStoreType* ptrTree = new BPlusStoreType(3, 100, 1024, 1024 * 1024 * 1024, "D:\\filestore.hdb");
+            BPlusStoreType* ptrTree = new BPlusStoreType(3, 500, 1024, 1024 * 1024 * 1024, "D:\\filestore.hdb");
             ptrTree->init<DataNodeType>(); 
             
             int_test<BPlusStoreType, IndexNodeType, DataNodeType>(ptrTree, idx, 10000);

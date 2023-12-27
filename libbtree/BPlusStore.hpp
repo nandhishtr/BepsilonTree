@@ -164,7 +164,9 @@ public:
                     return ErrorCode::InsertFailed;
                 }
 
+#ifdef __POSITION_AWARE_ITEMS__
                 ptrCurrentNode->dirty = true;
+#endif __POSITION_AWARE_ITEMS__
 
                 if (ptrDataNode->requireSplit(m_nDegree))
                 {
@@ -238,7 +240,9 @@ public:
                     throw new std::exception("should not occur!"); // for the time being!
                 }
 
+#ifdef __POSITION_AWARE_ITEMS__
                 prNodeDetails.second.second->dirty = true;
+#endif __POSITION_AWARE_ITEMS__
 
                 uidRHSNode = std::nullopt;
 
@@ -332,7 +336,9 @@ public:
             {
                 std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*prNodeDetails->data);
 
+#ifdef __POSITION_AWARE_ITEMS__
                 uidLastNode = uidCurrentNode;
+#endif __POSITION_AWARE_ITEMS__
 
                 uidCurrentNode = ptrIndexNode->getChild(key);
             }
@@ -428,7 +434,9 @@ public:
                     throw new std::exception("should not occur!");
                 }
 
+#ifdef __POSITION_AWARE_ITEMS__
                 ptrCurrentNode->dirty = true;
+#endif __POSITION_AWARE_ITEMS__
 
                 if (ptrDataNode->requireMerge(m_nDegree))
                 {
@@ -468,7 +476,11 @@ public:
 
                 ObjectTypePtr ptrCurrentRoot;
                 m_ptrCache->getObject(*m_uidRootNode, ptrCurrentRoot);
+
+#ifdef __POSITION_AWARE_ITEMS__
                 ptrCurrentRoot->dirty = true;
+#endif __POSITION_AWARE_ITEMS__
+
                 if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrCurrentRoot->data))
                 {
                     std::shared_ptr<IndexNodeType> ptrInnerNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrCurrentRoot->data);
@@ -477,8 +489,10 @@ public:
                         m_ptrCache->remove(*m_uidRootNode);
                         m_uidRootNode = _tmp;
 
-                        std::optional< ObjectUIDType> null_pk;
-                        m_ptrCache->tryUpdateParentUID(*m_uidRootNode, null_pk);
+#ifdef __POSITION_AWARE_ITEMS__
+                        std::optional< ObjectUIDType> nullParent;  
+                        m_ptrCache->tryUpdateParentUID(*m_uidRootNode, nullParent);
+#endif __POSITION_AWARE_ITEMS__
                     }
                 }
                 else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrCurrentRoot->data))

@@ -424,7 +424,11 @@ public:
 		if (m_ptrObjects.find(key) != m_ptrObjects.end())
 		{
 			std::shared_ptr<Item> ptrItem = m_ptrObjects[key];
+
+#ifdef __POSITION_AWARE_ITEMS__
 			ptrItem->m_ptrObject->dirty = true;
+#endif __POSITION_AWARE_ITEMS__
+
 			moveToFront(ptrItem);
 
 //#ifdef __CONCURRENT__
