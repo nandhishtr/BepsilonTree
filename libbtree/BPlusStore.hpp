@@ -152,6 +152,8 @@ public:
             {
                 std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrCurrentNode->data);
 
+                ptrCurrentNode->dirty = true;
+
                 if (ptrDataNode->insert(key, value) != ErrorCode::Success)
                 {
                     vtNodes.clear();
@@ -219,6 +221,8 @@ public:
                         // TODO: Should update be performed on cloned objects first?
                         throw new std::exception("should not occur!"); // for the time being!
                     }
+
+                    prNodeDetails.second->dirty = true;
                 }
             }
             else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*prNodeDetails.second->data))
@@ -232,6 +236,9 @@ public:
                     // TODO: Should update be performed on cloned objects first?
                     throw new std::exception("should not occur!"); // for the time being!
                 }
+
+                prNodeDetails.second->dirty = true;
+
             }
 
             uidLHSNode = prNodeDetails.first;
@@ -420,6 +427,8 @@ public:
                     throw new std::exception("should not occur!");
                 }
 
+                ptrCurrentNode->dirty = true;
+
                 if (ptrDataNode->requireMerge(m_nDegree))
                 {
                     vtNodes.push_back(std::pair<ObjectUIDType, ObjectTypePtr>(uidLastNode, ptrLastNode));
@@ -461,6 +470,8 @@ public:
                 m_ptrCache->getObject(*m_uidRootNode, ptrCurrentRoot, uidUpdated);
 
                 assert(uidUpdated == std::nullopt);
+
+                ptrCurrentRoot->dirty = true;
 
                 if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrCurrentRoot->data))
                 {
@@ -519,6 +530,8 @@ public:
 
                             m_ptrCache->remove(*uidToDelete);
                         }
+
+                        ptrChildNode->dirty = true;
                     }
                 }
                 else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrChildNode->data))
@@ -550,6 +563,8 @@ public:
 
                         m_ptrCache->remove(*uidToDelete);
                     }
+
+                    ptrChildNode->dirty = true;
                 }
             }
 

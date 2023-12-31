@@ -51,6 +51,8 @@ public:
 		{
 			ptrObject = m_mpObject[uidObject];
 			m_mpObject.erase(uidObject);
+
+			ptrObject->dirty = false;
 		}
 
 		return ptrObject;
