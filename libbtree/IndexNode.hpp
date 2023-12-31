@@ -422,6 +422,17 @@ public:
 		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtPivots.data()), nKeyCount * sizeof(KeyType));
 		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtChildren.data()), nValueCount * sizeof(ObjectUIDType::NodeUID));	// fix it!
 
+
+		auto it = m_ptrData->m_vtChildren.begin();
+		while (it != m_ptrData->m_vtChildren.end())
+		{
+			if (( * it).m_uid.m_nMediaType < 3)
+			{
+				throw new std::exception("should not occur!");
+			}
+			it++;
+		}
+
 		// hint
 		/*
 		if (std::is_trivial<ObjectUIDType>::value && std::is_standard_layout<ObjectUIDType>::value)
@@ -541,7 +552,13 @@ public:
 
 
 			ObjectType ptrNode = nullptr;
-			ptrCache->getObject(m_ptrData->m_vtChildren[nIndex], ptrNode);
+			std::optional<ObjectUIDType> uidUpdated = std::nullopt;
+			ptrCache->getObject(m_ptrData->m_vtChildren[nIndex], ptrNode, uidUpdated);
+
+			if (uidUpdated != std::nullopt)
+			{
+				m_ptrData->m_vtChildren[nIndex] = *uidUpdated;
+			}
 
 			out << std::endl;
 

@@ -11,8 +11,7 @@
 #include "ErrorCodes.h"
 #include "IFlushCallback.h"
 
-#define __CONCURRENT__
-//#define __TREE_AWARE_CACHE__
+//#define __CONCURRENT__
 
 template<
 	typename ICallback,
@@ -45,7 +44,7 @@ private:
 	bool m_bStopFlush;
 	std::thread m_threadBatchFlush;
 
-	mutable std::shared_mutex m_mtxCache;
+	mutable std::shared_mutex m_mtxStorage;
 
 	std::unordered_map<ObjectUIDType, std::shared_ptr<ObjectType>> m_mpObjects;
 #endif __CONCURRENT__
@@ -80,7 +79,7 @@ public:
 
 #ifdef __CONCURRENT__
 		m_bStopFlush = false;
-		m_threadBatchFlush = std::thread(handlerBatchFlush, this);
+		//m_threadBatchFlush = std::thread(handlerBatchFlush, this);
 #endif __CONCURRENT__
 	}
 
@@ -93,31 +92,24 @@ public:
 
 	std::shared_ptr<ObjectType> getObject(const ObjectUIDType& uidObject)
 	{
+		//char* szBuffer = new char[uidObject.m_uid.FATPOINTER.m_ptrFile.m_nSize + 1]; //2
+		//memset(szBuffer, '\0', uidObject.m_uid.FATPOINTER.m_ptrFile.m_nSize + 1); //2
+
 #ifdef __CONCURRENT__
-		std::unique_lock<std::shared_mutex> lock_file_storage(m_mtxCache);
-
-		if (m_mpObjects.find(uidObject) == m_mpObjects.end())
-		{
-			throw new std::exception("should not occur!");
-		}
-
-		std::shared_ptr<ObjectType> ptrObject = m_mpObjects[uidObject];
-		m_mpObjects.erase(uidObject);
-
-		return ptrObject;
-
-		lock_file_storage.unlock();
+		std::shared_lock<std::shared_mutex> lock_file_storage(m_mtxStorage);
 #endif __CONCURRENT__
 
 		m_fsStorage.seekg(uidObject.m_uid.FATPOINTER.m_ptrFile.m_nOffset);
-
-		//char* szBuffer = new char[uidObject.m_uid.FATPOINTER.m_ptrFile.m_nSize + 1]; //2
-		//memset(szBuffer, '\0', uidObject.m_uid.FATPOINTER.m_ptrFile.m_nSize + 1); //2
+		std::shared_ptr<ObjectType> ptrObject = std::make_shared<ObjectType>(m_fsStorage); //1
 		//m_fsStorage.read(szBuffer, uidObject.m_uid.FATPOINTER.m_ptrFile.m_nSize); //2
 
+#ifdef __CONCURRENT__
+		lock_file_storage.unlock();
+#endif __CONCURRENT__
 
-		std::shared_ptr<ObjectType> ptrObject = std::make_shared<ObjectType>(m_fsStorage); //1
+
 		//std::shared_ptr<ObjectType> ptrObject = std::make_shared<ObjectType>(szBuffer); //2
+		
 		ptrObject->dirty = false;
 
 		//delete[] szBuffer; //2
@@ -127,60 +119,81 @@ public:
 
 	CacheErrorCode remove(const ObjectUIDType& ptrKey)
 	{
-		throw new std::exception("no implementation!");
+		//throw new std::exception("no implementation!");
+		return CacheErrorCode::Success;
 	}
 
-#ifdef __TREE_AWARE_CACHE__
-	CacheErrorCode addObject(const ObjectUIDType& uidObject, const std::shared_ptr<ObjectType> ptrObject, const std::optional<ObjectUIDType>& uidParent)
-#else
-	CacheErrorCode addObject(const ObjectUIDType& uidObject, const std::shared_ptr<ObjectType> ptrObject)
-#endif __TREE_AWARE_CACHE__
+	CacheErrorCode addObject(ObjectUIDType uidObject, std::shared_ptr<ObjectType> ptrObject, ObjectUIDType& uidUpdated)
 	{
-#ifdef __CONCURRENT__
-		std::unique_lock<std::shared_mutex> lock_file_storage(m_mtxCache);
-
-		//if (m_mpObjects.find(ptrKey) != m_mpObjects.end())
-		//{
-		//	throw new std::exception("should not occur!");
-		//}
-
-		m_mpObjects[uidObject] = ptrObject;
-
-		return CacheErrorCode::Success;
-#else __CONCURRENT__
-
 		size_t nBufferSize = 0;
 		uint8_t uidObjectType = 0;
 		
 		//char* szBuffer = NULL; //2
 		//ptrObject->serialize(szBuffer, uidObjectType, nBufferSize); //2
 
+#ifdef __CONCURRENT__
+		std::unique_lock<std::shared_mutex> lock_file_storage(m_mtxStorage);
+#endif __CONCURRENT__
+
 		m_fsStorage.seekp(m_nNextBlock * m_nBlockSize);
 		ptrObject->serialize(m_fsStorage, uidObjectType, nBufferSize); //1
 		//m_fsStorage.write(szBuffer, nBufferSize); //2
-
-		//std::streampos writePos = m_fsStorage.tellp();
-		//std::size_t dataSize = static_cast<std::size_t>(writePos) - m_nNextBlock * m_nBlockSize;
-		//assert(nBufferSize == dataSize);
-
 		m_fsStorage.flush();
+
+		size_t nRequiredBlocks = std::ceil((nBufferSize + sizeof(uint8_t)) / (float)m_nBlockSize);
+
+#ifdef __CONCURRENT__
+		lock_file_storage.unlock();
+#endif __CONCURRENT__
 
 		//delete[] szBuffer; //2
 
-		size_t nRequiredBlocks = std::ceil( (nBufferSize + sizeof(uint8_t)) / (float)m_nBlockSize);
-
-		ObjectUIDType uidUpdated = ObjectUIDType::createAddressFromFileOffset(m_nNextBlock * m_nBlockSize, nBufferSize + sizeof(uint8_t));
+		uidUpdated = ObjectUIDType::createAddressFromFileOffset(m_nNextBlock * m_nBlockSize, nBufferSize + sizeof(uint8_t));
 
 		for (int idx = 0; idx < nRequiredBlocks; idx++)
 		{
 			m_vtAllocationTable[m_nNextBlock++] = true;
 		}
 
-#ifdef __TREE_AWARE_CACHE__
-		m_ptrCallback->updateChildUID(uidParent, uidObject, uidUpdated);
-#endif __TREE_AWARE_CACHE__
+		return CacheErrorCode::Success;
+	}
 
+	inline size_t getWritePos()
+	{
+		return m_nNextBlock;
+	}
+
+	inline size_t getBlockSize()
+	{
+		return m_nBlockSize;
+	}
+
+	CacheErrorCode addObjects(std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>>& vtObjects, size_t nNewOffset)
+	{
+#ifdef __CONCURRENT__
+		std::unique_lock<std::shared_mutex> lock_file_storage(m_mtxStorage);
 #endif __CONCURRENT__
+
+		m_nNextBlock = nNewOffset;
+
+		auto it = vtObjects.begin();
+		while (it != vtObjects.end())
+		{
+				m_fsStorage.seekp((*(*it).second.first).m_uid.FATPOINTER.m_ptrFile.m_nOffset);
+				//m_fsStorage.write( vtBuffer[idx], (*(m_vtObjects[idx].uidDetails.uidObject_Updated)).m_uid.FATPOINTER.m_ptrFile.m_nSize); //2
+
+				size_t nBufferSize = 0;
+				uint8_t uidObjectType = 0;
+
+				(*it).second.second->serialize(m_fsStorage, uidObjectType, nBufferSize);
+
+				//vtUIDUpdates.push_back(std::move(m_vtObjects[idx].uidDetails));
+
+				//delete[] vtBuffer[idx];
+
+			it++;
+		}
+		m_fsStorage.flush();
 
 		return CacheErrorCode::Success;
 	}
@@ -190,7 +203,7 @@ public:
 	{
 		std::unordered_map<ObjectUIDType, ObjectUIDType> mpUpdatedUIDs;
 #ifdef __CONCURRENT__
-		std::unique_lock<std::shared_mutex> lock_file_storage(m_mtxCache);
+		std::unique_lock<std::shared_mutex> lock_file_storage(m_mtxStorage);
 #endif __CONCURRENT__
 
 		auto it = m_mpObjects.begin();

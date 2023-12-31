@@ -4,7 +4,7 @@
 
 #include "ErrorCodes.h"
 
-#define __CONCURRENT__
+//#define __CONCURRENT__
 
 template<
 	typename ICallback,
@@ -50,9 +50,10 @@ public:
 		if (m_mpObject.find(uidObject) != m_mpObject.end())
 		{
 			ptrObject = m_mpObject[uidObject];
-			//m_mpObject.erase(uidObject);
+			//m_mpObject.erase(uidObject);	// since it is volatile cache.. add each time.. if this is set then 'dirty' should be false.
 
-			ptrObject->dirty = false;
+
+			ptrObject->dirty = false; //if this is set then dont erase the object! here.. technically object should be erased here...
 		}
 
 		return ptrObject;

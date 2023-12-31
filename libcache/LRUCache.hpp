@@ -15,7 +15,7 @@
 #include "IFlushCallback.h"
 #include "VariadicNthType.h"
 
-#define __CONCURRENT__
+//#define __CONCURRENT__
 #define __TREE_AWARE_CACHE__
 
 template <typename ICallback, typename StorageType>
@@ -109,16 +109,22 @@ public:
 	template <typename... InitArgs>
 	CacheErrorCode init(ICallback* ptrCallback, InitArgs... args)
 	{
-#ifdef __CONCURRENT__
+//#ifdef __CONCURRENT__
+//		m_ptrCallback = ptrCallback;
+//		return m_ptrStorage->init(this/*getNthElement<0>(args...)*/);
+//#else // ! __CONCURRENT__
+//		return m_ptrStorage->init(ptrCallback/*getNthElement<0>(args...)*/);
+//#endif __CONCURRENT__
+
 		m_ptrCallback = ptrCallback;
 		return m_ptrStorage->init(this/*getNthElement<0>(args...)*/);
-#else // ! __CONCURRENT__
-		return m_ptrStorage->init(ptrCallback/*getNthElement<0>(args...)*/);
-#endif __CONCURRENT__
+
 	}
 
 	CacheErrorCode remove(const ObjectUIDType& uidObject)
 	{
+		CacheErrorCode errCode = CacheErrorCode::Error;
+
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex>  lock_cache(m_mtxCache);
 #endif __CONCURRENT__
@@ -128,10 +134,12 @@ public:
 		{
 			removeFromLRU((*it).second);
 			m_mpObjects.erase((*it).first);
-			return CacheErrorCode::Success;
+			errCode = CacheErrorCode::Success;
 		}
 
-		return m_ptrStorage->remove(uidObject);
+		m_ptrStorage->remove(uidObject);
+
+		return errCode;
 	}
 
 	CacheErrorCode getObject(const ObjectUIDType uidObject, ObjectTypePtr & ptrObject, std::optional<ObjectUIDType>& uidUpdated)
@@ -156,8 +164,11 @@ public:
 		ObjectUIDType _uidUpdated = uidObject;
 		if (m_mpUpdatedUIDs.find(uidObject) != m_mpUpdatedUIDs.end())
 		{
+
+#ifdef __CONCURRENT__
 			std::optional< ObjectUIDType >& _condition = m_mpUpdatedUIDs[uidObject].first;
 			cv.wait(lock_storage, [&_condition] { return _condition != std::nullopt; });
+#endif __CONCURRENT__
 
 			//cv.wait(lock_storage, [] { return m_mpUpdatedUIDs[uidObject].first != std::nullopt; });
 
@@ -185,7 +196,7 @@ public:
 
 			if (m_mpObjects.find(_uidUpdated) != m_mpObjects.end())
 			{
-				std::shared_ptr<Item> ptrItem = m_mpObjects[uidObject];
+				std::shared_ptr<Item> ptrItem = m_mpObjects[_uidUpdated];
 				moveToFront(ptrItem);
 				ptrObject = ptrItem->m_ptrObject;
 				return CacheErrorCode::Success;
@@ -263,6 +274,7 @@ public:
 //#ifdef __CONCURRENT__
 //			lock_cache.unlock();
 //#endif __CONCURRENT__
+			ptrItem->m_ptrObject->dirty = true; //todo fix it later..
 
 			if (std::holds_alternative<Type>(*ptrItem->m_ptrObject->data))
 			{
@@ -281,9 +293,10 @@ public:
 		ObjectUIDType _uidUpdated = key;
 		if (m_mpUpdatedUIDs.find(key) != m_mpUpdatedUIDs.end())
 		{
-
+#ifdef __CONCURRENT__
 			std::optional< ObjectUIDType >& _condition = m_mpUpdatedUIDs[key].first;
 			cv.wait(lock_storage, [&_condition] { return _condition != std::nullopt; });
+#endif __CONCURRENT__
 
 			uidUpdated = m_mpUpdatedUIDs[key].first;
 
@@ -302,6 +315,8 @@ public:
 		if (ptrValue != nullptr)
 		{
 			std::shared_ptr<Item> ptrItem = std::make_shared<Item>(_uidUpdated, ptrValue);
+
+			ptrValue->dirty = true; //todo fix it later..
 
 #ifdef __CONCURRENT__
 			std::unique_lock<std::shared_mutex> re_lock_cache(m_mtxCache);
@@ -606,6 +621,10 @@ private:
 			return;
 
 		size_t nFlushCount = m_mpObjects.size() - m_nCacheCapacity;
+
+		if (nFlushCount > 100)
+			nFlushCount = 100;
+
 		for (size_t idx = 0; idx < nFlushCount; idx++)
 		{
 			if (m_ptrTail->m_ptrObject.use_count() > 1)
@@ -624,7 +643,7 @@ private:
 
 			std::shared_ptr<Item> ptrTemp = m_ptrTail;
 
-			if (ptrTemp->m_ptrObject->dirty)
+			//TODO fix this!!!!**** if (ptrTemp->m_ptrObject->dirty) // this should not be check here.. as node can be affect by the other nodes in the list
 			{
 				vtItems.push_back(std::make_pair(ptrTemp->m_uidSelf, std::make_pair(std::nullopt, ptrTemp->m_ptrObject)));
 			}
@@ -731,6 +750,11 @@ private:
 
 			if (m_ptrTail->m_ptrObject->dirty)
 			{
+				if (m_mpUpdatedUIDs.size() > 0)
+				{
+					m_ptrCallback->applyExistingUpdates(m_ptrTail->m_ptrObject, m_mpUpdatedUIDs);
+				}
+
 				ObjectUIDType uidUpdated;
 				if (m_ptrStorage->addObject(m_ptrTail->m_uidSelf, m_ptrTail->m_ptrObject, uidUpdated) != CacheErrorCode::Success)
 				{
@@ -793,6 +817,12 @@ public:
 	}
 
 	void applyExistingUpdates(std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>>& vtNodes
+		, std::unordered_map<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>& mpUpdatedUIDs)
+	{
+
+	}
+
+	void applyExistingUpdates(std::shared_ptr<ObjectType> ptrObject
 		, std::unordered_map<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>& mpUpdatedUIDs)
 	{
 

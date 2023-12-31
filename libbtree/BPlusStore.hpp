@@ -19,7 +19,7 @@
 #include <iostream>
 #include <fstream>
 #include <assert.h>
-#define __CONCURRENT__
+//#define __CONCURRENT__
 #define __TREE_AWARE_CACHE__
 
 #ifdef __TREE_AWARE_CACHE__
@@ -101,6 +101,7 @@ public:
                     {
                         std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrLastNode->data);
                         ptrIndexNode->updateChildUID(uidCurrentNode, *uidUpdated);
+                        ptrLastNode->dirty = true;
                     }
                     else //if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrLastNode->data))
                     {
@@ -109,6 +110,7 @@ public:
                 }
                 else
                 {
+                    //ptrLastNode->dirty = true; do ths ame for root!
                     assert(uidCurrentNode == *m_uidRootNode);
                     m_uidRootNode = uidUpdated;
                 }
@@ -197,6 +199,23 @@ public:
                 }
 
                 m_ptrCache->template createObjectOfType<IndexNodeType>(m_uidRootNode, pivotKey, uidLHSNode, *uidRHSNode);
+
+                int idx = 0;
+                auto it_a = vtAccessedNodes.begin();
+                while (it_a != vtAccessedNodes.end())
+                {
+                    idx++;
+                    if ((*it_a).first == prNodeDetails.first)
+                    {
+                        //since dont have pointer to object.. addding nullptr.. to do ..fix it later..
+                        vtAccessedNodes.insert(vtAccessedNodes.begin() + idx, std::make_pair(*uidRHSNode, nullptr));
+                        break;
+                    }
+                    it_a++;
+
+                }
+
+
                 break;
             }
 
@@ -204,11 +223,27 @@ public:
             {
                 std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*prNodeDetails.second->data);
 
+                int idx = 0;
+                auto it_a = vtAccessedNodes.begin();
+                while (it_a != vtAccessedNodes.end())
+                {
+                    idx++;
+                    if ((*it_a).first == prNodeDetails.first)
+                    {
+                        //since dont have pointer to object.. addding nullptr.. to do ..fix it later..
+                        vtAccessedNodes.insert(vtAccessedNodes.begin() +  idx, std::make_pair(* uidRHSNode, nullptr));
+                        break;
+                    }
+                    it_a++;
+                }
+
                 if (ptrIndexNode->insert(pivotKey, *uidRHSNode) != ErrorCode::Success)
                 {
                     // TODO: Should update be performed on cloned objects first?
                     throw new std::exception("should not occur!"); // for the time being!
                 }
+
+                prNodeDetails.second->dirty = true;
 
                 uidRHSNode = std::nullopt;
 
@@ -222,7 +257,6 @@ public:
                         throw new std::exception("should not occur!"); // for the time being!
                     }
 
-                    prNodeDetails.second->dirty = true;
                 }
             }
             else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*prNodeDetails.second->data))
@@ -280,6 +314,8 @@ public:
                     {
                         std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrLastNode->data);
                         ptrIndexNode->updateChildUID(uidCurrentNode, *uidUpdated);
+
+                        ptrLastNode->dirty = true;
                     }
                     else //if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrLastNode->data))
                     {
@@ -288,6 +324,7 @@ public:
                 }
                 else
                 {
+                    //ptrLastNode->dirty = true;  do the same thing here... atm root never leaves cache. but later fix this.
                     assert(uidCurrentNode == *m_uidRootNode);
                     m_uidRootNode = uidUpdated;
                 }
@@ -366,6 +403,7 @@ public:
                     {
                         std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrLastNode->data);
                         ptrIndexNode->updateChildUID(uidCurrentNode, *uidUpdated);
+                        ptrLastNode->dirty = true;
                     }
                     else //if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrLastNode->data))
                     {
@@ -374,6 +412,7 @@ public:
                 }
                 else
                 {
+                    // ptrLastNode->dirty = true; todo: do for parent as well..
                     assert(uidCurrentNode == *m_uidRootNode);
                     m_uidRootNode = uidUpdated;
                 }
@@ -481,6 +520,7 @@ public:
                         m_ptrCache->remove(*m_uidRootNode);
                         m_uidRootNode = _tmp;
 
+                        ptrCurrentRoot->dirty = true;
                     }
                 }
                 else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrCurrentRoot->data))
@@ -509,6 +549,9 @@ public:
                     {
                         ptrParentIndexNode->template rebalanceIndexNode<std::shared_ptr<CacheType>, shared_ptr<IndexNodeType>>(m_ptrCache, uidChildNode, ptrChildIndexNode, key, m_nDegree, uidToDelete);
 
+                        prNodeDetails.second->dirty = true;
+                        ptrChildNode->dirty = true;
+
                         if (uidToDelete)
                         {
 #ifdef __CONCURRENT__
@@ -530,8 +573,6 @@ public:
 
                             m_ptrCache->remove(*uidToDelete);
                         }
-
-                        ptrChildNode->dirty = true;
                     }
                 }
                 else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrChildNode->data))
@@ -541,6 +582,9 @@ public:
                     std::shared_ptr<DataNodeType> ptrChildDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrChildNode->data);
 
                     ptrParentIndexNode->template rebalanceDataNode<std::shared_ptr<CacheType>, shared_ptr<DataNodeType>>(m_ptrCache, uidChildNode, ptrChildDataNode, key, m_nDegree, uidToDelete);
+
+                    prNodeDetails.second->dirty = true;
+                    ptrChildNode->dirty = true;
 
                     if (uidToDelete)
                     {
@@ -563,13 +607,11 @@ public:
 
                         m_ptrCache->remove(*uidToDelete);
                     }
-
-                    ptrChildNode->dirty = true;
                 }
             }
 
             uidChildNode = prNodeDetails.first;
-            ptrChildNode = prNodeDetails.second; 
+            ptrChildNode = prNodeDetails.second;
             vtNodes.pop_back();
         }
         
@@ -591,7 +633,13 @@ public:
         out << std::endl;
 
         ObjectTypePtr ptrRootNode = nullptr;
-        m_ptrCache->getObject(m_uidRootNode.value(), ptrRootNode);
+        std::optional<ObjectUIDType> uidUpdated = std::nullopt;
+        m_ptrCache->getObject(m_uidRootNode.value(), ptrRootNode, uidUpdated);
+
+        if (uidUpdated != std::nullopt)
+        {
+            m_uidRootNode = uidUpdated;
+        }
 
         if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrRootNode->data))
         {
@@ -639,8 +687,10 @@ public:
                 {
                     if (mpUpdatedUIDs.find(*it_children) != mpUpdatedUIDs.end())
                     {
+                        ObjectUIDType uidTemp = *it_children;
+
                         *it_children = *(mpUpdatedUIDs[*it_children].first);
-                        mpUpdatedUIDs.erase(*it_children);  // Update applied!
+                        mpUpdatedUIDs.erase(uidTemp);  // Update applied!
                     }
                     it_children++;
                 }
@@ -650,6 +700,31 @@ public:
                 //throw new std::exception("should not occur!");   // TODO: critical log.
             }
             it++;
+        }
+    }
+
+    void applyExistingUpdates(std::shared_ptr<ObjectType> ptrObject
+        , std::unordered_map<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>& mpUpdatedUIDs)
+    {
+        if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrObject->data))
+        {
+            std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrObject->data);
+
+            auto it_children = ptrIndexNode->m_ptrData->m_vtChildren.begin();
+            while (it_children != ptrIndexNode->m_ptrData->m_vtChildren.end())
+            {
+                if (mpUpdatedUIDs.find(*it_children) != mpUpdatedUIDs.end())
+                {
+                    ObjectUIDType uidTemp = *it_children;
+                    *it_children = *(mpUpdatedUIDs[*it_children].first);
+                    mpUpdatedUIDs.erase(uidTemp);  // Update applied!
+                }
+                it_children++;
+            }
+        }
+        else //if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*(*it).second.second->data))
+        {
+            //throw new std::exception("should not occur!");   // TODO: critical log.
         }
     }
 
