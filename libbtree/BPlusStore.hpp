@@ -20,15 +20,15 @@
 #include <fstream>
 #include <assert.h>
 //#define __CONCURRENT__
-#define __POSITION_AWARE_ITEMS__
+#define __TREE_AWARE_CACHE__
 
-#ifdef __POSITION_AWARE_ITEMS__
+#ifdef __TREE_AWARE_CACHE__
 template <typename ICallback, typename KeyType, typename ValueType, typename CacheType>
 class BPlusStore : public ICallback
-#else // !__POSITION_AWARE_ITEMS__
+#else // !__TREE_AWARE_CACHE__
 template <typename KeyType, typename ValueType, typename CacheType>
 class BPlusStore
-#endif __POSITION_AWARE_ITEMS__
+#endif __TREE_AWARE_CACHE__
 {
     typedef CacheType::ObjectUIDType ObjectUIDType;
     typedef CacheType::ObjectType ObjectType;
@@ -55,25 +55,24 @@ public:
     BPlusStore(uint32_t nDegree, CacheArgs... args)
         : m_nDegree(nDegree)
         , m_uidRootNode(std::nullopt)
-    {    
+    {
         m_ptrCache = std::make_shared<CacheType>(args...);
     }
 
     template <typename DefaultNodeType>
     void init()
     {
-#ifdef __POSITION_AWARE_ITEMS__
+#ifdef __TREE_AWARE_CACHE__
         m_ptrCache->init(this);
+#endif __TREE_AWARE_CACHE__
 
-        std::optional<ObjectUIDType> uidParent = std::nullopt;
-        m_ptrCache->template createObjectOfType<DefaultNodeType>(m_uidRootNode, uidParent);
-#else
         m_ptrCache->template createObjectOfType<DefaultNodeType>(m_uidRootNode);
-#endif __POSITION_AWARE_ITEMS__
     }
 
     ErrorCode insert(const KeyType& key, const ValueType& value)
     {
+        std::vector<std::pair<ObjectUIDType, ObjectTypePtr>> vtAccessedNodes;
+
 #ifdef __CONCURRENT__
         std::vector<std::unique_lock<std::shared_mutex>> vtLocks;
 #endif __CONCURRENT__
@@ -81,12 +80,7 @@ public:
         ObjectUIDType uidLastNode, uidCurrentNode;  // TODO: make Optional!
         ObjectTypePtr ptrLastNode = nullptr, ptrCurrentNode = nullptr;
 
-#ifdef __POSITION_AWARE_ITEMS__
-        std::optional<ObjectUIDType> uidCurrentNodeParent, uidLastNodeParent;
-        std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, ObjectTypePtr>>> vtNodes;
-#else
         std::vector<std::pair<ObjectUIDType, ObjectTypePtr>> vtNodes;
-#endif __POSITION_AWARE_ITEMS__
 
 #ifdef __CONCURRENT__
         vtLocks.push_back(std::unique_lock<std::shared_mutex>(m_mutex));
@@ -96,21 +90,31 @@ public:
 
         do
         {
-#ifdef __POSITION_AWARE_ITEMS__
-            uidCurrentNodeParent = uidLastNode;
-            m_ptrCache->getObject(uidCurrentNode, ptrCurrentNode, uidCurrentNodeParent);    //TODO: lock
+            std::optional<ObjectUIDType> uidUpdated = std::nullopt;
+            m_ptrCache->getObject(uidCurrentNode, ptrCurrentNode, uidUpdated);    //TODO: lock
 
-            if (ptrLastNode != nullptr && !uidCurrentNodeParent)
+            if (uidUpdated != std::nullopt)
             {
-                throw new std::exception("should not occur!");   // TODO: critical log.
+                if (ptrLastNode != nullptr)
+                {
+                    if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrLastNode->data))
+                    {
+                        std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrLastNode->data);
+                        ptrIndexNode->updateChildUID(uidCurrentNode, *uidUpdated);
+                    }
+                    else //if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrLastNode->data))
+                    {
+                        throw new std::exception("should not occur!");
+                    }
+                }
+                else
+                {
+                    assert(uidCurrentNode == *m_uidRootNode);
+                    m_uidRootNode = uidUpdated;
+                }
+
+                uidCurrentNode = *uidUpdated;
             }
-            if (ptrLastNode != nullptr && uidCurrentNodeParent != uidLastNode)
-            {
-                throw new std::exception("should not occur!");   // TODO: critical log.
-            }
-#else
-            m_ptrCache->getObject(uidCurrentNode, ptrCurrentNode);    //TODO: lock
-#endif __POSITION_AWARE_ITEMS__
 
 #ifdef __CONCURRENT__
             vtLocks.push_back(std::unique_lock<std::shared_mutex>(ptrCurrentNode->mutex));
@@ -121,17 +125,15 @@ public:
                 throw new std::exception("should not occur!");   // TODO: critical log.
             }
 
+            vtAccessedNodes.push_back(std::make_pair(uidCurrentNode, ptrCurrentNode));
+
             if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrCurrentNode->data))
             {
                 std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrCurrentNode->data);
 
                 if (ptrIndexNode->canTriggerSplit(m_nDegree))
                 {
-#ifdef __POSITION_AWARE_ITEMS__
-                    vtNodes.push_back(std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, ObjectTypePtr>>(uidLastNode, std::pair<std::optional<ObjectUIDType>, ObjectTypePtr>(uidLastNodeParent, ptrLastNode)));
-#else
                     vtNodes.push_back(std::pair<ObjectUIDType, ObjectTypePtr>(uidLastNode, ptrLastNode));
-#endif __POSITION_AWARE_ITEMS__
                 }
                 else
                 {
@@ -143,10 +145,6 @@ public:
 
                 uidLastNode = uidCurrentNode;
                 ptrLastNode = ptrCurrentNode;
-
-#ifdef __POSITION_AWARE_ITEMS__
-                uidLastNodeParent = uidCurrentNodeParent;
-#endif __POSITION_AWARE_ITEMS__
 
                 uidCurrentNode = ptrIndexNode->getChild(key);
             }
@@ -164,19 +162,10 @@ public:
                     return ErrorCode::InsertFailed;
                 }
 
-#ifdef __POSITION_AWARE_ITEMS__
-                ptrCurrentNode->dirty = true;
-#endif __POSITION_AWARE_ITEMS__
-
                 if (ptrDataNode->requireSplit(m_nDegree))
                 {
-#ifdef __POSITION_AWARE_ITEMS__
-                    vtNodes.push_back(std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, ObjectTypePtr>>(uidLastNode, std::pair<std::optional<ObjectUIDType>, ObjectTypePtr>(uidLastNodeParent, ptrLastNode)));
-                    vtNodes.push_back(std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, ObjectTypePtr>>(uidCurrentNode, std::pair<std::optional<ObjectUIDType>, ObjectTypePtr>(uidCurrentNodeParent, ptrCurrentNode)));
-#else
                     vtNodes.push_back(std::pair<ObjectUIDType, ObjectTypePtr>(uidLastNode, ptrLastNode));
                     vtNodes.push_back(std::pair<ObjectUIDType, ObjectTypePtr>(uidCurrentNode, ptrCurrentNode));
-#endif __POSITION_AWARE_ITEMS__
                 }
                 else
                 {
@@ -194,45 +183,24 @@ public:
         ObjectUIDType uidLHSNode;
         std::optional<ObjectUIDType> uidRHSNode;
 
-        while (vtNodes.size() > 0) 
+        while (vtNodes.size() > 0)
         {
-#ifdef __POSITION_AWARE_ITEMS__
-            std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, ObjectTypePtr>> prNodeDetails = vtNodes.back();
-#else
             std::pair<ObjectUIDType, ObjectTypePtr> prNodeDetails = vtNodes.back();
-#endif __POSITION_AWARE_ITEMS__
 
-#ifdef __POSITION_AWARE_ITEMS__
-            if (prNodeDetails.second.second == nullptr)
-#else
             if (prNodeDetails.second == nullptr)
-#endif __POSITION_AWARE_ITEMS__
             {
                 if (vtNodes.size() != 1)
                 {
                     throw new std::exception("should not occur!");
                 }
 
-#ifdef __POSITION_AWARE_ITEMS__
-                std::optional<ObjectUIDType> uidParent = std::nullopt;
-                m_ptrCache->template createObjectOfType<IndexNodeType>(m_uidRootNode, uidParent, pivotKey, uidLHSNode, *uidRHSNode);
-                assert(m_ptrCache->tryUpdateParentUID(uidLHSNode, m_uidRootNode) == CacheErrorCode::Success);
-                assert(m_ptrCache->tryUpdateParentUID(*uidRHSNode, m_uidRootNode) == CacheErrorCode::Success);
-#else
-                m_ptrCache->template createObjectOfType<IndexNodeType>(m_uidRootNode, pivotKey, uidLHSNode, * uidRHSNode); 
-#endif __POSITION_AWARE_ITEMS__
+                m_ptrCache->template createObjectOfType<IndexNodeType>(m_uidRootNode, pivotKey, uidLHSNode, *uidRHSNode);
                 break;
             }
 
-#ifdef __POSITION_AWARE_ITEMS__
-            if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*prNodeDetails.second.second->data))
-            {
-                std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*prNodeDetails.second.second->data);
-#else
             if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*prNodeDetails.second->data))
             {
                 std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*prNodeDetails.second->data);
-#endif __POSITION_AWARE_ITEMS__
 
                 if (ptrIndexNode->insert(pivotKey, *uidRHSNode) != ErrorCode::Success)
                 {
@@ -240,19 +208,11 @@ public:
                     throw new std::exception("should not occur!"); // for the time being!
                 }
 
-#ifdef __POSITION_AWARE_ITEMS__
-                prNodeDetails.second.second->dirty = true;
-#endif __POSITION_AWARE_ITEMS__
-
                 uidRHSNode = std::nullopt;
 
                 if (ptrIndexNode->requireSplit(m_nDegree))
                 {
-#ifdef __POSITION_AWARE_ITEMS__
-                    ErrorCode errCode = ptrIndexNode->template split<std::shared_ptr<CacheType>>(m_ptrCache, uidRHSNode, pivotKey, prNodeDetails.second.first);
-#else
-                    ErrorCode errCode = ptrIndexNode->template split<std::shared_ptr<CacheType>>(m_ptrCache, uidRHSNode, pivotKey); 
-#endif __POSITION_AWARE_ITEMS__
+                    ErrorCode errCode = ptrIndexNode->template split<std::shared_ptr<CacheType>>(m_ptrCache, uidRHSNode, pivotKey);
 
                     if (errCode != ErrorCode::Success)
                     {
@@ -261,27 +221,17 @@ public:
                     }
                 }
             }
-#ifdef __POSITION_AWARE_ITEMS__
-            else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*prNodeDetails.second.second->data))
-            {
-                std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*prNodeDetails.second.second->data);
-
-                prNodeDetails.second.second->dirty = true;
-
-                ErrorCode errCode = ptrDataNode->template split<std::shared_ptr<CacheType>, ObjectUIDType>(m_ptrCache, uidRHSNode, prNodeDetails.second.first, pivotKey);
-#else
             else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*prNodeDetails.second->data))
             {
                 std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*prNodeDetails.second->data);
 
                 ErrorCode errCode = ptrDataNode->template split<std::shared_ptr<CacheType>, ObjectUIDType>(m_ptrCache, uidRHSNode, pivotKey);
-#endif __POSITION_AWARE_ITEMS__
 
                 if (errCode != ErrorCode::Success)
                 {
                     // TODO: Should update be performed on cloned objects first?
                     throw new std::exception("should not occur!"); // for the time being!
-                }                
+                }
             }
 
             uidLHSNode = prNodeDetails.first;
@@ -289,38 +239,56 @@ public:
             vtNodes.pop_back();
         }
 
+        m_ptrCache->reorder(vtAccessedNodes);
+        vtAccessedNodes.clear();
+
         return ErrorCode::Success;
     }
 
     ErrorCode search(const KeyType& key, ValueType& value)
     {
         ErrorCode errCode = ErrorCode::Error;
-        
+
+        std::vector<std::pair<ObjectUIDType, ObjectTypePtr>> vtAccessedNodes;
+
 #ifdef __CONCURRENT__
         std::vector<std::shared_lock<std::shared_mutex>> vtLocks;
         vtLocks.push_back(std::shared_lock<std::shared_mutex>(m_mutex));
 #endif __CONCURRENT__
-
-#ifdef __POSITION_AWARE_ITEMS__
-        std::optional<ObjectUIDType> uidCurrentNodeParent, uidLastNode;
-#endif __POSITION_AWARE_ITEMS__
 
         ObjectUIDType uidCurrentNode = *m_uidRootNode;
         do
         {
             ObjectTypePtr prNodeDetails = nullptr;
 
-#ifdef __POSITION_AWARE_ITEMS__
-            uidCurrentNodeParent = uidLastNode;
-            m_ptrCache->getObject(uidCurrentNode, prNodeDetails, uidCurrentNodeParent);    //TODO: lock
+            std::optional<ObjectUIDType> uidUpdated = std::nullopt;
+            m_ptrCache->getObject(uidCurrentNode, prNodeDetails, uidUpdated);    //TODO: lock
 
-            if (uidLastNode != uidCurrentNodeParent)
+            if (uidUpdated != std::nullopt)
             {
-                throw new std::exception("should not occur!");   // TODO: critical log.
+                ObjectTypePtr ptrLastNode = vtAccessedNodes.size() > 0 ? vtAccessedNodes[vtAccessedNodes.size() - 1].second : nullptr;
+                if (ptrLastNode != nullptr)
+                {
+                    if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrLastNode->data))
+                    {
+                        std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrLastNode->data);
+                        ptrIndexNode->updateChildUID(uidCurrentNode, *uidUpdated);
+                    }
+                    else //if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrLastNode->data))
+                    {
+                        throw new std::exception("should not occur!");
+                    }
+                }
+                else
+                {
+                    assert(uidCurrentNode == *m_uidRootNode);
+                    m_uidRootNode = uidUpdated;
+                }
+
+                uidCurrentNode = *uidUpdated;
             }
-#else __POSITION_AWARE_ITEMS__
-            m_ptrCache->getObject(uidCurrentNode, prNodeDetails);    //TODO: lock
-#endif __POSITION_AWARE_ITEMS__
+
+
 
 #ifdef __CONCURRENT__
             vtLocks.push_back(std::shared_lock<std::shared_mutex>(prNodeDetails->mutex));
@@ -332,13 +300,11 @@ public:
                 throw new std::exception("should not occur!");
             }
 
+            vtAccessedNodes.push_back(std::make_pair(uidCurrentNode, prNodeDetails));
+
             if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*prNodeDetails->data))
             {
                 std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*prNodeDetails->data);
-
-#ifdef __POSITION_AWARE_ITEMS__
-                uidLastNode = uidCurrentNode;
-#endif __POSITION_AWARE_ITEMS__
 
                 uidCurrentNode = ptrIndexNode->getChild(key);
             }
@@ -351,14 +317,19 @@ public:
                 break;
             }
 
-            
+
         } while (true);
-        
+
+        m_ptrCache->reorder(vtAccessedNodes);
+        vtAccessedNodes.clear();
+
         return errCode;
     }
 
     ErrorCode remove(const KeyType& key)
-    {        
+    {   
+        std::vector<std::pair<ObjectUIDType, ObjectTypePtr>> vtAccessedNodes;
+
 #ifdef __CONCURRENT__
         std::vector<std::unique_lock<std::shared_mutex>> vtLocks;
 #endif __CONCURRENT__
@@ -376,22 +347,35 @@ public:
 
         do
         {
-#ifdef __POSITION_AWARE_ITEMS__
-            std::optional<ObjectUIDType> uidCurrentNodeParent = uidLastNode;
-            m_ptrCache->getObject(uidCurrentNode, ptrCurrentNode, uidCurrentNodeParent);    //TODO: lock
-
-            if (ptrLastNode != nullptr && !uidCurrentNodeParent)
-            {
-                uidCurrentNodeParent = uidLastNode; // give priority to the cache. TODO: concurent case?
-            }
-            if (ptrLastNode != nullptr && uidCurrentNodeParent != uidLastNode)
-            {
-                //throw new std::exception("should not occur!");   // TODO: critical log.
-            }
-#else
-            m_ptrCache->getObject(uidCurrentNode, ptrCurrentNode);    //TODO: lock
-#endif __POSITION_AWARE_ITEMS__
+            std::optional<ObjectUIDType> uidUpdated = std::nullopt;
+            m_ptrCache->getObject(uidCurrentNode, ptrCurrentNode, uidUpdated);    //TODO: lock
             
+
+            if (uidUpdated != std::nullopt)
+            {
+                if (ptrLastNode != nullptr)
+                {
+                    if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrLastNode->data))
+                    {
+                        std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrLastNode->data);
+                        ptrIndexNode->updateChildUID(uidCurrentNode, *uidUpdated);
+                    }
+                    else //if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrLastNode->data))
+                    {
+                        throw new std::exception("should not occur!");
+                    }
+                }
+                else
+                {
+                    assert(uidCurrentNode == *m_uidRootNode);
+                    m_uidRootNode = uidUpdated;
+                }
+
+                uidCurrentNode = *uidUpdated;
+            }
+
+
+
 #ifdef __CONCURRENT__
             vtLocks.push_back(std::unique_lock<std::shared_mutex>(ptrCurrentNode->mutex));
 #endif __CONCURRENT__
@@ -400,6 +384,8 @@ public:
             {
                 throw new std::exception("should not occur!");
             }
+
+            vtAccessedNodes.push_back(std::make_pair(uidCurrentNode, ptrCurrentNode));
 
             if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrCurrentNode->data))
             {
@@ -433,10 +419,6 @@ public:
                 {
                     throw new std::exception("should not occur!");
                 }
-
-#ifdef __POSITION_AWARE_ITEMS__
-                ptrCurrentNode->dirty = true;
-#endif __POSITION_AWARE_ITEMS__
 
                 if (ptrDataNode->requireMerge(m_nDegree))
                 {
@@ -475,11 +457,10 @@ public:
                 }
 
                 ObjectTypePtr ptrCurrentRoot;
-                m_ptrCache->getObject(*m_uidRootNode, ptrCurrentRoot);
+                std::optional<ObjectUIDType> uidUpdated = std::nullopt;
+                m_ptrCache->getObject(*m_uidRootNode, ptrCurrentRoot, uidUpdated);
 
-#ifdef __POSITION_AWARE_ITEMS__
-                ptrCurrentRoot->dirty = true;
-#endif __POSITION_AWARE_ITEMS__
+                assert(uidUpdated == std::nullopt);
 
                 if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrCurrentRoot->data))
                 {
@@ -489,10 +470,6 @@ public:
                         m_ptrCache->remove(*m_uidRootNode);
                         m_uidRootNode = _tmp;
 
-#ifdef __POSITION_AWARE_ITEMS__
-                        std::optional< ObjectUIDType> nullParent;  
-                        m_ptrCache->tryUpdateParentUID(*m_uidRootNode, nullParent);
-#endif __POSITION_AWARE_ITEMS__
                     }
                 }
                 else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrCurrentRoot->data))
@@ -519,11 +496,6 @@ public:
 
                     if (ptrChildIndexNode->requireMerge(m_nDegree))
                     {
-#ifdef __POSITION_AWARE_ITEMS__
-                        ptrChildNode->dirty = true;
-                        prNodeDetails.second->dirty = true;
-#endif __POSITION_AWARE_ITEMS__
-
                         ptrParentIndexNode->template rebalanceIndexNode<std::shared_ptr<CacheType>, shared_ptr<IndexNodeType>>(m_ptrCache, uidChildNode, ptrChildIndexNode, key, m_nDegree, uidToDelete);
 
                         if (uidToDelete)
@@ -554,11 +526,6 @@ public:
                     std::optional<ObjectUIDType> uidToDelete = std::nullopt;
 
                     std::shared_ptr<DataNodeType> ptrChildDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrChildNode->data);
-
-#ifdef __POSITION_AWARE_ITEMS__
-                    ptrChildNode->dirty = true;
-                    prNodeDetails.second->dirty = true;
-#endif __POSITION_AWARE_ITEMS__
 
                     ptrParentIndexNode->template rebalanceDataNode<std::shared_ptr<CacheType>, shared_ptr<DataNodeType>>(m_ptrCache, uidChildNode, ptrChildDataNode, key, m_nDegree, uidToDelete);
 
@@ -591,6 +558,9 @@ public:
             vtNodes.pop_back();
         }
         
+        m_ptrCache->reorder(vtAccessedNodes, false);
+        vtAccessedNodes.clear();
+
         return ErrorCode::Success;
     }
 
@@ -603,10 +573,6 @@ public:
         out << prefix << "|" << std::endl;
         out << prefix << "|" << std::string(nSpace, '-').c_str() << "(root)";
 
-#ifdef __POSITION_AWARE_ITEMS__
-        out << " P[], S[" << (*m_uidRootNode).toString().c_str() << "]";
-#endif __POSITION_AWARE_ITEMS__
-
         out << std::endl;
 
         ObjectTypePtr ptrRootNode = nullptr;
@@ -616,11 +582,7 @@ public:
         {
             std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrRootNode->data);
 
-#ifdef __POSITION_AWARE_ITEMS__
-            ptrIndexNode->template print<std::shared_ptr<CacheType>, ObjectTypePtr, DataNodeType>(out, m_ptrCache, 0, prefix, m_uidRootNode);
-#else //__POSITION_AWARE_ITEMS__
             ptrIndexNode->template print<std::shared_ptr<CacheType>, ObjectTypePtr, DataNodeType>(out, m_ptrCache, 0, prefix);
-#endif __POSITION_AWARE_ITEMS__
         }
         else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrRootNode->data))
         {
@@ -635,36 +597,10 @@ public:
         return m_ptrCache->getCacheState(lru, map);
     }
 
-#ifdef __POSITION_AWARE_ITEMS__
+#ifdef __TREE_AWARE_CACHE__
 public:
     CacheErrorCode updateChildUID(const std::optional<ObjectUIDType>& uidObject, const ObjectUIDType& uidChildOld, const ObjectUIDType& uidChildNew)
     {
-        if (!uidObject)
-        {   
-            // Update for Root... should not occur.. this case is covered in manual flush.
-            throw new std::exception("should not occur!");
-        }
-
-        ObjectTypePtr ptrObject = nullptr;
-        m_ptrCache->getObject(*uidObject, ptrObject, true);
-
-        if (ptrObject == nullptr)
-        {
-            throw new std::exception("should not occur!");   // TODO: critical log.
-        }
-
-        if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrObject->data))
-        {
-            std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrObject->data);
-
-            ptrIndexNode->updateChildUID(uidChildOld, uidChildNew);
-            ptrObject->dirty = true;
-        }
-        else //if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrObject->data))
-        {
-            throw new std::exception("should not occur!");   // TODO: critical log.
-        }
-
         return CacheErrorCode::Success;
     }
 
@@ -672,5 +608,35 @@ public:
     {
         throw new std::exception("no implementation!");
     }
-#endif __POSITION_AWARE_ITEMS__
+
+    void applyExistingUpdates(std::vector<std::pair<ObjectUIDType, std::pair<ObjectUIDType, std::shared_ptr<ObjectType>>>>& vtNodes
+        , std::unordered_map<ObjectUIDType, std::optional<ObjectUIDType>>& mpUpdatedUIDs)
+    {
+        /*auto it = vtNodes.begin();
+        while (it != vtNodes.end())
+        {
+            if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*(*it).second.second->data))
+            {
+                std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*(*it).second.second->data);
+
+                auto it_children = ptrIndexNode->m_ptrData->m_vtChildren.begin();
+                while (it_children != ptrIndexNode->m_ptrData->m_vtChildren.end())
+                {
+                    if (mpUpdatedUIDs.find(*it_children) != mpUIDUpdates.end())
+                    {
+                        *it_children = *mpUpdatedUIDs.find[*it_children];
+                        mpUpdatedUIDs.erase(*it_children);  // Update applied!
+                    }
+                    it_children++;
+                }
+            }
+            else //if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*(*it).second.second->data))
+            {
+                throw new std::exception("should not occur!");   // TODO: critical log.
+            }
+            it++;
+        }*/
+    }
+
+#endif __TREE_AWARE_CACHE__
 };

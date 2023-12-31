@@ -4,7 +4,7 @@
 #include <iostream>
 #include <fstream>
 
-class TypeMarshaller 
+class TypeMarshaller
 {
 public:
 	template <typename... ObjectCoreTypes>
@@ -50,7 +50,7 @@ public:
 		using TypeB = typename NthType<1, ObjectCoreTypes...>::type;
 
 		uint8_t uidObjectType;
-		
+
 		switch (szData[0])
 		{
 		case TypeA::UID:

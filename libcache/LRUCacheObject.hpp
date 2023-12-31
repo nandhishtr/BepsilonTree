@@ -12,8 +12,6 @@
 
 #include "ErrorCodes.h"
 
-#define __POSITION_AWARE_ITEMS__
-
 template <typename CoreTypesMarshaller, typename... CoreTypes>
 class LRUCacheObject
 {
@@ -25,34 +23,22 @@ private:
 	typedef std::shared_ptr<std::variant<std::shared_ptr<CoreTypes>...>> CoreTypesWrapperPtr;
 
 public:
-#ifdef __POSITION_AWARE_ITEMS__
-	bool dirty;
-#endif __POSITION_AWARE_ITEMS__
 	CoreTypesWrapperPtr data;
 	mutable std::shared_mutex mutex;
 
 public:
 	LRUCacheObject(CoreTypesWrapperPtr ptrObject)
 	{
-#ifdef __POSITION_AWARE_ITEMS__
-		dirty = true;
-#endif __POSITION_AWARE_ITEMS__
 		data = ptrObject;
 	}
 
 	LRUCacheObject(std::fstream& is)
 	{
-#ifdef __POSITION_AWARE_ITEMS__
-		dirty = true;
-#endif __POSITION_AWARE_ITEMS__
 		CoreTypesMarshaller::template deserialize<CoreTypesWrapper, CoreTypes...>(is, data);
 	}
 
 	LRUCacheObject(const char* szBuffer)
 	{
-#ifdef __POSITION_AWARE_ITEMS__
-		dirty = true;
-#endif __POSITION_AWARE_ITEMS__
 		CoreTypesMarshaller::template deserialize<CoreTypesWrapper, CoreTypes...>(szBuffer, data);
 	}
 

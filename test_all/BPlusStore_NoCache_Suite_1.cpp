@@ -16,7 +16,7 @@
 #include "NoCacheObject.hpp"
 #include "TypeUID.h"
 
-#ifndef __POSITION_AWARE_ITEMS__
+#ifndef __TREE_AWARE_CACHE__
 namespace BPlusStore_NoCache_Suite
 {
     class BPlusStore_NoCache_Suite_1 : public ::testing::TestWithParam<std::tuple<int, int, int>>
@@ -293,4 +293,4 @@ namespace BPlusStore_NoCache_Suite
             std::make_tuple(32, 0, 199999),
             std::make_tuple(64, 0, 199999)));   
 }
-#endif __POSITION_AWARE_ITEMS__
+#endif __TREE_AWARE_CACHE__

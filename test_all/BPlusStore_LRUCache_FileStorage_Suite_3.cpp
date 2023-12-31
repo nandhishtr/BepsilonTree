@@ -20,7 +20,7 @@
 #include "TypeUID.h"
 #include "ObjectFatUID.h"
 
-#ifdef __POSITION_AWARE_ITEMS__
+#ifdef __TREE_AWARE_CACHE__
 namespace BPlusStore_LRUCache_FileStorage_Suite
 {
     typedef int KeyType;
@@ -356,4 +356,4 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
             std::make_tuple(64, 10, 199999, 100, 1024, 1024, "")));
 #endif __CONCURRENT__
 }
-#endif __POSITION_AWARE_ITEMS__
+#endif __TREE_AWARE_CACHE__

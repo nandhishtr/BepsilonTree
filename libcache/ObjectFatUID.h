@@ -10,6 +10,7 @@ public:
 	{
 		None = 0,
 		Volatile,
+		DRAM,
 		PMem,
 		File
 	};
@@ -46,6 +47,15 @@ public:
 	{
 		ObjectFatUID key;
 		key.m_uid.m_nMediaType = Volatile;
+		key.m_uid.FATPOINTER.m_ptrVolatile = ptr;
+
+		return key;
+	}
+
+	static ObjectFatUID createAddressFromDRAMCacheCounter(uintptr_t ptr)
+	{
+		ObjectFatUID key;
+		key.m_uid.m_nMediaType = DRAM;
 		key.m_uid.FATPOINTER.m_ptrVolatile = ptr;
 
 		return key;
@@ -99,6 +109,10 @@ public:
 			szData.append("V:");
 			szData.append(std::to_string(m_uid.FATPOINTER.m_ptrVolatile));
 			break;
+		case DRAM:
+			szData.append("D:");
+			szData.append(std::to_string(m_uid.FATPOINTER.m_ptrVolatile));
+			break;
 		case PMem:
 			szData.append("P:");
 			break;
@@ -124,6 +138,9 @@ namespace std {
 			switch (rhs.m_uid.m_nMediaType)
 			{
 			case ObjectFatUID::Media::Volatile:
+				hashValue ^= std::hash<uintptr_t>()(rhs.m_uid.FATPOINTER.m_ptrVolatile);
+				break;
+			case ObjectFatUID::Media::DRAM:
 				hashValue ^= std::hash<uintptr_t>()(rhs.m_uid.FATPOINTER.m_ptrVolatile);
 				break;
 			case ObjectFatUID::Media::File:

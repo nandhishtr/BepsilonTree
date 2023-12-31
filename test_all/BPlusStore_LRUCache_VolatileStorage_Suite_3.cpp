@@ -19,7 +19,7 @@
 #include "TypeUID.h"
 #include "ObjectUID.h"
 
-#ifndef __POSITION_AWARE_ITEMS__
+#ifndef __TREE_AWARE_CACHE__
 namespace BPlusStore_LRUCache_VolatileStorage_Suite
 {
     typedef int KeyType;
@@ -353,4 +353,4 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
             std::make_tuple(64, 2, 199999, 1000, 10000000)));
 #endif __CONCURRENT__
 }
-#endif __POSITION_AWARE_ITEMS__
+#endif __TREE_AWARE_CACHE__

@@ -16,7 +16,7 @@
 #include "NoCacheObject.hpp"
 #include "TypeUID.h"
 
-#ifndef __POSITION_AWARE_ITEMS__
+#ifndef __TREE_AWARE_CACHE__
 namespace BPlusStore_NoCache_Suite
 {
     typedef int KeyType;
@@ -346,4 +346,4 @@ namespace BPlusStore_NoCache_Suite
             std::make_tuple(64, 10, 199999)));
 #endif __CONCURRENT__
 }
-#endif __POSITION_AWARE_ITEMS__
+#endif __TREE_AWARE_CACHE__

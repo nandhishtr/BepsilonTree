@@ -11,8 +11,8 @@
 #include "ErrorCodes.h"
 #include "IFlushCallback.h"
 
-//#define __CONCURRENT__
-#define __POSITION_AWARE_ITEMS__
+#define __CONCURRENT__
+//#define __TREE_AWARE_CACHE__
 
 template<
 	typename ICallback,
@@ -130,11 +130,11 @@ public:
 		throw new std::exception("no implementation!");
 	}
 
-#ifdef __POSITION_AWARE_ITEMS__
+#ifdef __TREE_AWARE_CACHE__
 	CacheErrorCode addObject(const ObjectUIDType& uidObject, const std::shared_ptr<ObjectType> ptrObject, const std::optional<ObjectUIDType>& uidParent)
 #else
 	CacheErrorCode addObject(const ObjectUIDType& uidObject, const std::shared_ptr<ObjectType> ptrObject)
-#endif __POSITION_AWARE_ITEMS__
+#endif __TREE_AWARE_CACHE__
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_file_storage(m_mtxCache);
@@ -176,9 +176,9 @@ public:
 			m_vtAllocationTable[m_nNextBlock++] = true;
 		}
 
-#ifdef __POSITION_AWARE_ITEMS__
+#ifdef __TREE_AWARE_CACHE__
 		m_ptrCallback->updateChildUID(uidParent, uidObject, uidUpdated);
-#endif __POSITION_AWARE_ITEMS__
+#endif __TREE_AWARE_CACHE__
 
 #endif __CONCURRENT__
 

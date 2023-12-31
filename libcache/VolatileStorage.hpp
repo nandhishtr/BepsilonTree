@@ -4,25 +4,33 @@
 
 #include "ErrorCodes.h"
 
+//#define __CONCURRENT__
+
 template<
+	typename ICallback,
 	typename ObjectUIDType, 
-	template <typename, typename...> typename ObjectWrapperType, 
-	typename ObjectTypeMarshaller, 
-	typename... ObjectTypes>
+	template <typename, typename...> typename ObjectType, 
+	typename CoreTypesMarshaller, 
+	typename... ObjectCoreTypes>
 class VolatileStorage
 {
+	typedef VolatileStorage<ICallback, ObjectUIDType, ObjectType, CoreTypesMarshaller, ObjectCoreTypes...> SelfType;
+
 public:
 	typedef ObjectUIDType ObjectUIDType;
-	typedef ObjectWrapperType<ObjectTypeMarshaller, ObjectTypes...> ObjectType;
-	typedef std::tuple<ObjectTypes...> ObjectCoreTypes;
+	typedef ObjectType<CoreTypesMarshaller, ObjectCoreTypes...> ObjectType;
 
 private:
+	size_t m_nCounter;
+	mutable std::shared_mutex m_mtxStorage;
+
 	size_t m_nPoolSize;
 	std::unordered_map<ObjectUIDType, std::shared_ptr<ObjectType>> m_mpObject;
 
 public:
 	VolatileStorage(size_t nPoolSize)
-		: m_nPoolSize(nPoolSize)
+		: m_nCounter(0)
+		, m_nPoolSize(nPoolSize)
 	{
 	}
 
@@ -32,19 +40,29 @@ public:
 		return CacheErrorCode::Success;
 	}
 
-	std::shared_ptr<ObjectType> getObject(ObjectUIDType ptrKey)
+	std::shared_ptr<ObjectType> getObject(ObjectUIDType uidObject)
 	{
-		if (m_mpObject.find(ptrKey) != m_mpObject.end())
+#ifdef __CONCURRENT__
+		std::shared_lock<std::shared_mutex> lock_file_storage(m_mtxStorage);
+#endif __CONCURRENT__
+
+		std::shared_ptr<ObjectType> ptrObject = nullptr;
+		if (m_mpObject.find(uidObject) != m_mpObject.end())
 		{
-			return m_mpObject[ptrKey];
+			ptrObject = m_mpObject[uidObject];
+			m_mpObject.erase(uidObject);
 		}
 
-		return nullptr;
+		return ptrObject;
 	}
 
-	CacheErrorCode remove(ObjectUIDType ptrKey)
+	CacheErrorCode remove(ObjectUIDType uidObject)
 	{
-		auto it = m_mpObject.find(ptrKey);
+#ifdef __CONCURRENT__
+		std::unique_lock<std::shared_mutex> lock_file_storage(m_mtxStorage);
+#endif __CONCURRENT__
+
+		auto it = m_mpObject.find(uidObject);
 		if (it != m_mpObject.end())
 		{
 			m_mpObject.erase((*it).first);
@@ -54,14 +72,22 @@ public:
 		return CacheErrorCode::KeyDoesNotExist;
 	}
 
-	CacheErrorCode addObject(ObjectUIDType ptrKey, std::shared_ptr<ObjectType> ptrValue)
+	CacheErrorCode addObject(ObjectUIDType uidObject, std::shared_ptr<ObjectType> ptrValue, ObjectUIDType& uidUpdated)
 	{
+#ifdef __CONCURRENT__
+		std::unique_lock<std::shared_mutex> lock_file_storage(m_mtxStorage);
+#endif __CONCURRENT__
+
 		if (m_mpObject.size() >= m_nPoolSize)
 		{
 			return CacheErrorCode::Error;
 		}
 
-		m_mpObject[ptrKey] = ptrValue;
+		uidUpdated = ObjectUIDType::createAddressFromDRAMCacheCounter(m_nCounter);
+
+		m_nCounter++;
+
+		m_mpObject[uidUpdated] = ptrValue;
 
 		return CacheErrorCode::Success;
 	}

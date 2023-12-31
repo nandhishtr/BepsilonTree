@@ -20,7 +20,7 @@
 #include "ObjectFatUID.h"
 #include "IFlushCallback.h"
 
-#ifdef __POSITION_AWARE_ITEMS__
+#ifdef __TREE_AWARE_CACHE__
 namespace BPlusStore_LRUCache_FileStorage_Suite
 {
     class BPlusStore_LRUCache_FileStorage_Suite_1 : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, int, string>>
@@ -304,4 +304,4 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
             std::make_tuple(64, 0, 199999, 100, 2048, 1024* 1024 * 1024, "D:\\filestore.hdb")
         ));    
 }
-#endif __POSITION_AWARE_ITEMS__
+#endif __TREE_AWARE_CACHE__

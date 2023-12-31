@@ -20,7 +20,7 @@
 #include "TypeUID.h"
 #include "ObjectFatUID.h"
 
-#ifndef __POSITION_AWARE_ITEMS__
+#ifndef __TREE_AWARE_CACHE__
 namespace BPlusStore_LRUCache_FileStorage_Suite
 {
     class BPlusStore_LRUCache_FileStorage_Suite_2 : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, int, string>>
@@ -301,4 +301,4 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
             std::make_tuple(32, 0, 199999, 100, 1024, 1024, ""),
             std::make_tuple(64, 0, 199999, 100, 1024, 1024, "")));
 }
-#endif __POSITION_AWARE_ITEMS__
+#endif __TREE_AWARE_CACHE__

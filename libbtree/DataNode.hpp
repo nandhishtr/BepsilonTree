@@ -153,23 +153,13 @@ public:
 	}
 
 	template <typename Cache, typename CacheKeyType>
-#ifdef __POSITION_AWARE_ITEMS__
-	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& uidSibling, const std::optional<CacheKeyType>& uidParent, KeyType& pivotKeyForParent)
-#else
 	inline ErrorCode split(Cache ptrCache, std::optional<CacheKeyType>& uidSibling, KeyType& pivotKeyForParent)
-#endif __POSITION_AWARE_ITEMS__
 	{
 		size_t nMid = m_ptrData->m_vtKeys.size() / 2;
 
-#ifdef __POSITION_AWARE_ITEMS__
-		ptrCache->template createObjectOfType<SelfType>(uidSibling, uidParent,
-			m_ptrData->m_vtKeys.begin() + nMid, m_ptrData->m_vtKeys.end(),
-			m_ptrData->m_vtValues.begin() + nMid, m_ptrData->m_vtValues.end());
-#else
 		ptrCache->template createObjectOfType<SelfType>(uidSibling,
 			m_ptrData->m_vtKeys.begin() + nMid, m_ptrData->m_vtKeys.end(),
 			m_ptrData->m_vtValues.begin() + nMid, m_ptrData->m_vtValues.end());
-#endif __POSITION_AWARE_ITEMS__
 
 		if (!uidSibling)
 		{
@@ -229,6 +219,16 @@ public:
 	}
 
 public:
+	inline size_t getSize()
+	{
+		return
+			sizeof(uint8_t)
+			+ sizeof(size_t)
+			+ sizeof(size_t)
+			+ (m_ptrData->m_vtKeys.size() * sizeof(KeyType))
+			+ (m_ptrData->m_vtValues.size() * sizeof(ObjectUIDType::NodeUID));
+	}
+
 	inline void serialize(char*& szBuffer, uint8_t& uidObjectType, size_t& nBufferSize)
 	{
 		static_assert(
