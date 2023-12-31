@@ -19,7 +19,7 @@
 #include <iostream>
 #include <fstream>
 #include <assert.h>
-//#define __CONCURRENT__
+#define __CONCURRENT__
 #define __TREE_AWARE_CACHE__
 
 #ifdef __TREE_AWARE_CACHE__
@@ -691,6 +691,8 @@ public:
 
                         *it_children = *(mpUpdatedUIDs[*it_children].first);
                         mpUpdatedUIDs.erase(uidTemp);  // Update applied!
+
+                        (*it).second.second->dirty = true;
                     }
                     it_children++;
                 }
@@ -739,20 +741,24 @@ public:
                 std::shared_ptr<IndexNodeType> ptrObject = std::get<std::shared_ptr<IndexNodeType>>(*(*it).second.second->data);
                 size_t nSize = ptrObject->getSize();
 
-                ObjectUIDType uidUpdated = ObjectUIDType::createAddressFromDRAMCacheCounter(nOffset);
+                //ObjectUIDType uidUpdated = ObjectUIDType::createAddressFromDRAMCacheCounter(nOffset);
+                ObjectUIDType uidUpdated = ObjectUIDType::createAddressFromFileOffset(nOffset * nPointerSize, nSize);
                 (*it).second.first = uidUpdated;
 
-                nOffset += nPointerSize;
+                //nOffset += nPointerSize;
+                nOffset += std::ceil(nSize / (float)nPointerSize);
             }
             else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*(*it).second.second->data))
             {
                 std::shared_ptr<DataNodeType> ptrObject = std::get<std::shared_ptr<DataNodeType>>(*(*it).second.second->data);
                 size_t nSize = ptrObject->getSize();
 
-                ObjectUIDType uidUpdated = ObjectUIDType::createAddressFromDRAMCacheCounter(nOffset);
+                //ObjectUIDType uidUpdated = ObjectUIDType::createAddressFromDRAMCacheCounter(nOffset);
+                ObjectUIDType uidUpdated = ObjectUIDType::createAddressFromFileOffset(nOffset * nPointerSize, nSize);
                 (*it).second.first = uidUpdated;
 
-                nOffset += nPointerSize;
+                //nOffset += nPointerSize;
+                nOffset += std::ceil(nSize / (float)nPointerSize);
             }
             it++;
         }
@@ -762,6 +768,9 @@ public:
 
         for (int idx = 0; idx < vtObjects.size(); idx++)
         {
+            //if (!vtObjects[idx].second.second->dirty) //make solution better... ids are already generated in this case..
+            //    continue;
+
             if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*(vtObjects[idx].second.second->data)))
             {
                 std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*(vtObjects[idx].second.second->data));

@@ -4,7 +4,7 @@
 
 #include "ErrorCodes.h"
 
-//#define __CONCURRENT__
+#define __CONCURRENT__
 
 template<
 	typename ICallback,

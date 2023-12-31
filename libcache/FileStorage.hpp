@@ -11,7 +11,7 @@
 #include "ErrorCodes.h"
 #include "IFlushCallback.h"
 
-//#define __CONCURRENT__
+#define __CONCURRENT__
 
 template<
 	typename ICallback,
@@ -54,7 +54,7 @@ public:
 	{
 #ifdef __CONCURRENT__
 		m_bStopFlush = true;
-		m_threadBatchFlush.join();
+		//m_threadBatchFlush.join();
 
 		m_mpObjects.clear();
 #endif __CONCURRENT__

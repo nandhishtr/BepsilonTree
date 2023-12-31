@@ -15,7 +15,7 @@
 #include "IFlushCallback.h"
 #include "VariadicNthType.h"
 
-//#define __CONCURRENT__
+#define __CONCURRENT__
 #define __TREE_AWARE_CACHE__
 
 template <typename ICallback, typename StorageType>
