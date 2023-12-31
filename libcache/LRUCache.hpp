@@ -15,7 +15,7 @@
 #include "IFlushCallback.h"
 #include "VariadicNthType.h"
 
-//#define __CONCURRENT__
+#define __CONCURRENT__
 #define __TREE_AWARE_CACHE__
 
 template <typename ICallback, typename StorageType>
@@ -69,6 +69,9 @@ private:
 	bool m_bStop;
 
 	std::thread m_threadCacheFlush;
+
+	std::condition_variable_any cv;
+
 
 	mutable std::shared_mutex m_mtxCache;
 	mutable std::shared_mutex m_mtxStorage;
@@ -146,13 +149,18 @@ public:
 		}
 
 #ifdef __CONCURRENT__
-		std::shared_lock<std::shared_mutex> lock_storage(m_mtxStorage); // TODO: requesting the same key?
+		std::unique_lock<std::shared_mutex> lock_storage(m_mtxStorage); // TODO: requesting the same key?
 		lock_cache.unlock();
 #endif __CONCURRENT__
 
 		ObjectUIDType _uidUpdated = uidObject;
 		if (m_mpUpdatedUIDs.find(uidObject) != m_mpUpdatedUIDs.end())
 		{
+			std::optional< ObjectUIDType >& _condition = m_mpUpdatedUIDs[uidObject].first;
+			cv.wait(lock_storage, [&_condition] { return _condition != std::nullopt; });
+
+			//cv.wait(lock_storage, [] { return m_mpUpdatedUIDs[uidObject].first != std::nullopt; });
+
 			uidUpdated = m_mpUpdatedUIDs[uidObject].first;
 
 			assert(uidUpdated != std::nullopt);
@@ -161,11 +169,12 @@ public:
 			_uidUpdated = *uidUpdated;
 		}
 
-		std::shared_ptr<ObjectType> _ptrObject = m_ptrStorage->getObject(_uidUpdated);
-
 #ifdef __CONCURRENT__
 		lock_storage.unlock();
 #endif __CONCURRENT__
+
+		std::shared_ptr<ObjectType> _ptrObject = m_ptrStorage->getObject(_uidUpdated);
+
 
 		if (_ptrObject != nullptr)
 		{
@@ -265,13 +274,17 @@ public:
 		}
 
 #ifdef __CONCURRENT__
-		std::shared_lock<std::shared_mutex> lock_storage(m_mtxStorage);
+		std::unique_lock<std::shared_mutex> lock_storage(m_mtxStorage);
 		lock_cache.unlock();
 #endif __CONCURRENT__
 
 		ObjectUIDType _uidUpdated = key;
 		if (m_mpUpdatedUIDs.find(key) != m_mpUpdatedUIDs.end())
 		{
+
+			std::optional< ObjectUIDType >& _condition = m_mpUpdatedUIDs[key].first;
+			cv.wait(lock_storage, [&_condition] { return _condition != std::nullopt; });
+
 			uidUpdated = m_mpUpdatedUIDs[key].first;
 
 			assert(uidUpdated != std::nullopt);
@@ -280,11 +293,11 @@ public:
 			_uidUpdated = *uidUpdated;
 		}
 
-		std::shared_ptr<ObjectType> ptrValue = m_ptrStorage->getObject(_uidUpdated);
-
 #ifdef __CONCURRENT__
 		lock_storage.unlock();
 #endif __CONCURRENT__
+
+		std::shared_ptr<ObjectType> ptrValue = m_ptrStorage->getObject(_uidUpdated);
 
 		if (ptrValue != nullptr)
 		{
@@ -585,7 +598,7 @@ private:
 	{
 #ifdef __CONCURRENT__
 
-		std::vector<std::pair<ObjectUIDType, ObjectTypePtr>> vtItems;
+		std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>> vtItems;
 
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache);
 
@@ -611,7 +624,10 @@ private:
 
 			std::shared_ptr<Item> ptrTemp = m_ptrTail;
 
-			vtItems.push_back(std::pair<ObjectUIDType, ObjectTypePtr>(ptrTemp->m_uidSelf, ptrTemp->m_ptrObject));
+			if (ptrTemp->m_ptrObject->dirty)
+			{
+				vtItems.push_back(std::make_pair(ptrTemp->m_uidSelf, std::make_pair(std::nullopt, ptrTemp->m_ptrObject)));
+			}
 
 			m_mpObjects.erase(ptrTemp->m_uidSelf);
 
@@ -634,12 +650,63 @@ private:
 
 		lock_cache.unlock();
 
-
-		//m_ptrCallback->applyExistingUpdates(vtItems, m_mpDepartureQueue);
-
-
-
+		if (m_mpUpdatedUIDs.size() > 0)
+		{
+			m_ptrCallback->applyExistingUpdates(vtItems, m_mpUpdatedUIDs);
+		}
+		
 		auto it = vtItems.begin();
+		int _i = 0;
+		while (it != vtItems.end())
+		{
+			_i++;
+			if ((*it).second.second.use_count() != 1)
+			{
+				throw new std::exception("should not occur!");
+			}
+
+			if (m_mpUpdatedUIDs.find((*it).first) != m_mpUpdatedUIDs.end())
+			{
+				throw new std::exception("should not occur!");
+			}
+			else
+			{
+				m_mpUpdatedUIDs[(*it).first] = std::make_pair(std::nullopt, (*it).second.second);
+			}
+
+			it++;
+		}
+
+		
+		size_t nOffset = m_ptrStorage->getWritePos();
+
+		lock_storage.unlock();
+
+		size_t nNewOffset = nOffset;
+		
+		m_ptrCallback->prepareFlush(vtItems, nNewOffset, m_ptrStorage->getBlockSize());
+		
+		m_ptrStorage->addObjects(vtItems, nNewOffset);
+
+		it = vtItems.begin();
+		while (it != vtItems.end())
+		{
+			if (m_mpUpdatedUIDs.find((*it).first) != m_mpUpdatedUIDs.end())
+			{
+				m_mpUpdatedUIDs[(*it).first] = std::make_pair((*it).second.first, (*it).second.second);
+			}
+			else
+			{
+				throw new std::exception("should not occur!");
+			}
+
+			it++;
+		}
+
+
+		cv.notify_all();
+
+		/*auto it = vtItems.begin();
 		while (it != vtItems.end())
 		{
 			m_ptrStorage->addObject((*it).first, (*it).second);
@@ -652,7 +719,7 @@ private:
 			it++;
 		}
 
-		vtItems.clear();
+		vtItems.clear();*/
 #else
 		while (m_mpObjects.size() > m_nCacheCapacity)
 		{
@@ -662,18 +729,25 @@ private:
 				break;
 			}
 
-			ObjectUIDType uidUpdated;
-			if (m_ptrStorage->addObject(m_ptrTail->m_uidSelf, m_ptrTail->m_ptrObject, uidUpdated) != CacheErrorCode::Success)
+			if (m_ptrTail->m_ptrObject->dirty)
 			{
-				throw new std::exception("should not occur!");
-			}
+				ObjectUIDType uidUpdated;
+				if (m_ptrStorage->addObject(m_ptrTail->m_uidSelf, m_ptrTail->m_ptrObject, uidUpdated) != CacheErrorCode::Success)
+				{
+					throw new std::exception("should not occur!");
+				}
 
-			if (m_mpUpdatedUIDs.find(m_ptrTail->m_uidSelf) != m_mpUpdatedUIDs.end())
+				if (m_mpUpdatedUIDs.find(m_ptrTail->m_uidSelf) != m_mpUpdatedUIDs.end())
+				{
+					throw new std::exception("should not occur!");
+				}
+
+				m_mpUpdatedUIDs[m_ptrTail->m_uidSelf] = std::make_pair(uidUpdated, m_ptrTail->m_ptrObject);
+			}
+			else
 			{
-				throw new std::exception("should not occur!");
+				int i = 0;
 			}
-
-			m_mpUpdatedUIDs[m_ptrTail->m_uidSelf] = std::make_pair(uidUpdated, m_ptrTail->m_ptrObject);
 
 			m_mpObjects.erase(m_ptrTail->m_uidSelf);
 
@@ -718,8 +792,14 @@ public:
 		return CacheErrorCode::Success;
 	}
 
-	void applyExistingUpdates(std::vector<std::pair<ObjectUIDType, std::pair<ObjectUIDType, std::shared_ptr<ObjectType>>>>& vtNodes
-		, std::unordered_map<ObjectUIDType, std::optional<ObjectUIDType>>& mpUpdatedUIDs)
+	void applyExistingUpdates(std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>>& vtNodes
+		, std::unordered_map<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>& mpUpdatedUIDs)
+	{
+
+	}
+
+	void prepareFlush(std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>>& vtObjects
+		, size_t& nOffset, size_t nPointerSize)
 	{
 
 	}

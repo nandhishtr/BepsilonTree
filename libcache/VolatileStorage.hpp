@@ -4,7 +4,7 @@
 
 #include "ErrorCodes.h"
 
-//#define __CONCURRENT__
+#define __CONCURRENT__
 
 template<
 	typename ICallback,
@@ -50,7 +50,7 @@ public:
 		if (m_mpObject.find(uidObject) != m_mpObject.end())
 		{
 			ptrObject = m_mpObject[uidObject];
-			m_mpObject.erase(uidObject);
+			//m_mpObject.erase(uidObject);
 
 			ptrObject->dirty = false;
 		}
@@ -90,6 +90,42 @@ public:
 		m_nCounter++;
 
 		m_mpObject[uidUpdated] = ptrValue;
+
+		return CacheErrorCode::Success;
+	}
+
+	inline size_t getWritePos()
+	{
+		return m_nCounter;
+	}
+
+	inline size_t getBlockSize()
+	{
+		return 1;
+	}
+
+	CacheErrorCode addObjects(std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>>& vtObjects, size_t nNewOffset)
+	{
+#ifdef __CONCURRENT__
+		std::unique_lock<std::shared_mutex> lock_file_storage(m_mtxStorage);
+#endif __CONCURRENT__
+
+		m_nCounter = nNewOffset;
+
+		auto it = vtObjects.begin();
+		while (it != vtObjects.end())
+		{
+			
+			if (m_mpObject.find(*(*it).second.first) != m_mpObject.end())
+			{
+				throw new std::exception("should not occur!");
+			}
+
+			m_mpObject[*(*it).second.first] = (*it).second.second;
+
+
+			it++;
+		}
 
 		return CacheErrorCode::Success;
 	}
