@@ -52,6 +52,20 @@ public:
 	{	
 	}
 
+	IndexNode(const IndexNode& source)
+		: m_ptrData(make_shared<INDEXNODESTRUCT>())
+	{
+		for (const auto& obj : source.m_ptrData->m_vtPivots)
+		{
+			m_ptrData->m_vtPivots.push_back(KeyType(obj));
+		}
+
+		for (const auto& obj : source.m_ptrData->m_vtChildren)
+		{
+			m_ptrData->m_vtChildren.push_back(ObjectUIDType(obj));
+		}
+	}
+
 	IndexNode(const char* szData)
 		: m_ptrData(make_shared<INDEXNODESTRUCT>())
 	{

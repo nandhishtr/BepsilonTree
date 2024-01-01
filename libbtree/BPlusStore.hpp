@@ -19,6 +19,7 @@
 #include <iostream>
 #include <fstream>
 #include <assert.h>
+
 #define __CONCURRENT__
 #define __TREE_AWARE_CACHE__
 
@@ -662,18 +663,37 @@ public:
 
 #ifdef __TREE_AWARE_CACHE__
 public:
-    CacheErrorCode updateChildUID(const std::optional<ObjectUIDType>& uidObject, const ObjectUIDType& uidChildOld, const ObjectUIDType& uidChildNew)
+    void applyExistingUpdates(std::shared_ptr<ObjectType> ptrObject
+        , std::unordered_map<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>& mpUIDUpdates)
     {
-        return CacheErrorCode::Success;
-    }
+        if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrObject->data))
+        {
+            std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrObject->data);
 
-    CacheErrorCode updateChildUID(std::vector<std::pair<ObjectUIDType, std::pair<ObjectUIDType, ObjectUIDType>>> vtUpdatedUIDs)
-    {
-        throw new std::exception("no implementation!");
+            auto it = ptrIndexNode->m_ptrData->m_vtChildren.begin();
+            while (it != ptrIndexNode->m_ptrData->m_vtChildren.end())
+            {
+                if (mpUIDUpdates.find(*it) != mpUIDUpdates.end())
+                {
+                    ObjectUIDType uidTemp = *it;
+
+                    *it = *(mpUIDUpdates[*it].first);
+
+                    mpUIDUpdates.erase(uidTemp);
+
+                    ptrObject->dirty = true;
+                }
+                it++;
+            }
+        }
+        else //if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrObject->data))
+        {
+            // Nothing to update in this case!
+        }
     }
 
     void applyExistingUpdates(std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>>& vtNodes
-        , std::unordered_map<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>& mpUpdatedUIDs)
+        , std::unordered_map<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>& mpUIDUpdates)
     {
         auto it = vtNodes.begin();
         while (it != vtNodes.end())
@@ -685,12 +705,13 @@ public:
                 auto it_children = ptrIndexNode->m_ptrData->m_vtChildren.begin();
                 while (it_children != ptrIndexNode->m_ptrData->m_vtChildren.end())
                 {
-                    if (mpUpdatedUIDs.find(*it_children) != mpUpdatedUIDs.end())
+                    if (mpUIDUpdates.find(*it_children) != mpUIDUpdates.end())
                     {
                         ObjectUIDType uidTemp = *it_children;
 
-                        *it_children = *(mpUpdatedUIDs[*it_children].first);
-                        mpUpdatedUIDs.erase(uidTemp);  // Update applied!
+                        *it_children = *(mpUIDUpdates[*it_children].first);
+
+                        mpUIDUpdates.erase(uidTemp);
 
                         (*it).second.second->dirty = true;
                     }
@@ -699,103 +720,75 @@ public:
             }
             else //if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*(*it).second.second->data))
             {
-                //throw new std::exception("should not occur!");   // TODO: critical log.
+                // Nothing to update in this case!
             }
             it++;
         }
     }
 
-    void applyExistingUpdates(std::shared_ptr<ObjectType> ptrObject
-        , std::unordered_map<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>& mpUpdatedUIDs)
+    void prepareFlush(std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>>& vtNodes
+        , size_t& nPos, size_t nBlockSize, ObjectUIDType::Media nMediaType)
     {
-        if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrObject->data))
+        std::vector<bool> vtAppliedUpdates;
+        vtAppliedUpdates.resize(vtNodes.size(), false);
+
+        for (int idx = 0; idx < vtNodes.size(); idx++)
         {
-            std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrObject->data);
-
-            auto it_children = ptrIndexNode->m_ptrData->m_vtChildren.begin();
-            while (it_children != ptrIndexNode->m_ptrData->m_vtChildren.end())
+            if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*vtNodes[idx].second.second->data))
             {
-                if (mpUpdatedUIDs.find(*it_children) != mpUpdatedUIDs.end())
-                {
-                    ObjectUIDType uidTemp = *it_children;
-                    *it_children = *(mpUpdatedUIDs[*it_children].first);
-                    mpUpdatedUIDs.erase(uidTemp);  // Update applied!
-                }
-                it_children++;
-            }
-        }
-        else //if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*(*it).second.second->data))
-        {
-            //throw new std::exception("should not occur!");   // TODO: critical log.
-        }
-    }
+                std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*vtNodes[idx].second.second->data);
 
-    void prepareFlush(std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>>& vtObjects
-        , size_t& nOffset, size_t nPointerSize)
-    {
-        auto it = vtObjects.begin();
-        while (it != vtObjects.end())
-        {
-            if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*(*it).second.second->data))
-            {
-                std::shared_ptr<IndexNodeType> ptrObject = std::get<std::shared_ptr<IndexNodeType>>(*(*it).second.second->data);
-                size_t nSize = ptrObject->getSize();
-
-                //ObjectUIDType uidUpdated = ObjectUIDType::createAddressFromDRAMCacheCounter(nOffset);
-                ObjectUIDType uidUpdated = ObjectUIDType::createAddressFromFileOffset(nOffset * nPointerSize, nSize);
-                (*it).second.first = uidUpdated;
-
-                //nOffset += nPointerSize;
-                nOffset += std::ceil(nSize / (float)nPointerSize);
-            }
-            else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*(*it).second.second->data))
-            {
-                std::shared_ptr<DataNodeType> ptrObject = std::get<std::shared_ptr<DataNodeType>>(*(*it).second.second->data);
-                size_t nSize = ptrObject->getSize();
-
-                //ObjectUIDType uidUpdated = ObjectUIDType::createAddressFromDRAMCacheCounter(nOffset);
-                ObjectUIDType uidUpdated = ObjectUIDType::createAddressFromFileOffset(nOffset * nPointerSize, nSize);
-                (*it).second.first = uidUpdated;
-
-                //nOffset += nPointerSize;
-                nOffset += std::ceil(nSize / (float)nPointerSize);
-            }
-            it++;
-        }
-        
-        std::vector<bool> vtApplied;
-        vtApplied.resize(vtObjects.size(), false);
-
-        for (int idx = 0; idx < vtObjects.size(); idx++)
-        {
-            //if (!vtObjects[idx].second.second->dirty) //make solution better... ids are already generated in this case..
-            //    continue;
-
-            if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*(vtObjects[idx].second.second->data)))
-            {
-                std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*(vtObjects[idx].second.second->data));
-                
                 auto it = ptrIndexNode->m_ptrData->m_vtChildren.begin();
                 while (it != ptrIndexNode->m_ptrData->m_vtChildren.end())
                 {
-                    for (int jdx = 0; jdx < vtObjects.size(); jdx++)
+                    for (int jdx = 0; jdx < idx; jdx++)
                     {
-                        if (idx == jdx || vtApplied[jdx])
+                        if (vtAppliedUpdates[jdx])
                             continue;
 
-                        if (*it == vtObjects[jdx].first)
+                        if (*it == vtNodes[jdx].first)
                         {
-                            *it = *vtObjects[jdx].second.first;
-                            vtApplied[jdx] = true;
+                            *it = *vtNodes[jdx].second.first;
+                            vtNodes[idx].second.second->dirty = true;
+
+                            vtAppliedUpdates[jdx] = true;
                             break;
                         }
                     }
                     it++;
-                }               
+                }
+
+                if (!vtNodes[idx].second.second->dirty)
+                {
+                    vtNodes.erase(vtNodes.begin() + idx); idx--;
+                    continue;
+                }
+
+                size_t nNodeSize = ptrIndexNode->getSize();
+
+                ObjectUIDType uidUpdated = ObjectUIDType::createAddressFromArgs(nMediaType, nPos, nBlockSize, nNodeSize);
+
+                vtNodes[idx].second.first = uidUpdated;
+
+                nPos += std::ceil(nNodeSize / (float)nBlockSize);
             }
-            else //if (std::holds_alternative<std::shared_ptr<DataNodeType>>(vtItems[jdx].second.second))
+            else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*vtNodes[idx].second.second->data))
             {
-                continue;
+                if (!vtNodes[idx].second.second->dirty)
+                {
+                    vtNodes.erase(vtNodes.begin() + idx); idx--;
+                    continue;
+                }
+
+                std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*vtNodes[idx].second.second->data);
+
+                size_t nNodeSize = ptrDataNode->getSize();
+
+                ObjectUIDType uidUpdated = ObjectUIDType::createAddressFromArgs(nMediaType, nPos, nBlockSize, nNodeSize);
+
+                vtNodes[idx].second.first = uidUpdated;
+
+                nPos += std::ceil(nNodeSize / (float)nBlockSize);
             }
         }
     }

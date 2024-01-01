@@ -559,7 +559,7 @@ void test_for_threaded()
             BPlusStoreType ptrTree(idx, 1000, 1024, 1024 * 1024 * 1024, "D:\\filestore.hdb");
             ptrTree.template init<DataNodeType>();
 
-            //threaded_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 3 * 10000, 10);
+            threaded_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 3 * 10000, 10);
 #endif __TREE_AWARE_CACHE__
         }
     }
@@ -570,7 +570,7 @@ int main(int argc, char* argv[])
 {
     test_for_ints();
     //test_for_string();
-    //test_for_threaded();
+    test_for_threaded();
 
     typedef int KeyType;
     typedef int ValueType;

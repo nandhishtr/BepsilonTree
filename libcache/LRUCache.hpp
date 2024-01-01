@@ -18,6 +18,8 @@
 #define __CONCURRENT__
 #define __TREE_AWARE_CACHE__
 
+#define FLUSH_COUNT 100
+
 template <typename ICallback, typename StorageType>
 class LRUCache : public ICallback
 {
@@ -71,7 +73,6 @@ private:
 	std::thread m_threadCacheFlush;
 
 	std::condition_variable_any cv;
-
 
 	mutable std::shared_mutex m_mtxCache;
 	mutable std::shared_mutex m_mtxStorage;
@@ -373,11 +374,11 @@ public:
 	template<class Type, typename... ArgsType>
 	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, const ArgsType... args)
 	{
-		std::shared_ptr<ObjectType> ptrValue = ObjectType::template createObjectOfType<Type>(args...);
+		std::shared_ptr<ObjectType> ptrObject = std::make_shared<ObjectType>(std::make_shared<Type>(args...));
 
-		uidObject = ObjectUIDType::createAddressFromVolatilePointer(reinterpret_cast<uintptr_t>(ptrValue.get()));
+		uidObject = ObjectUIDType::createAddressFromVolatilePointer(reinterpret_cast<uintptr_t>(ptrObject.get()));
 
-		std::shared_ptr<Item> ptrItem = std::make_shared<Item>(*uidObject, ptrValue);
+		std::shared_ptr<Item> ptrItem = std::make_shared<Item>(*uidObject, ptrObject);
 
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache);
@@ -386,7 +387,7 @@ public:
 		if (m_mpObjects.find(*uidObject) != m_mpObjects.end())
 		{
 			std::shared_ptr<Item> ptrItem = m_mpObjects[*uidObject];
-			ptrItem->m_ptrObject = ptrValue;
+			ptrItem->m_ptrObject = ptrObject;
 			moveToFront(ptrItem);
 		}
 		else
@@ -417,7 +418,9 @@ public:
 	template<class Type, typename... ArgsType>
 	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, std::shared_ptr<Type>& ptrCoreObject, const ArgsType... args)
 	{
-		std::shared_ptr<ObjectType> ptrObject = ObjectType::template createObjectOfType<Type>(ptrCoreObject, args...);
+		std::shared_ptr<ObjectType> ptrObject = std::make_shared<ObjectType>(std::make_shared<Type>(args...));
+
+		ptrCoreObject = ptrObject->data;
 
 		uidObject = ObjectUIDType::createAddressFromVolatilePointer(reinterpret_cast<uintptr_t>(ptrObject.get()));
 
@@ -596,24 +599,10 @@ private:
 		}
 	}
 
-	int getLRUListCount()
-	{
-		int cnt = 0;
-		std::shared_ptr<Item> _ptrItem = m_ptrHead;
-		do
-		{
-			cnt++;
-			_ptrItem = _ptrItem->m_ptrNext;
-
-		} while (_ptrItem != nullptr);
-		return cnt;
-	}
-
 	inline void flushItemsToStorage()
 	{
 #ifdef __CONCURRENT__
-
-		std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>> vtItems;
+		std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>> vtObjects;
 
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache);
 
@@ -622,38 +611,45 @@ private:
 
 		size_t nFlushCount = m_mpObjects.size() - m_nCacheCapacity;
 
-		if (nFlushCount > 100)
-			nFlushCount = 100;
+		if (nFlushCount > FLUSH_COUNT)
+			nFlushCount = FLUSH_COUNT;
 
 		for (size_t idx = 0; idx < nFlushCount; idx++)
 		{
 			if (m_ptrTail->m_ptrObject.use_count() > 1)
 			{
-				// in use.. TODO: proceed with the next one.
-				break;
+				/* Info: 
+				 * Should proceed with the preceeding one?
+				 * But since each operation reorders the items at the end, therefore, the prceeding items would be in use as well!
+				 */
+				break; 
 			}
 
+			// Check if the object is in use
 			if (!m_ptrTail->m_ptrObject->mutex.try_lock())
 			{
-				// in use.. TODO: proceed with the next one.
+				/* Info:
+				 * Should proceed with the preceeding one?
+				 * But since each operation reorders the items at the end, therefore, the prceeding items would be in use as well!
+				 */
 				break;
 			}
-			m_ptrTail->m_ptrObject->mutex.unlock();
-
-
-			std::shared_ptr<Item> ptrTemp = m_ptrTail;
-
-			//TODO fix this!!!!**** if (ptrTemp->m_ptrObject->dirty) // this should not be check here.. as node can be affect by the other nodes in the list
+			else
 			{
-				vtItems.push_back(std::make_pair(ptrTemp->m_uidSelf, std::make_pair(std::nullopt, ptrTemp->m_ptrObject)));
+				m_ptrTail->m_ptrObject->mutex.unlock();
 			}
 
-			m_mpObjects.erase(ptrTemp->m_uidSelf);
 
-			m_ptrTail = ptrTemp->m_ptrPrev;
+			std::shared_ptr<Item> ptrItemToFlush = m_ptrTail;
 
-			ptrTemp->m_ptrPrev = nullptr;
-			ptrTemp->m_ptrNext = nullptr;
+			vtObjects.push_back(std::make_pair(ptrItemToFlush->m_uidSelf, std::make_pair(std::nullopt, ptrItemToFlush->m_ptrObject)));
+
+			m_mpObjects.erase(ptrItemToFlush->m_uidSelf);
+
+			m_ptrTail = ptrItemToFlush->m_ptrPrev;
+
+			ptrItemToFlush->m_ptrPrev = nullptr;
+			ptrItemToFlush->m_ptrNext = nullptr;
 
 			if (m_ptrTail)
 			{
@@ -671,14 +667,17 @@ private:
 
 		if (m_mpUpdatedUIDs.size() > 0)
 		{
-			m_ptrCallback->applyExistingUpdates(vtItems, m_mpUpdatedUIDs);
+			m_ptrCallback->applyExistingUpdates(vtObjects, m_mpUpdatedUIDs);
 		}
-		
-		auto it = vtItems.begin();
-		int _i = 0;
-		while (it != vtItems.end())
+
+		// Important: Ensure that no other thread should write to the stroage as the nPos is use to generate the addresses.
+		size_t nPos = m_ptrStorage->getWritePos();
+
+		m_ptrCallback->prepareFlush(vtObjects, nPos, m_ptrStorage->getBlockSize(), m_ptrStorage->getMediaType());
+
+		auto it = vtObjects.begin();
+		while (it != vtObjects.end())
 		{
-			_i++;
 			if ((*it).second.second.use_count() != 1)
 			{
 				throw new std::exception("should not occur!");
@@ -696,19 +695,12 @@ private:
 			it++;
 		}
 
-		
-		size_t nOffset = m_ptrStorage->getWritePos();
-
 		lock_storage.unlock();
-
-		size_t nNewOffset = nOffset;
 		
-		m_ptrCallback->prepareFlush(vtItems, nNewOffset, m_ptrStorage->getBlockSize());
-		
-		m_ptrStorage->addObjects(vtItems, nNewOffset);
+		m_ptrStorage->addObjects(vtObjects, nPos);
 
-		it = vtItems.begin();
-		while (it != vtItems.end())
+		it = vtObjects.begin();
+		while (it != vtObjects.end())
 		{
 			if (m_mpUpdatedUIDs.find((*it).first) != m_mpUpdatedUIDs.end())
 			{
@@ -722,29 +714,18 @@ private:
 			it++;
 		}
 
-
 		cv.notify_all();
 
-		/*auto it = vtItems.begin();
-		while (it != vtItems.end())
-		{
-			m_ptrStorage->addObject((*it).first, (*it).second);
-
-			if ((*it).second.use_count() != 2)
-			{
-				throw new std::exception("should not occur!");
-			}
-
-			it++;
-		}
-
-		vtItems.clear();*/
+		vtObjects.clear();
 #else
 		while (m_mpObjects.size() > m_nCacheCapacity)
 		{
 			if (m_ptrTail->m_ptrObject.use_count() > 1)
 			{
-				// in use.. TODO: proceed with the next one.
+				/* Info:
+				 * Should proceed with the preceeding one?
+				 * But since each operation reorders the items at the end, therefore, the prceeding items would be in use as well!
+				 */
 				break;
 			}
 
@@ -767,10 +748,6 @@ private:
 				}
 
 				m_mpUpdatedUIDs[m_ptrTail->m_uidSelf] = std::make_pair(uidUpdated, m_ptrTail->m_ptrObject);
-			}
-			else
-			{
-				int i = 0;
 			}
 
 			m_mpObjects.erase(m_ptrTail->m_uidSelf);
@@ -806,16 +783,6 @@ private:
 
 #ifdef __TREE_AWARE_CACHE__
 public:
-	CacheErrorCode updateChildUID(const std::optional<ObjectUIDType>& uidObject, const ObjectUIDType& uidChildOld, const ObjectUIDType& uidChildNew)
-	{
-		return CacheErrorCode::Success;
-	}
-
-	CacheErrorCode updateChildUID(std::vector<std::pair<ObjectUIDType, std::pair<ObjectUIDType, ObjectUIDType>>> vtUpdatedUIDs)
-	{
-		return CacheErrorCode::Success;
-	}
-
 	void applyExistingUpdates(std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>>& vtNodes
 		, std::unordered_map<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>& mpUpdatedUIDs)
 	{
@@ -829,7 +796,7 @@ public:
 	}
 
 	void prepareFlush(std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>>& vtObjects
-		, size_t& nOffset, size_t nPointerSize)
+		, size_t& nOffset, size_t nPointerSize, ObjectUIDType::Media nMediaType)
 	{
 
 	}

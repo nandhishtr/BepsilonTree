@@ -29,7 +29,7 @@ private:
 		std::vector<ValueType> m_vtValues;
 	};
 
-private:
+public:
 	std::shared_ptr<DATANODESTRUCT> m_ptrData;
 
 public:
@@ -42,6 +42,20 @@ public:
 	DataNode()
 		: m_ptrData(make_shared<DATANODESTRUCT>())
 	{
+	}
+
+	DataNode(const DataNode& source)
+		: m_ptrData(make_shared<DATANODESTRUCT>())
+	{
+		for (const auto& obj : source.m_ptrData->m_vtKeys)
+		{
+			m_ptrData->m_vtKeys.push_back(KeyType(obj));
+		}
+
+		for (const auto& obj : source.m_ptrData->m_vtValues)
+		{
+			m_ptrData->m_vtValues.push_back(ValueType(obj));
+		}
 	}
 
 	DataNode(const char* szData)

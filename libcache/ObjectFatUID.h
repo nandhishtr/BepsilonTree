@@ -33,17 +33,38 @@ public:
 
 	NodeUID m_uid;
 
-	static ObjectFatUID createAddressFromFileOffset(uint32_t nPos, uint32_t nSize)
+	template <typename... Args>
+	static ObjectFatUID createAddressFromArgs(Media nMediaType, Args... args)
+	{
+		switch (nMediaType)
+		{
+		case None:
+			break;
+		case Volatile:
+			return createAddressFromVolatilePointer(args...);
+			break;
+		case DRAM:
+			return createAddressFromDRAMCacheCounter(args...);
+			break;
+		case PMem:
+			break;
+		case File:
+			return createAddressFromFileOffset(args...);
+			break;
+		}
+	}
+
+	static ObjectFatUID createAddressFromFileOffset(uint32_t nPos, uint32_t nBlockSize, uint32_t nSize)
 	{
 		ObjectFatUID key;
 		key.m_uid.m_nMediaType = File;
-		key.m_uid.FATPOINTER.m_ptrFile.m_nOffset = nPos;
+		key.m_uid.FATPOINTER.m_ptrFile.m_nOffset = nPos * nBlockSize;
 		key.m_uid.FATPOINTER.m_ptrFile.m_nSize= nSize;
 
 		return key;
 	}
 
-	static ObjectFatUID createAddressFromVolatilePointer(uintptr_t ptr)
+	static ObjectFatUID createAddressFromVolatilePointer(uintptr_t ptr, ...)
 	{
 		ObjectFatUID key;
 		key.m_uid.m_nMediaType = Volatile;
@@ -52,7 +73,7 @@ public:
 		return key;
 	}
 
-	static ObjectFatUID createAddressFromDRAMCacheCounter(uintptr_t ptr)
+	static ObjectFatUID createAddressFromDRAMCacheCounter(uintptr_t ptr, ...)
 	{
 		ObjectFatUID key;
 		key.m_uid.m_nMediaType = DRAM;

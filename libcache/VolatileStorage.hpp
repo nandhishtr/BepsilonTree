@@ -52,7 +52,6 @@ public:
 			ptrObject = m_mpObject[uidObject];
 			//m_mpObject.erase(uidObject);	// since it is volatile cache.. add each time.. if this is set then 'dirty' should be false.
 
-
 			ptrObject->dirty = false; //if this is set then dont erase the object! here.. technically object should be erased here...
 		}
 
@@ -90,7 +89,7 @@ public:
 
 		m_nCounter++;
 
-		m_mpObject[uidUpdated] = ptrValue;
+		m_mpObject[uidUpdated] = std::make_shared<ObjectType>(*ptrValue);
 
 		return CacheErrorCode::Success;
 	}
@@ -102,7 +101,12 @@ public:
 
 	inline size_t getBlockSize()
 	{
-		return 1;
+		return UINT32_MAX;
+	}
+
+	inline ObjectUIDType::Media getMediaType()
+	{
+		return ObjectUIDType::DRAM;
 	}
 
 	CacheErrorCode addObjects(std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>>& vtObjects, size_t nNewOffset)
@@ -122,8 +126,7 @@ public:
 				throw new std::exception("should not occur!");
 			}
 
-			m_mpObject[*(*it).second.first] = (*it).second.second;
-
+			m_mpObject[*(*it).second.first] = std::make_shared<ObjectType>(*(*it).second.second);
 
 			it++;
 		}

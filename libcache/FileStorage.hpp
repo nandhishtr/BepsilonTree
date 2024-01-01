@@ -44,6 +44,7 @@ private:
 	bool m_bStopFlush;
 	std::thread m_threadBatchFlush;
 
+	mutable std::shared_mutex m_mtxFile;
 	mutable std::shared_mutex m_mtxStorage;
 
 	std::unordered_map<ObjectUIDType, std::shared_ptr<ObjectType>> m_mpObjects;
@@ -96,7 +97,7 @@ public:
 		//memset(szBuffer, '\0', uidObject.m_uid.FATPOINTER.m_ptrFile.m_nSize + 1); //2
 
 #ifdef __CONCURRENT__
-		std::shared_lock<std::shared_mutex> lock_file_storage(m_mtxStorage);
+		std::unique_lock<std::shared_mutex> lock_file_storage(m_mtxStorage);
 #endif __CONCURRENT__
 
 		m_fsStorage.seekg(uidObject.m_uid.FATPOINTER.m_ptrFile.m_nOffset);
@@ -148,7 +149,7 @@ public:
 
 		//delete[] szBuffer; //2
 
-		uidUpdated = ObjectUIDType::createAddressFromFileOffset(m_nNextBlock * m_nBlockSize, nBufferSize + sizeof(uint8_t));
+		uidUpdated = ObjectUIDType::createAddressFromFileOffset(m_nNextBlock, m_nBlockSize, nBufferSize + sizeof(uint8_t));
 
 		for (int idx = 0; idx < nRequiredBlocks; idx++)
 		{
@@ -166,6 +167,11 @@ public:
 	inline size_t getBlockSize()
 	{
 		return m_nBlockSize;
+	}
+
+	inline ObjectUIDType::Media getMediaType()
+	{
+		return ObjectUIDType::File;
 	}
 
 	CacheErrorCode addObjects(std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>>& vtObjects, size_t nNewOffset)
