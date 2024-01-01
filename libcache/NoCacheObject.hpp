@@ -19,7 +19,6 @@ public:
 	typedef std::tuple<ValueCoreTypes...> ObjectCoreTypes;
 
 public:
-	bool dirty;
 	CacheValueTypePtr data;
 	mutable std::shared_mutex mutex;
 

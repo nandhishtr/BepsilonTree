@@ -569,7 +569,7 @@ void test_for_threaded()
 int main(int argc, char* argv[])
 {
     test_for_ints();
-    //test_for_string();
+    test_for_string();
     test_for_threaded();
 
     typedef int KeyType;
