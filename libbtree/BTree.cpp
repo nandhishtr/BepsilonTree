@@ -13,7 +13,7 @@
 ////    : m_nDegree(nDegree),
 //{
 //    m_ptrCache = std::make_shared<CacheType<CacheKeyType, CacheValueType>>(10000);
-//    m_cktRootNodeKey = m_ptrCache->createObjectOfType<LeafNode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>>(5);
+//    m_cktRootNodeKey = m_ptrCache->createObjectOfType<LeafNode<KeyType, ValueType, CacheType>>(5);
 //
 //    std::cout << "BTree::BTree()" << std::endl;
 //}
@@ -32,7 +32,7 @@
 //{
 //    std::cout << "BTree::insert(" << key << "," << value << ")" << std::endl;
 //
-//    INodePtr ptrRootNode = m_ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>>(*m_cktRootNodeKey);
+//    INodePtr ptrRootNode = m_ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType>>(*m_cktRootNodeKey);
 //    if (ptrRootNode == NULL)
 //        return ErrorCode::Error;
 //
@@ -44,7 +44,7 @@
 //    {
 //        if (ptrSibling)
 //        {
-//            m_cktRootNodeKey = m_ptrCache->createObjectOfType<InternalNode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>>(5, nPivot, *m_cktRootNodeKey, *ptrSibling);
+//            m_cktRootNodeKey = m_ptrCache->createObjectOfType<InternalNode<KeyType, ValueType, CacheType>>(5, nPivot, *m_cktRootNodeKey, *ptrSibling);
 //        }
 //    }
 //
@@ -64,7 +64,7 @@
 //template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
 //ErrorCode BTree<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>::search(const KeyType& key, ValueType& value)
 //{
-//    INodePtr ptrRootNode = m_ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>>(*m_cktRootNodeKey);
+//    INodePtr ptrRootNode = m_ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType>>(*m_cktRootNodeKey);
 //    if (ptrRootNode == NULL)
 //        return ErrorCode::Error;
 //
@@ -74,7 +74,7 @@
 //template <typename KeyType, typename ValueType, template <typename, typename> typename CacheType, typename CacheKeyType, typename CacheValueType>
 //void BTree<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>::print()
 //{
-//    INodePtr ptrRootNode = m_ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType, CacheKeyType, CacheValueType>>(*m_cktRootNodeKey);
+//    INodePtr ptrRootNode = m_ptrCache->getObjectOfType<INode<KeyType, ValueType, CacheType>>(*m_cktRootNodeKey);
 //    if (ptrRootNode == NULL)
 //        return;
 //

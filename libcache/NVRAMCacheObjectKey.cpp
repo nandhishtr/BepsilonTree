@@ -1,2 +1,2 @@
 #include "pch.h"
-#include "NVRAMCacheObjectKey.h"
+#include "NVRAMObjectUID.h"

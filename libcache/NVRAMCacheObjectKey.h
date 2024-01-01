@@ -1,19 +1,19 @@
 #pragma once
-#include "ICacheObjectKey.h"
+#include "IObjectUID.h"
 #include <cstdint>
 
-class NVRAMCacheObjectKey : public ICacheObjectKey
+class NVRAMObjectUID : public IObjectUID
 {
 public:
 	uintptr_t m_nPointerValue;
 
 public:
-	NVRAMCacheObjectKey()
+	NVRAMObjectUID()
 		: m_nPointerValue(NULL)
 	{
 	}
 
-	NVRAMCacheObjectKey(void* ptr)
+	NVRAMObjectUID(void* ptr)
 	{
 		m_nPointerValue = reinterpret_cast<uintptr_t>(ptr);
 	}

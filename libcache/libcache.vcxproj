@@ -112,6 +112,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -129,6 +130,7 @@
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -139,34 +141,33 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="DRAMCacheObject.h" />
-    <ClInclude Include="DRAMCacheObjectKey.h" />
-    <ClInclude Include="DRAMLRUCache.h" />
-    <ClInclude Include="ErrorCodes.h" />
+    <ClInclude Include="ObjectFatUID.h" />
+    <ClInclude Include="ObjectUID.h" />
+    <ClInclude Include="CacheErrorCodes.h" />
+    <ClInclude Include="FileStorage.hpp" />
     <ClInclude Include="framework.h" />
-    <ClInclude Include="ICache.h" />
-    <ClInclude Include="ICacheObject.h" />
-    <ClInclude Include="ICacheObjectKey.h" />
-    <ClInclude Include="NVRAMCacheObject.h" />
-    <ClInclude Include="NVRAMCacheObjectKey.h" />
-    <ClInclude Include="NVRAMLRUCache.h" />
+    <ClInclude Include="IFlushCallback.h" />
+    <ClInclude Include="LRUCache.hpp" />
+    <ClInclude Include="LRUCacheObject.hpp" />
+    <ClInclude Include="NoCache.hpp" />
+    <ClInclude Include="NoCacheObject.hpp" />
     <ClInclude Include="pch.h" />
-    <ClInclude Include="UnsortedMapUtil.h" />
+    <ClInclude Include="UnsortedMapUtil.hpp" />
+    <ClInclude Include="VariadicNthType.h" />
+    <ClInclude Include="VolatileStorage.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="DRAMCacheObject.cpp" />
-    <ClCompile Include="DRAMCacheObjectKey.cpp" />
-    <ClCompile Include="DRAMLRUCache.cpp" />
-    <ClCompile Include="NVRAMCacheObject.cpp" />
-    <ClCompile Include="NVRAMCacheObjectKey.cpp" />
-    <ClCompile Include="NVRAMLRUCache.cpp" />
+    <ClCompile Include="ObjectFatUID.cpp" />
+    <ClCompile Include="ObjectUID.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Create</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="UnsortedMapUtil.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="CMakeLists.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
