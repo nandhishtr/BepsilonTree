@@ -64,6 +64,16 @@ public:
 		{
 			m_ptrData->m_vtChildren.push_back(ObjectUIDType(obj));
 		}
+
+		std::cout << "///////";
+        for (int idx = 0; idx < m_ptrData->m_vtPivots.size(); idx++) {
+            std::cout << m_ptrData->m_vtPivots[idx] << "|" ;
+        }
+        std::cout << ",";
+        for (int idx = 0; idx < m_ptrData->m_vtChildren.size(); idx++) {
+            std::cout << m_ptrData->m_vtChildren[idx].toString().c_str() << "|" ;
+        }
+        std::cout << "\\\\" << std::endl;
 	}
 
 	IndexNode(const char* szData)
@@ -101,7 +111,7 @@ public:
 		m_ptrData->m_vtChildren.resize(nValueCount);
 
 		is.read(reinterpret_cast<char*>(m_ptrData->m_vtPivots.data()), nKeyCount * sizeof(KeyType));
-		is.read(reinterpret_cast<char*>(m_ptrData->m_vtChildren.data()), nValueCount * sizeof(ObjectUIDType::NodeUID));
+		is.read(reinterpret_cast<char*>(m_ptrData->m_vtChildren.data()), nValueCount * sizeof(typename ObjectUIDType::NodeUID));
 	}
 
 	IndexNode(KeyTypeIterator itBeginPivots, KeyTypeIterator itEndPivots, CacheKeyTypeIterator itBeginChildren, CacheKeyTypeIterator itEndChildren)
@@ -200,7 +210,7 @@ public:
 			uidObjectToDelete = m_ptrData->m_vtChildren[nChildIdx];
 			if (uidObjectToDelete != uidChild)
 			{
-				throw new std::exception("should not occur!");
+				throw new std::logic_error("should not occur!");
 			}
 
 			m_ptrData->m_vtPivots.erase(m_ptrData->m_vtPivots.begin() + nChildIdx - 1);
@@ -225,7 +235,7 @@ public:
 			return ErrorCode::Success;
 		}
 
-		throw new exception("should not occur!"); // TODO: critical log entry.
+		throw new logic_error("should not occur!"); // TODO: critical log entry.
 	}
 
 	template <typename CacheType, typename ObjectCoreType>
@@ -292,7 +302,7 @@ public:
 			uidObjectToDelete = m_ptrData->m_vtChildren[nChildIdx];
 			if (uidObjectToDelete != uidChild)
 			{
-				throw new std::exception("should not occur!");
+				throw new std::logic_error("should not occur!");
 			}
 
 			m_ptrData->m_vtPivots.erase(m_ptrData->m_vtPivots.begin() + nChildIdx - 1);
@@ -315,7 +325,7 @@ public:
 			return ErrorCode::Success;
 		}
 		
-		throw new exception("should not occur!"); // TODO: critical log entry.
+		throw new logic_error("should not occur!"); // TODO: critical log entry.
 	}
 
 	inline size_t getKeysCount() 
@@ -325,6 +335,11 @@ public:
 
 	inline size_t getChildNodeIdx(const KeyType& key)
 	{
+		std::cout << "[[[[";
+		for(int idx=0; idx< m_ptrData->m_vtPivots.size(); idx++)
+			std::cout << m_ptrData->m_vtPivots[idx] << ",";
+		std::cout << "]]]]" << std::endl;
+
 		size_t nChildIdx = 0;
 		while (nChildIdx < m_ptrData->m_vtPivots.size() && key >= m_ptrData->m_vtPivots[nChildIdx])
 		{
@@ -397,7 +412,7 @@ public:
 
 		if (ptrLHSSibling->m_ptrData->m_vtPivots.size() == 0)
 		{
-			throw new std::exception("should not occur!");
+			throw new std::logic_error("should not occur!");
 		}
 
 		m_ptrData->m_vtPivots.insert(m_ptrData->m_vtPivots.begin(), pivotKeyForEntity);
@@ -416,7 +431,7 @@ public:
 
 		if (ptrRHSSibling->m_ptrData->m_vtPivots.size() == 0)
 		{
-			throw new std::exception("should not occur!");
+			throw new std::logic_error("should not occur!");
 		}
 
 		m_ptrData->m_vtPivots.push_back(pivotKeyForEntity);
@@ -438,22 +453,22 @@ public:
 		static_assert(
 			std::is_trivial<KeyType>::value &&
 			std::is_standard_layout<KeyType>::value &&
-			std::is_trivial<ObjectUIDType::NodeUID>::value &&
-			std::is_standard_layout<ObjectUIDType::NodeUID>::value,
+			std::is_trivial<typename ObjectUIDType::NodeUID>::value &&
+			std::is_standard_layout<typename ObjectUIDType::NodeUID>::value,
 			"Can only deserialize POD types with this function");
 
-		uidObjectType = UID;
+		uidObjectType = SelfType::UID;
 
 		size_t nKeyCount = m_ptrData->m_vtPivots.size();
 		size_t nValueCount = m_ptrData->m_vtChildren.size();
 
-		nDataSize = sizeof(uint8_t) + (nKeyCount * sizeof(KeyType)) + (nValueCount * sizeof(ObjectUIDType::NodeUID)) + sizeof(size_t) + sizeof(size_t);
+		nDataSize = sizeof(uint8_t) + (nKeyCount * sizeof(KeyType)) + (nValueCount * sizeof(typename ObjectUIDType::NodeUID)) + sizeof(size_t) + sizeof(size_t);
 
-		os.write(reinterpret_cast<const char*>(&UID), sizeof(uint8_t));
+		os.write(reinterpret_cast<const char*>(&uidObjectType), sizeof(uint8_t));
 		os.write(reinterpret_cast<const char*>(&nKeyCount), sizeof(size_t));
 		os.write(reinterpret_cast<const char*>(&nValueCount), sizeof(size_t));
 		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtPivots.data()), nKeyCount * sizeof(KeyType));
-		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtChildren.data()), nValueCount * sizeof(ObjectUIDType::NodeUID));	// fix it!
+		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtChildren.data()), nValueCount * sizeof(typename ObjectUIDType::NodeUID));	// fix it!
 
 
 		auto it = m_ptrData->m_vtChildren.begin();
@@ -461,7 +476,7 @@ public:
 		{
 			if (( * it).m_uid.m_nMediaType < 3)
 			{
-				throw new std::exception("should not occur!");
+				throw new std::logic_error("should not occur!");
 			}
 			it++;
 		}
@@ -481,8 +496,8 @@ public:
 		static_assert(
 			std::is_trivial<KeyType>::value &&
 			std::is_standard_layout<KeyType>::value &&
-			std::is_trivial<ObjectUIDType::NodeUID>::value &&
-			std::is_standard_layout<ObjectUIDType::NodeUID>::value,
+			std::is_trivial<typename ObjectUIDType::NodeUID>::value &&
+			std::is_standard_layout<typename ObjectUIDType::NodeUID>::value,
 			"Can only deserialize POD types with this function");
 
 		uidObjectType = UID;
@@ -543,14 +558,22 @@ public:
 			+ sizeof(size_t)
 			+ sizeof(size_t)
 			+ (m_ptrData->m_vtPivots.size() * sizeof(KeyType))
-			+ (m_ptrData->m_vtChildren.size() * sizeof(ObjectUIDType::NodeUID));
+			+ (m_ptrData->m_vtChildren.size() * sizeof(typename ObjectUIDType::NodeUID));
 	}
 
 	void updateChildUID(const ObjectUIDType& uidOld, const ObjectUIDType& uidNew)
 	{
+
+		std::cout << "...[[[[";
+		for(int idx=0; idx< m_ptrData->m_vtPivots.size(); idx++)
+			std::cout << m_ptrData->m_vtPivots[idx] << ",";
+		std::cout << "]]]]..." << std::endl;
+
+		int idx = 0;
 		auto it = m_ptrData->m_vtChildren.begin();
 		while (it != m_ptrData->m_vtChildren.end())
 		{
+		std::cout << "--" << std::endl;
 			if (*it == uidOld)
 			{
 				*it = uidNew;
@@ -558,8 +581,9 @@ public:
 			}
 			it++;
 		}
+		std::cout << "<<<";
 
-		throw new std::exception("should not occur!");
+		throw new std::logic_error("should not occur!");
 	}
 
 public:

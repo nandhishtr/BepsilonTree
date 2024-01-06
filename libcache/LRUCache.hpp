@@ -10,12 +10,13 @@
 #include <queue>
 #include  <algorithm>
 #include <tuple>
+#include <condition_variable>
 
 #include "ErrorCodes.h"
 #include "IFlushCallback.h"
 #include "VariadicNthType.h"
 
-#define __CONCURRENT__
+//#define __CONCURRENT__
 //#define __TREE_AWARE_CACHE__
 
 #define FLUSH_COUNT 100
@@ -154,6 +155,8 @@ public:
 			std::shared_ptr<Item> ptrItem = m_mpObjects[uidObject];
 			moveToFront(ptrItem);
 			ptrObject = ptrItem->m_ptrObject;
+
+			std::cout << std::endl;
 			return CacheErrorCode::Success;
 		}
 
@@ -163,6 +166,8 @@ public:
 #endif __CONCURRENT__
 
 		ObjectUIDType _uidUpdated = uidObject;
+				std::cout << _uidUpdated.toString().c_str() << " , ";
+
 		if (m_mpUpdatedUIDs.find(uidObject) != m_mpUpdatedUIDs.end())
 		{
 
@@ -180,6 +185,7 @@ public:
 			m_mpUpdatedUIDs.erase(uidObject);	// Applied.
 			_uidUpdated = *uidUpdated;
 		}
+std::cout << _uidUpdated.toString().c_str() << " ,..... ";
 
 #ifdef __CONCURRENT__
 		lock_storage.unlock();
@@ -223,9 +229,11 @@ public:
 #ifndef __CONCURRENT__
 			flushItemsToStorage();
 #endif __CONCURRENT__
-
+std::cout << std::endl;
 			return CacheErrorCode::Success;
-		}
+		} else {std::cout << "is nulllllll!" << std::endl;
+		ptrObject == nullptr;
+}
 
 		return CacheErrorCode::Error;
 	}
@@ -249,7 +257,7 @@ public:
 			{
 				if (ensure) 
 				{
-					throw new std::exception("should not occur!");
+					throw new std::logic_error("should not occur!");
 				}
 			}
 
@@ -605,7 +613,7 @@ private:
 		std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>> vtObjects;
 
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache);
-
+std::cout << m_mpObjects.size() << " , ";
 		if (m_mpObjects.size() < m_nCacheCapacity)
 			return;
 
@@ -639,6 +647,7 @@ private:
 				m_ptrTail->m_ptrObject->mutex.unlock();
 			}
 
+std::cout << ptrItemToFlush->m_uidSelf.toString().c_str() << " , ";
 
 			std::shared_ptr<Item> ptrItemToFlush = m_ptrTail;
 
@@ -680,12 +689,12 @@ private:
 		{
 			if ((*it).second.second.use_count() != 1)
 			{
-				throw new std::exception("should not occur!");
+				throw new std::logic_error("should not occur!");
 			}
 
 			if (m_mpUpdatedUIDs.find((*it).first) != m_mpUpdatedUIDs.end())
 			{
-				throw new std::exception("should not occur!");
+				throw new std::logic_error("should not occur!");
 			}
 			else
 			{
@@ -708,7 +717,7 @@ private:
 			}
 			else
 			{
-				throw new std::exception("should not occur!");
+				throw new std::logic_error("should not occur!");
 			}
 
 			it++;
@@ -739,12 +748,12 @@ private:
 				ObjectUIDType uidUpdated;
 				if (m_ptrStorage->addObject(m_ptrTail->m_uidSelf, m_ptrTail->m_ptrObject, uidUpdated) != CacheErrorCode::Success)
 				{
-					throw new std::exception("should not occur!");
+					throw new std::logic_error("should not occur!");
 				}
 
 				if (m_mpUpdatedUIDs.find(m_ptrTail->m_uidSelf) != m_mpUpdatedUIDs.end())
 				{
-					throw new std::exception("should not occur!");
+					throw new std::logic_error("should not occur!");
 				}
 
 				m_mpUpdatedUIDs[m_ptrTail->m_uidSelf] = std::make_pair(uidUpdated, m_ptrTail->m_ptrObject);

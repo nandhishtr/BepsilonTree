@@ -40,12 +40,12 @@ public:
 	}
 
 	DataNode()
-		: m_ptrData(make_shared<DATANODESTRUCT>())
+		: m_ptrData(std::make_shared<DATANODESTRUCT>())
 	{
 	}
 
 	DataNode(const DataNode& source)
-		: m_ptrData(make_shared<DATANODESTRUCT>())
+		: m_ptrData(std::make_shared<DATANODESTRUCT>())
 	{
 		for (const auto& obj : source.m_ptrData->m_vtKeys)
 		{
@@ -56,10 +56,20 @@ public:
 		{
 			m_ptrData->m_vtValues.push_back(ValueType(obj));
 		}
+
+		std::cout << "///////";
+        for (int idx = 0; idx < m_ptrData->m_vtKeys.size(); idx++) {
+            std::cout << m_ptrData->m_vtKeys[idx] << "|";
+        }
+        std::cout << ",";
+        for (int idx = 0; idx < m_ptrData->m_vtValues.size(); idx++) {
+            std::cout << m_ptrData->m_vtValues[idx] << "|" ;
+        }
+        std::cout << "\\\\" << std::endl;
 	}
 
 	DataNode(const char* szData)
-		: m_ptrData(make_shared<DATANODESTRUCT>())
+		: m_ptrData(std::make_shared<DATANODESTRUCT>())
 	{
 		size_t nKeyCount, nValueCount = 0;
 
@@ -83,7 +93,7 @@ public:
 	}
 
 	DataNode(std::fstream& is)
-		: m_ptrData(make_shared<DATANODESTRUCT>())
+		: m_ptrData(std::make_shared<DATANODESTRUCT>())
 	{
 		size_t keyCount, valueCount;
 
@@ -98,7 +108,7 @@ public:
 	}
 
 	DataNode(KeyTypeIterator itBeginKeys, KeyTypeIterator itEndKeys, ValueTypeIterator itBeginValues, ValueTypeIterator itEndValues)
-		: m_ptrData(make_shared<DATANODESTRUCT>())
+		: m_ptrData(std::make_shared<DATANODESTRUCT>())
 	{
 		m_ptrData->m_vtKeys.assign(itBeginKeys, itEndKeys);
 		m_ptrData->m_vtValues.assign(itBeginValues, itEndValues);
@@ -198,7 +208,7 @@ public:
 
 		if (ptrLHSSibling->m_ptrData->m_vtKeys.size() == 0)
 		{
-			throw new std::exception("should not occur!");
+			throw new std::logic_error("should not occur!");
 		}
 
 		m_ptrData->m_vtKeys.insert(m_ptrData->m_vtKeys.begin(), key);
@@ -217,7 +227,7 @@ public:
 
 		if (ptrRHSSibling->m_ptrData->m_vtKeys.size() == 0)
 		{
-			throw new std::exception("should not occur!");
+			throw new std::logic_error("should not occur!");
 		}
 
 		m_ptrData->m_vtKeys.push_back(key);
@@ -240,7 +250,7 @@ public:
 			+ sizeof(size_t)
 			+ sizeof(size_t)
 			+ (m_ptrData->m_vtKeys.size() * sizeof(KeyType))
-			+ (m_ptrData->m_vtValues.size() * sizeof(ObjectUIDType::NodeUID));
+			+ (m_ptrData->m_vtValues.size() * sizeof(typename ObjectUIDType::NodeUID));
 	}
 
 	inline void serialize(char*& szBuffer, uint8_t& uidObjectType, size_t& nBufferSize)
@@ -248,8 +258,8 @@ public:
 		static_assert(
 			std::is_trivial<KeyType>::value &&
 			std::is_standard_layout<KeyType>::value &&
-			std::is_trivial<ObjectUIDType::NodeUID>::value &&
-			std::is_standard_layout<ObjectUIDType::NodeUID>::value,
+			std::is_trivial<typename ObjectUIDType::NodeUID>::value &&
+			std::is_standard_layout<typename ObjectUIDType::NodeUID>::value,
 			"Can only deserialize POD types with this function");
 
 		uidObjectType = UID;
@@ -312,14 +322,14 @@ public:
 			std::is_standard_layout<ValueType>::value,
 			"Can only deserialize POD types with this function");
 
-		uidObjectType = UID;
+		uidObjectType = SelfType::UID;
 
 		size_t nKeyCount = m_ptrData->m_vtKeys.size();
 		size_t nValueCount = m_ptrData->m_vtValues.size();
 
 		nDataSize = sizeof(uint8_t) + (nKeyCount * sizeof(KeyType)) + (nValueCount * sizeof(ValueType)) + sizeof(size_t) + sizeof(size_t);
 
-		os.write(reinterpret_cast<const char*>(&UID), sizeof(uint8_t));
+		os.write(reinterpret_cast<const char*>(&uidObjectType), sizeof(uint8_t));
 		os.write(reinterpret_cast<const char*>(&nKeyCount), sizeof(size_t));
 		os.write(reinterpret_cast<const char*>(&nValueCount), sizeof(size_t));
 		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtKeys.data()), nKeyCount * sizeof(KeyType));

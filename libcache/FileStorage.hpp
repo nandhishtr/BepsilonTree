@@ -11,22 +11,22 @@
 #include "ErrorCodes.h"
 #include "IFlushCallback.h"
 
-#define __CONCURRENT__
+//#define __CONCURRENT__
 
 template<
 	typename ICallback,
-	typename ObjectUIDType, 
-	template <typename, typename...> typename ObjectType, 
+	typename ObjectUIDType_, 
+	template <typename, typename...> typename ObjectType_, 
 	typename CoreTypesMarshaller, 
 	typename... ObjectCoreTypes
 >
 class FileStorage
 {
-	typedef FileStorage<ICallback, ObjectUIDType, ObjectType, CoreTypesMarshaller, ObjectCoreTypes...> SelfType;
+	typedef FileStorage<ICallback, ObjectUIDType_, ObjectType_, CoreTypesMarshaller, ObjectCoreTypes...> SelfType;
 
 public:
-	typedef ObjectUIDType ObjectUIDType;
-	typedef ObjectType<CoreTypesMarshaller, ObjectCoreTypes...> ObjectType;
+	typedef ObjectUIDType_ ObjectUIDType;
+	typedef ObjectType_<CoreTypesMarshaller, ObjectCoreTypes...> ObjectType;
 
 private:
 	size_t m_nFileSize;
@@ -69,13 +69,16 @@ public:
 		, m_ptrCallback(NULL)
 	{
 		m_vtAllocationTable.resize(nFileSize/nBlockSize, false);
+		throw new std::logic_error("......."); 
 
 		//m_fsStorage.rdbuf()->pubsetbuf(0, 0);
 		m_fsStorage.open(stFilename.c_str(), std::ios::binary | std::ios::in | std::ios::out);
-		
+		m_fsStorage.seekp(0);
+		m_fsStorage.seekg(0);
+
 		if (!m_fsStorage.is_open())
 		{
-			throw new exception("should not occur!");   // TODO: critical log.
+			throw new std::logic_error("should not occur!");   // TODO: critical log.
 		}
 
 #ifdef __CONCURRENT__
@@ -120,7 +123,7 @@ public:
 
 	CacheErrorCode remove(const ObjectUIDType& ptrKey)
 	{
-		//throw new std::exception("no implementation!");
+		//throw new std::logic_error("no implementation!");
 		return CacheErrorCode::Success;
 	}
 

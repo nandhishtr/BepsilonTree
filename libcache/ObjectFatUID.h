@@ -2,6 +2,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include<cstring>
 
 class ObjectFatUID
 {
@@ -39,6 +40,7 @@ public:
 		switch (nMediaType)
 		{
 		case None:
+			throw new std::logic_error("should not occur!");
 			break;
 		case Volatile:
 			return createAddressFromVolatilePointer(args...);
@@ -52,6 +54,8 @@ public:
 			return createAddressFromFileOffset(args...);
 			break;
 		}
+
+		throw new std::logic_error("should not occur!");
 	}
 
 	static ObjectFatUID createAddressFromFileOffset(uint32_t nPos, uint32_t nBlockSize, uint32_t nSize)
@@ -119,7 +123,7 @@ public:
 	{
 	}
 
-	std::string toString()
+	std::string toString() const
 	{
 		std::string szData;
 		switch (m_uid.m_nMediaType)

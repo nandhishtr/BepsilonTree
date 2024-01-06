@@ -4,21 +4,21 @@
 
 #include "ErrorCodes.h"
 
-#define __CONCURRENT__
+//#define __CONCURRENT__
 
 template<
 	typename ICallback,
-	typename ObjectUIDType, 
-	template <typename, typename...> typename ObjectType, 
+	typename ObjectUIDType_, 
+	template <typename, typename...> typename ObjectType_, 
 	typename CoreTypesMarshaller, 
 	typename... ObjectCoreTypes>
 class VolatileStorage
 {
-	typedef VolatileStorage<ICallback, ObjectUIDType, ObjectType, CoreTypesMarshaller, ObjectCoreTypes...> SelfType;
+	typedef VolatileStorage<ICallback, ObjectUIDType_, ObjectType_, CoreTypesMarshaller, ObjectCoreTypes...> SelfType;
 
 public:
-	typedef ObjectUIDType ObjectUIDType;
-	typedef ObjectType<CoreTypesMarshaller, ObjectCoreTypes...> ObjectType;
+	typedef ObjectUIDType_ ObjectUIDType;
+	typedef ObjectType_<CoreTypesMarshaller, ObjectCoreTypes...> ObjectType;
 
 private:
 	size_t m_nCounter;
@@ -40,8 +40,17 @@ public:
 		return CacheErrorCode::Success;
 	}
 
-	std::shared_ptr<ObjectType> getObject(ObjectUIDType uidObject)
+	std::shared_ptr<ObjectType> getObject(const ObjectUIDType uidObject)
 	{
+		std::cout << "((" << m_mpObject.size() << " ))--" << uidObject.toString().c_str() << ",,," ;
+		auto it = m_mpObject.begin();
+		while (it != m_mpObject.end()) {
+			std::cout << (*it).first.toString().c_str() << "|";
+			it++;
+
+		}
+		std::cout << std::endl;
+
 #ifdef __CONCURRENT__
 		std::shared_lock<std::shared_mutex> lock_file_storage(m_mtxStorage);
 #endif __CONCURRENT__
@@ -49,6 +58,7 @@ public:
 		std::shared_ptr<ObjectType> ptrObject = nullptr;
 		if (m_mpObject.find(uidObject) != m_mpObject.end())
 		{
+			std::cout << "(( found ))";
 			ptrObject = m_mpObject[uidObject];
 			//m_mpObject.erase(uidObject);	// since it is volatile cache.. add each time.. if this is set then 'dirty' should be false.
 
@@ -58,7 +68,7 @@ public:
 		return ptrObject;
 	}
 
-	CacheErrorCode remove(ObjectUIDType uidObject)
+	CacheErrorCode remove(const ObjectUIDType& uidObject)
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_file_storage(m_mtxStorage);
@@ -74,7 +84,7 @@ public:
 		return CacheErrorCode::KeyDoesNotExist;
 	}
 
-	CacheErrorCode addObject(ObjectUIDType uidObject, std::shared_ptr<ObjectType> ptrValue, ObjectUIDType& uidUpdated)
+	CacheErrorCode addObject(const ObjectUIDType& uidObject, std::shared_ptr<ObjectType> ptrValue, ObjectUIDType& uidUpdated)
 	{
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_file_storage(m_mtxStorage);
@@ -123,7 +133,7 @@ public:
 			
 			if (m_mpObject.find(*(*it).second.first) != m_mpObject.end())
 			{
-				throw new std::exception("should not occur!");
+				throw new std::logic_error("should not occur!");
 			}
 
 			m_mpObject[*(*it).second.first] = std::make_shared<ObjectType>(*(*it).second.second);
