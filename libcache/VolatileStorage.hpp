@@ -42,14 +42,21 @@ public:
 
 	std::shared_ptr<ObjectType> getObject(const ObjectUIDType uidObject)
 	{
-		std::cout << "((" << m_mpObject.size() << " ))--" << uidObject.toString().c_str() << ",,," ;
+		//std::cout << "((" << m_mpObject.size() << " ))--" << uidObject.toString().c_str() << ",,," ;
 		auto it = m_mpObject.begin();
 		while (it != m_mpObject.end()) {
-			std::cout << (*it).first.toString().c_str() << "|";
+			if( (*it).first == uidObject) {
+			//std::cout << "a match!" << (*it).first.toString().c_str() << "," << uidObject.toString().c_str() << std::endl;	
+			}
+else{
+				//std::cout << "mismatch!" << (*it).first.toString().c_str() << "," << uidObject.toString().c_str() << std::endl;	
+
+}
+			//std::cout << (*it).first.toString().c_str() << "|";
 			it++;
 
 		}
-		std::cout << std::endl;
+		//std::cout << std::endl;
 
 #ifdef __CONCURRENT__
 		std::shared_lock<std::shared_mutex> lock_file_storage(m_mtxStorage);
@@ -58,7 +65,7 @@ public:
 		std::shared_ptr<ObjectType> ptrObject = nullptr;
 		if (m_mpObject.find(uidObject) != m_mpObject.end())
 		{
-			std::cout << "(( found ))";
+			//std::cout << "(( found ))";
 			ptrObject = m_mpObject[uidObject];
 			//m_mpObject.erase(uidObject);	// since it is volatile cache.. add each time.. if this is set then 'dirty' should be false.
 

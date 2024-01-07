@@ -176,6 +176,7 @@ void int_test(BPlusStoreType* ptrTree, int degree, int total_entries)
 
     int i = 0;
     while (i++ < 10) {
+        std::cout << i << ",";;
         for (size_t nCntr = 0; nCntr < total_entries; nCntr = nCntr + 2)
         {
             //std::cout << nCntr << ",";
@@ -187,11 +188,11 @@ void int_test(BPlusStoreType* ptrTree, int degree, int total_entries)
         ptrTree->print(out_1);
         out_1.flush();
         out_1.close();*/
-        std::cout << "--------------------------------------------------------------------" << std::endl;
+        //std::cout << "--------------------------------------------------------------------" << std::endl;
         for (size_t nCntr = 1; nCntr < total_entries; nCntr = nCntr + 2)
         {
-            std::cout << nCntr << ",";
-            ptrTree->insert(nCntr, nCntr, true);
+            //std::cout << nCntr << ",";
+            ptrTree->insert(nCntr, nCntr, false);
 
             //std::string _fn = "d:\\tree_post_insert_file_";
             //_fn.append(to_string(nCntr));
@@ -202,8 +203,8 @@ void int_test(BPlusStoreType* ptrTree, int degree, int total_entries)
             //out_t.close();
 
         }
-std::cout << "xxxxxxxxxxx" << std::endl;
-continue;
+//std::cout << "xxxxxxxxxxx" << std::endl;
+//break;
         /*std::ofstream out_t("d:\\tree_post_insert_file.txt");
         ptrTree->print(out_t);
         out_t.flush();
@@ -412,10 +413,10 @@ void test_for_ints()
             typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
 
             typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, VolatileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
-            BPlusStoreType ptrTree(idx, 20, 100000000);
+            BPlusStoreType ptrTree(idx, 1000, 100000000);
             ptrTree.template init<DataNodeType>();
 
-            int_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 40);
+            int_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 10000);
 #endif __TREE_AWARE_CACHE__
         }
         {
@@ -434,7 +435,7 @@ void test_for_ints()
             BPlusStoreType* ptrTree = new BPlusStoreType(idx, 1000, 1024, 1024 * 1024 * 1024, "/home/skarim/workspace/code/haldendb/filestore.hdb");
             ptrTree->init<DataNodeType>(); 
             
-            //int_test<BPlusStoreType, IndexNodeType, DataNodeType>(ptrTree, idx, 10000);
+            int_test<BPlusStoreType, IndexNodeType, DataNodeType>(ptrTree, idx, 10000);
 #endif __TREE_AWARE_CACHE__
         }
         std::cout << std::endl;
@@ -542,7 +543,7 @@ void test_for_threaded()
             BPlusStoreType ptrTree(idx, 1000, 100000000);
             ptrTree.template init<DataNodeType>();
 
-            threaded_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 3 * 10000, 10);
+            //threaded_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 3 * 10000, 10);
 #endif __TREE_AWARE_CACHE__
         }
         {
@@ -561,7 +562,7 @@ void test_for_threaded()
             BPlusStoreType ptrTree(idx, 1000, 1024, 1024 * 1024 * 1024, "/home/skarim/workspace/code/haldendb/filestore.hdb");
             ptrTree.template init<DataNodeType>();
 
-            //threaded_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 3 * 10000, 10);
+            threaded_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 3 * 10000, 10);
 #endif __TREE_AWARE_CACHE__
         }
     }

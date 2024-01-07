@@ -69,7 +69,6 @@ public:
 		, m_ptrCallback(NULL)
 	{
 		m_vtAllocationTable.resize(nFileSize/nBlockSize, false);
-		throw new std::logic_error("......."); 
 
 		//m_fsStorage.rdbuf()->pubsetbuf(0, 0);
 		m_fsStorage.open(stFilename.c_str(), std::ios::binary | std::ios::in | std::ios::out);

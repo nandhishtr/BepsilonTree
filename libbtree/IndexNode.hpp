@@ -65,15 +65,15 @@ public:
 			m_ptrData->m_vtChildren.push_back(ObjectUIDType(obj));
 		}
 
-		std::cout << "///////";
-        for (int idx = 0; idx < m_ptrData->m_vtPivots.size(); idx++) {
-            std::cout << m_ptrData->m_vtPivots[idx] << "|" ;
-        }
-        std::cout << ",";
-        for (int idx = 0; idx < m_ptrData->m_vtChildren.size(); idx++) {
-            std::cout << m_ptrData->m_vtChildren[idx].toString().c_str() << "|" ;
-        }
-        std::cout << "\\\\" << std::endl;
+		// std::cout << "///////";
+        // for (int idx = 0; idx < m_ptrData->m_vtPivots.size(); idx++) {
+        //     std::cout << m_ptrData->m_vtPivots[idx] << "|" ;
+        // }
+        // std::cout << ",";
+        // for (int idx = 0; idx < m_ptrData->m_vtChildren.size(); idx++) {
+        //     std::cout << m_ptrData->m_vtChildren[idx].toString().c_str() << "|" ;
+        // }
+        // std::cout << "\\\\" << std::endl;
 	}
 
 	IndexNode(const char* szData)
@@ -335,10 +335,10 @@ public:
 
 	inline size_t getChildNodeIdx(const KeyType& key)
 	{
-		std::cout << "[[[[";
-		for(int idx=0; idx< m_ptrData->m_vtPivots.size(); idx++)
-			std::cout << m_ptrData->m_vtPivots[idx] << ",";
-		std::cout << "]]]]" << std::endl;
+		// std::cout << "[[[[";
+		// for(int idx=0; idx< m_ptrData->m_vtPivots.size(); idx++)
+		// 	std::cout << m_ptrData->m_vtPivots[idx] << ",";
+		// std::cout << "]]]]" << std::endl;
 
 		size_t nChildIdx = 0;
 		while (nChildIdx < m_ptrData->m_vtPivots.size() && key >= m_ptrData->m_vtPivots[nChildIdx])
@@ -564,16 +564,16 @@ public:
 	void updateChildUID(const ObjectUIDType& uidOld, const ObjectUIDType& uidNew)
 	{
 
-		std::cout << "...[[[[";
-		for(int idx=0; idx< m_ptrData->m_vtPivots.size(); idx++)
-			std::cout << m_ptrData->m_vtPivots[idx] << ",";
-		std::cout << "]]]]..." << std::endl;
+		// std::cout << "...[[[[";
+		// for(int idx=0; idx< m_ptrData->m_vtPivots.size(); idx++)
+		// 	std::cout << m_ptrData->m_vtPivots[idx] << ",";
+		// std::cout << "]]]]..." << std::endl;
 
 		int idx = 0;
 		auto it = m_ptrData->m_vtChildren.begin();
 		while (it != m_ptrData->m_vtChildren.end())
 		{
-		std::cout << "--" << std::endl;
+		//std::cout << "--" << std::endl;
 			if (*it == uidOld)
 			{
 				*it = uidNew;
@@ -581,7 +581,7 @@ public:
 			}
 			it++;
 		}
-		std::cout << "<<<";
+		//std::cout << "<<<";
 
 		throw new std::logic_error("should not occur!");
 	}

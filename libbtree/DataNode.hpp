@@ -57,15 +57,15 @@ public:
 			m_ptrData->m_vtValues.push_back(ValueType(obj));
 		}
 
-		std::cout << "///////";
-        for (int idx = 0; idx < m_ptrData->m_vtKeys.size(); idx++) {
-            std::cout << m_ptrData->m_vtKeys[idx] << "|";
-        }
-        std::cout << ",";
-        for (int idx = 0; idx < m_ptrData->m_vtValues.size(); idx++) {
-            std::cout << m_ptrData->m_vtValues[idx] << "|" ;
-        }
-        std::cout << "\\\\" << std::endl;
+		// std::cout << "///////";
+        // for (int idx = 0; idx < m_ptrData->m_vtKeys.size(); idx++) {
+        //     std::cout << m_ptrData->m_vtKeys[idx] << "|";
+        // }
+        // std::cout << ",";
+        // for (int idx = 0; idx < m_ptrData->m_vtValues.size(); idx++) {
+        //     std::cout << m_ptrData->m_vtValues[idx] << "|" ;
+        // }
+        // std::cout << "\\\\" << std::endl;
 	}
 
 	DataNode(const char* szData)

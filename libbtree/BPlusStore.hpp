@@ -92,11 +92,11 @@ public:
         int i=0;
         uidCurrentNode = m_uidRootNode.value();
 
-if (print) { std::cout << "++++++++++++" << key << "+++++++++";}
+//if (print) { std::cout << "++++++++++++" << key << "+++++++++";}
         do
         {
-            if (print) { std::this_thread::sleep_for(10ms);
-std::cout << uidCurrentNode.toString().c_str() << std::endl;}
+//            if (print) { std::this_thread::sleep_for(10ms);
+//std::cout << uidCurrentNode.toString().c_str() << std::endl;}
 
 #ifdef __TREE_AWARE_CACHE__
             std::optional<ObjectUIDType> uidUpdated = std::nullopt;
@@ -104,26 +104,26 @@ std::cout << uidCurrentNode.toString().c_str() << std::endl;}
 
             if (uidUpdated != std::nullopt)
             {
-                if (print) { std::cout << "1.1" << std::endl;}
+                //if (print) { std::cout << "1.1" << std::endl;}
 
                 if (ptrLastNode != nullptr)
                 {
                     if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrLastNode->data))
                     {
-                        if (print) { std::cout << "1.1.1" << std::endl;}
+                        //if (print) { std::cout << "1.1.1" << std::endl;}
                         std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrLastNode->data);
                         ptrIndexNode->updateChildUID(uidCurrentNode, *uidUpdated);
                         ptrLastNode->dirty = true;
                     }
                     else //if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrLastNode->data))
                     {
-                        if (print) { std::cout << "1.1.2" << std::endl;}
+                        //if (print) { std::cout << "1.1.2" << std::endl;}
                         throw new std::logic_error("should not occur!");
                     }
                 }
                 else
                 {
-                        if (print) { std::cout << "1.1.3" << std::endl;}
+                       // if (print) { std::cout << "1.1.3" << std::endl;}
                     //ptrLastNode->dirty = true; //do ths ame for root!
                     assert(uidCurrentNode == *m_uidRootNode);
                     m_uidRootNode = uidUpdated;
@@ -148,7 +148,7 @@ std::cout << uidCurrentNode.toString().c_str() << std::endl;}
 
             if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrCurrentNode->data))
             {
-                if (print) { std::cout << "2." << std::endl;}
+                //if (print) { std::cout << "2." << std::endl;}
 
                 std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrCurrentNode->data);
 
@@ -171,7 +171,7 @@ std::cout << uidCurrentNode.toString().c_str() << std::endl;}
             }
             else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrCurrentNode->data))
             {
-                if (print) { std::cout << "3." << std::endl;}
+                //if (print) { std::cout << "3." << std::endl;}
                 std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrCurrentNode->data);
 
 #ifdef __TREE_AWARE_CACHE__
@@ -201,7 +201,7 @@ std::cout << uidCurrentNode.toString().c_str() << std::endl;}
                     vtNodes.clear(); //TODO: release locks
                 }
 
-                if (print) { std::cout << "4." << std::endl;}
+                //if (print) { std::cout << "4." << std::endl;}
                 break;
             }
         } while (true);

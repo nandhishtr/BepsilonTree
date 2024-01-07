@@ -156,7 +156,7 @@ public:
 			moveToFront(ptrItem);
 			ptrObject = ptrItem->m_ptrObject;
 
-			std::cout << std::endl;
+			//std::cout << std::endl;
 			return CacheErrorCode::Success;
 		}
 
@@ -166,7 +166,7 @@ public:
 #endif __CONCURRENT__
 
 		ObjectUIDType _uidUpdated = uidObject;
-				std::cout << _uidUpdated.toString().c_str() << " , ";
+				//std::cout << _uidUpdated.toString().c_str() << " , ";
 
 		if (m_mpUpdatedUIDs.find(uidObject) != m_mpUpdatedUIDs.end())
 		{
@@ -185,7 +185,7 @@ public:
 			m_mpUpdatedUIDs.erase(uidObject);	// Applied.
 			_uidUpdated = *uidUpdated;
 		}
-std::cout << _uidUpdated.toString().c_str() << " ,..... ";
+//std::cout << _uidUpdated.toString().c_str() << " ,..... ";
 
 #ifdef __CONCURRENT__
 		lock_storage.unlock();
@@ -229,9 +229,10 @@ std::cout << _uidUpdated.toString().c_str() << " ,..... ";
 #ifndef __CONCURRENT__
 			flushItemsToStorage();
 #endif __CONCURRENT__
-std::cout << std::endl;
+//std::cout << std::endl;
 			return CacheErrorCode::Success;
-		} else {std::cout << "is nulllllll!" << std::endl;
+		} else {
+			//std::cout << "is nulllllll!" << std::endl;
 		ptrObject == nullptr;
 }
 
@@ -613,7 +614,7 @@ private:
 		std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>> vtObjects;
 
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache);
-std::cout << m_mpObjects.size() << " , ";
+//std::cout << m_mpObjects.size() << " , ";
 		if (m_mpObjects.size() < m_nCacheCapacity)
 			return;
 
@@ -647,7 +648,7 @@ std::cout << m_mpObjects.size() << " , ";
 				m_ptrTail->m_ptrObject->mutex.unlock();
 			}
 
-std::cout << ptrItemToFlush->m_uidSelf.toString().c_str() << " , ";
+//std::cout << ptrItemToFlush->m_uidSelf.toString().c_str() << " , ";
 
 			std::shared_ptr<Item> ptrItemToFlush = m_ptrTail;
 
