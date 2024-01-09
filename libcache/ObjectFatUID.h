@@ -2,7 +2,8 @@
 #include <cstdint>
 #include <memory>
 #include <string>
-#include<cstring>
+#include <cstring>
+#include <stdexcept>
 
 //#pragma pack(1)
 
@@ -79,11 +80,12 @@ public:
 		return key;
 	}
 
-	static ObjectFatUID createAddressFromDRAMCacheCounter(uintptr_t ptr, ...)
+	static ObjectFatUID createAddressFromDRAMCacheCounter(uint32_t nPos, uint32_t nBlockSize, uint32_t nSize)
 	{
 		ObjectFatUID key;
 		key.m_uid.m_nMediaType = DRAM;
-		key.m_uid.FATPOINTER.m_ptrVolatile = ptr;
+		key.m_uid.FATPOINTER.m_ptrFile.m_nOffset = nPos * nBlockSize;
+		key.m_uid.FATPOINTER.m_ptrFile.m_nSize = nSize;
 
 		return key;
 	}

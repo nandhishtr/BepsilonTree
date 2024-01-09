@@ -16,8 +16,8 @@
 #include "IFlushCallback.h"
 #include "VariadicNthType.h"
 
-//#define __CONCURRENT__
-//#define __TREE_AWARE_CACHE__
+#define __CONCURRENT__
+#define __TREE_AWARE_CACHE__
 
 #define FLUSH_COUNT 100
 
@@ -427,9 +427,9 @@ public:
 	template<class Type, typename... ArgsType>
 	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, std::shared_ptr<Type>& ptrCoreObject, const ArgsType... args)
 	{
-		std::shared_ptr<ObjectType> ptrObject = std::make_shared<ObjectType>(std::make_shared<Type>(args...));
+		ptrCoreObject = std::make_shared<Type>(args...);
 
-		ptrCoreObject = ptrObject->data;
+		std::shared_ptr<ObjectType> ptrObject = std::make_shared<ObjectType>(ptrCoreObject);
 
 		uidObject = ObjectUIDType::createAddressFromVolatilePointer(reinterpret_cast<uintptr_t>(ptrObject.get()));
 

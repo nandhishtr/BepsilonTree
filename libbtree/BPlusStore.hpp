@@ -22,8 +22,8 @@
 #include <fstream>
 #include <assert.h>
 
-//#define __CONCURRENT__
-//#define __TREE_AWARE_CACHE__
+#define __CONCURRENT__
+#define __TREE_AWARE_CACHE__
 using namespace std::chrono_literals;
 
 #ifdef __TREE_AWARE_CACHE__
@@ -713,8 +713,8 @@ public:
         {
             std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*ptrObject->data);
 
-            auto it = ptrIndexNode->m_ptrData->m_vtChildren.begin();
-            while (it != ptrIndexNode->m_ptrData->m_vtChildren.end())
+            auto it = ptrIndexNode->getChildrenBeginIterator();
+            while (it != ptrIndexNode->getChildrenEndIterator())
             {
                 if (mpUIDUpdates.find(*it) != mpUIDUpdates.end())
                 {
@@ -745,8 +745,8 @@ public:
             {
                 std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*(*it).second.second->data);
 
-                auto it_children = ptrIndexNode->m_ptrData->m_vtChildren.begin();
-                while (it_children != ptrIndexNode->m_ptrData->m_vtChildren.end())
+                auto it_children = ptrIndexNode->getChildrenBeginIterator();
+                while (it_children != ptrIndexNode->getChildrenEndIterator())
                 {
                     if (mpUIDUpdates.find(*it_children) != mpUIDUpdates.end())
                     {
@@ -781,8 +781,8 @@ public:
             {
                 std::shared_ptr<IndexNodeType> ptrIndexNode = std::get<std::shared_ptr<IndexNodeType>>(*vtNodes[idx].second.second->data);
 
-                auto it = ptrIndexNode->m_ptrData->m_vtChildren.begin();
-                while (it != ptrIndexNode->m_ptrData->m_vtChildren.end())
+                auto it = ptrIndexNode->getChildrenBeginIterator();
+                while (it != ptrIndexNode->getChildrenEndIterator())
                 {
                     for (int jdx = 0; jdx < idx; jdx++)
                     {
