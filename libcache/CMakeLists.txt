@@ -11,6 +11,7 @@ add_library(libcache
             UnsortedMapUtil.hpp
             VariadicNthType.h
             VolatileStorage.hpp
+            PMemStorage.hpp
 )
 
 target_link_libraries(libcache PUBLIC haldendb_compiler_flags)

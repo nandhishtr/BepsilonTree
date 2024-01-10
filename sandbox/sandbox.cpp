@@ -628,16 +628,20 @@ int main(int argc, char* argv[])
     ptrTree->init<NVMRODataNodeType>();
 
 #else //__TREE_AWARE_CACHE__
+    typedef int KeyType;
+    typedef int ValueType;
     typedef uintptr_t ObjectUIDType;
+
     typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
     typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> IndexNodeType;
+
     typedef BPlusStore<KeyType, ValueType, NoCache<ObjectUIDType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
     BPlusStoreType* ptrTree = new BPlusStoreType(3);
+    ptrTree->template init<DataNodeType>();
+
 #endif __TREE_AWARE_CACHE__
 
-    //ptrTree->template init<DataNodeType>();
-
-    for (size_t nCntr = 0; nCntr < 10000; nCntr++)
+    for (size_t nCntr = 0; nCntr < 1000000; nCntr++)
     {
         ptrTree->insert(nCntr, nCntr);
     }

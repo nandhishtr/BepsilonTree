@@ -131,6 +131,7 @@
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <Optimization>MaxSpeed</Optimization>
     </ClCompile>
     <Link>
       <SubSystem>
@@ -152,6 +153,7 @@
     <ClInclude Include="NoCache.hpp" />
     <ClInclude Include="NoCacheObject.hpp" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="PMemStorage.hpp" />
     <ClInclude Include="UnsortedMapUtil.hpp" />
     <ClInclude Include="VariadicNthType.h" />
     <ClInclude Include="VolatileStorage.hpp" />

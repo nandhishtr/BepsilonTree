@@ -7,11 +7,64 @@
 #include <fstream>
 #include <variant>
 #include <cmath>
+#include <libpmem.h>
 
-#include "ErrorCodes.h"
-#include "IFlushCallback.h"
+//#define __CONCURRENT__
 
-#define __CONCURRENT__
+bool createMMapFile(void*& hMemory, const char* szPath, size_t nFileSize, size_t& nMappedLen, int& bIsPMem)
+{
+	if ((hMemory = pmem_map_file(szPath,
+		nFileSize,
+		PMEM_FILE_CREATE | PMEM_FILE_EXCL,
+		0666, &nMappedLen, &bIsPMem)) == NULL)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool openMMapFile(void*& hMemory, const char* szPath, size_t& nMappedLen, int& bIsPMem)
+{
+	if ((hMemory = pmem_map_file(szPath,
+		0,
+		0,
+		0666, &nMappedLen, &bIsPMem)) == NULL)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool writeMMapFile(void* hMemory, const char* szBuf, size_t nLen)
+{
+	void* hDestBuf = pmem_memcpy_persist(hMemory, szBuf, nLen);
+
+	if (hDestBuf == NULL)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool readMMapFile(const void* hMemory, char* szBuf, size_t nLen)
+{
+	void* hDestBuf = pmem_memcpy(szBuf, hMemory, nLen, PMEM_F_MEM_NOFLUSH);
+
+	if (hDestBuf == NULL)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+void closeMMapFile(void* hMemory, size_t nMappedLen)
+{
+	pmem_unmap(hMemory, nMappedLen);
+}
 
 template<
 	typename ICallback,
@@ -20,20 +73,25 @@ template<
 	typename CoreTypesMarshaller,
 	typename... ObjectCoreTypes
 >
-class VolatileStorage
+class PMemStorage
 {
-	typedef VolatileStorage<ICallback, ObjectUIDType_, ObjectType_, CoreTypesMarshaller, ObjectCoreTypes...> SelfType;
+	typedef PMemStorage<ICallback, ObjectUIDType_, ObjectType_, CoreTypesMarshaller, ObjectCoreTypes...> SelfType;
 
 public:
 	typedef ObjectUIDType_ ObjectUIDType;
 	typedef ObjectType_<CoreTypesMarshaller, ObjectCoreTypes...> ObjectType;
 
 private:
-	char* m_szStorage;
-	size_t m_nStorageSize;
-	size_t m_nBlockSize;
+	int nIsPMem;
+	size_t nMappedLen;
+	void* hMemory = NULL;
 
 	size_t m_nNextBlock;
+
+	size_t m_nBlockSize;
+	size_t m_nStorageSize;
+	std::string m_stFilename;
+
 	std::vector<bool> m_vtAllocationTable;
 
 	ICallback* m_ptrCallback;
@@ -49,9 +107,9 @@ private:
 #endif __CONCURRENT__
 
 public:
-	~VolatileStorage()
+	~PMemStorage()
 	{
-		delete[] m_szStorage;
+		closeMMapFile(hMemory, nMappedLen);
 
 #ifdef __CONCURRENT__
 		m_bStopFlush = true;
@@ -61,22 +119,33 @@ public:
 #endif __CONCURRENT__
 	}
 
-	VolatileStorage(size_t nBlockSize, size_t nStorageSize)
+	PMemStorage(size_t nBlockSize, size_t nStorageSize, const std::string& stFilename)
 		: m_nStorageSize(nStorageSize)
 		, m_nBlockSize(nBlockSize)
+		, m_stFilename(stFilename)
 		, m_nNextBlock(0)
+		, hMemory (nullptr)
 		, m_ptrCallback(NULL)
 	{
-		m_szStorage = new(std::nothrow) char[m_nStorageSize];
-		memset(m_szStorage, 0, m_nStorageSize);
-
-		if (m_szStorage == nullptr)
+		if( !openMMapFile(hMemory, stFilename.c_str(), nMappedLen, nIsPMem))
 		{
-			throw new std::logic_error("should not occur!"); // TODO: critical log.
+			if( !createMMapFile(hMemory, szFilePath, nFileSize, nMappedLen, nIsPMem))
+			{
+				throw new std::logic_error("Failed open or create mmap file on PMem!"); // TODO: critical log.
+			}
+		}
+
+		if (hMemory == nullptr)
+		{
+			throw new std::logic_error("Failed open or create mmap file on PMem!"); // TODO: critical log.
+		}
+
+		if (nMappedLen != nStorageSize)
+		{
+			throw new std::logic_error("Size mismatch!"); // TODO: critical log.
 		}
 
 		m_vtAllocationTable.resize(nStorageSize / nBlockSize, false);
-
 
 #ifdef __CONCURRENT__
 		m_bStopFlush = false;
@@ -95,7 +164,8 @@ public:
 	{
 		char* szBuffer = new char[uidObject.m_uid.FATPOINTER.m_ptrFile.m_nSize + 1]; //2
 		memset(szBuffer, 0, uidObject.m_uid.FATPOINTER.m_ptrFile.m_nSize + 1); //2
-		std::shared_ptr<ObjectType> ptrObject = std::make_shared<ObjectType>(m_szStorage + uidObject.m_uid.FATPOINTER.m_ptrFile.m_nOffset); //1
+		std::shared_ptr<ObjectType> ptrObject = std::make_shared<ObjectType>((char*)hMemory + uidObject.m_uid.FATPOINTER.m_ptrFile.m_nOffset); //1
+
 /* COW!
 #ifdef __CONCURRENT__
 		std::unique_lock<std::shared_mutex> lock_file_storage(m_mtxStorage);
@@ -110,7 +180,7 @@ public:
 #endif __CONCURRENT__
 */
 
-//std::shared_ptr<ObjectType> ptrObject = std::make_shared<ObjectType>(szBuffer); //2
+		//std::shared_ptr<ObjectType> ptrObject = std::make_shared<ObjectType>(szBuffer); //2
 
 		ptrObject->dirty = false;
 
@@ -137,7 +207,13 @@ public:
 		std::unique_lock<std::shared_mutex> lock_file_storage(m_mtxStorage);
 #endif __CONCURRENT__
 
-		memcpy(m_szStorage + (m_nNextBlock * m_nBlockSize), szBuffer, nBufferSize);
+		// memcpy(m_szStorage + (m_nNextBlock * m_nBlockSize), szBuffer, nBufferSize);
+		if(!writeMMapFile(hMemory + ( m_nNextBlock * m_nBlockSize  ), szBuffer, nBufferSize))
+		{
+			throw new std::logic_error("failed to write data!");
+		}
+		
+		
 
 		//m_fsStorage.seekp(m_nNextBlock * m_nBlockSize);
 		//ptrObject->serialize(m_fsStorage, uidObjectType, nBufferSize); //1
@@ -193,7 +269,12 @@ public:
 
 			char* szBuffer = NULL; //2
 			(*it).second.second->serialize(szBuffer, uidObjectType, nBufferSize); //2
-			memcpy(m_szStorage + (*(*it).second.first).m_uid.FATPOINTER.m_ptrFile.m_nOffset, szBuffer, nBufferSize);
+			
+			//memcpy(m_szStorage + (*(*it).second.first).m_uid.FATPOINTER.m_ptrFile.m_nOffset, szBuffer, nBufferSize);
+			if (!writeMMapFile(hMemory + (*(*it).second.first).m_uid.FATPOINTER.m_ptrFile.m_nOffset, szBuffer, nBufferSize))
+			{
+				throw new std::logic_error("failed to write data!");
+			}
 
 			//m_fsStorage.seekp((*(*it).second.first).m_uid.FATPOINTER.m_ptrFile.m_nOffset);
 			//m_fsStorage.write( vtBuffer[idx], (*(m_vtObjects[idx].uidDetails.uidObject_Updated)).m_uid.FATPOINTER.m_ptrFile.m_nSize); //2
@@ -260,3 +341,4 @@ public:
 	}
 #endif __CONCURRENT__
 };
+
