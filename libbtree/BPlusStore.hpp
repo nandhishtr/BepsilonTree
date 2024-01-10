@@ -22,8 +22,8 @@
 #include <fstream>
 #include <assert.h>
 
-#define __CONCURRENT__
-#define __TREE_AWARE_CACHE__
+//#define __CONCURRENT__
+//#define __TREE_AWARE_CACHE__
 using namespace std::chrono_literals;
 
 #ifdef __TREE_AWARE_CACHE__

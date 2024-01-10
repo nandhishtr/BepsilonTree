@@ -173,44 +173,19 @@ void threaded_test(BPlusStoreType* ptrTree, int degree, int total_entries, int t
 template <typename BPlusStoreType, typename IndexNodeType, typename DataNodeType>
 void int_test(BPlusStoreType* ptrTree, int degree, int total_entries)
 {
+	std::cout << degree << ".";
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
     int i = 0;
-    while (i++ < 10) {
-        std::cout << i << ",";;
-        for (size_t nCntr = 0; nCntr < total_entries; nCntr = nCntr + 2)
+    //while (i++ < 10) 
+    {
+        //std::cout << i << ",";;
+        for (size_t nCntr = 0; nCntr < total_entries; nCntr = nCntr + 1)
         {
             //std::cout << nCntr << ",";
             ptrTree->insert(nCntr, nCntr);
         }
-
-
-        /*std::ofstream out_1("d:\\tree_post_insert_0.txt");
-        ptrTree->print(out_1);
-        out_1.flush();
-        out_1.close();*/
-        //std::cout << "--------------------------------------------------------------------" << std::endl;
-        for (size_t nCntr = 1; nCntr < total_entries; nCntr = nCntr + 2)
-        {
-            //std::cout << nCntr << ",";
-            ptrTree->insert(nCntr, nCntr, false);
-
-            //std::string _fn = "d:\\tree_post_insert_file_";
-            //_fn.append(to_string(nCntr));
-            //_fn.append(".txt");
-            //std::ofstream out_t(_fn);
-            //ptrTree->print(out_t);
-            //out_t.flush();
-            //out_t.close();
-
-        }
-//std::cout << "xxxxxxxxxxx" << std::endl;
-//break;
-        /*std::ofstream out_t("d:\\tree_post_insert_file.txt");
-        ptrTree->print(out_t);
-        out_t.flush();
-        out_t.close();*/
-
+/*
         for (size_t nCntr = 0; nCntr < total_entries; nCntr++)
         {
             int nValue = 0;
@@ -239,8 +214,9 @@ void int_test(BPlusStoreType* ptrTree, int degree, int total_entries)
         size_t lru, map;
         ptrTree->getCacheState(lru, map);
         assert(lru == 1 && map == 1);
+*/
     }
-    i = 0;
+/*    i = 0;
     while (i++ < 10) {
         std::cout << "rev:" << i << ",";
         for (int nCntr = total_entries; nCntr >= 0; nCntr = nCntr - 2)
@@ -280,7 +256,7 @@ void int_test(BPlusStoreType* ptrTree, int degree, int total_entries)
         size_t lru, map;
         ptrTree->getCacheState(lru, map);
         assert(lru == 1 && map == 1);
-    }
+    }*/
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[�s]" << std::endl;
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
@@ -383,10 +359,11 @@ void string_test(BPlusStoreType* ptrTree, int degree, int total_entries)
 
 void test_for_ints()
 {
-    for (int idx = 3; idx < 40; idx++) {
+    for (int idx = 1000; idx < 2000; idx = idx + 200) {
         std::cout << "test_for_ints idx:" << idx << "| ";
         {
 #ifndef __TREE_AWARE_CACHE__
+	std::cout << "....";
             typedef int KeyType;
             typedef int ValueType;
             typedef uintptr_t ObjectUIDType;
@@ -398,7 +375,7 @@ void test_for_ints()
             BPlusStoreType ptrTree(idx);
             ptrTree.template init<DataNodeType>();
 
-            int_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 10000);
+            int_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 50000000);
 #endif __TREE_AWARE_CACHE__
         }
         {
@@ -420,7 +397,7 @@ void test_for_ints()
             BPlusStoreType ptrTree(idx, 1000, 1024, 1024 * 1024 * 1024);
             ptrTree.template init<NVMRODataNodeType>();
 
-            int_test<BPlusStoreType, NVMROIndexNodeType, NVMRODataNodeType>(&ptrTree, idx, 10000);
+            int_test<BPlusStoreType, NVMROIndexNodeType, NVMRODataNodeType>(&ptrTree, idx, 5000);
 #endif __TREE_AWARE_CACHE__
         }
         {
@@ -436,10 +413,10 @@ void test_for_ints()
             typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
 
             typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, VolatileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
-            BPlusStoreType ptrTree(idx, 100, 1024, 1024 * 1024 * 1024);
+            BPlusStoreType ptrTree(idx, 1000, 1024, 1024 * 1024 * 1024);
             ptrTree.template init<DataNodeType>();
 
-            int_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 10000);
+            int_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 5000);
 #endif __TREE_AWARE_CACHE__
         }
 
@@ -620,7 +597,7 @@ int main(int argc, char* argv[])
 {
     //test_for_ints();
     //test_for_string();
-    test_for_threaded();
+    //test_for_threaded();
 
     typedef int KeyType;
     typedef int ValueType;

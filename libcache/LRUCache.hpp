@@ -16,8 +16,8 @@
 #include "IFlushCallback.h"
 #include "VariadicNthType.h"
 
-#define __CONCURRENT__
-#define __TREE_AWARE_CACHE__
+//#define __CONCURRENT__
+//#define __TREE_AWARE_CACHE__
 
 #define FLUSH_COUNT 100
 
