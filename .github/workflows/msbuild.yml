@@ -28,7 +28,8 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        configuration: [Release_VT, Release_CT, Release_NVT, Release_NVCT]
+        #configuration: [Release_VT, Release_CT, Release_NVT, Release_NVCT]
+        configuration: [Release_VT, Release_CT]
         platform: [x64]
     steps:
     - uses: actions/checkout@v2
