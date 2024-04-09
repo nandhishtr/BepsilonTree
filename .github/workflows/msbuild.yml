@@ -48,3 +48,6 @@ jobs:
       # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: msbuild /m /p:Configuration=${{ matrix.configuration }} /p:Platform="${{ matrix.platform }}"
       #run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} /p:Platform=""
+
+    - name: Run Unit Tests
+      run: .\${{ matrix.platform }}\${{ matrix.configuration }}\test_all.exe
