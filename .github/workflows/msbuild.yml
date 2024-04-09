@@ -29,6 +29,7 @@ jobs:
     strategy:
       matrix:
         configuration: [Release_VT, Release_CT, Release_NVT, Release_NVCT]
+        platform: [x64, 'Any CPU']
     steps:
     - uses: actions/checkout@v2
       with:
