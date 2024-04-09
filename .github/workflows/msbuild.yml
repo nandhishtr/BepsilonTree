@@ -7,9 +7,9 @@ name: MSBuild
 
 on:
   push:
-    branches: [ "feature/sctp" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "feature/sctp" ]
+    branches: [ "main" ]
 
 env:
   # Path to the solution file relative to the root of the project.
@@ -28,7 +28,7 @@ jobs:
     runs-on: windows-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@feature/sctp
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
