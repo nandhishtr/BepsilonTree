@@ -15,8 +15,6 @@
 
 #include "ErrorCodes.h"
 
-//#define __TREE_AWARE_CACHE__
-
 using namespace std;
 
 template <typename KeyType, typename ValueType, typename ObjectUIDType, typename NVMIndexNode, typename DRAMIndexNode, uint8_t TYPE_UID>

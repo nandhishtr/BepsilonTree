@@ -362,7 +362,7 @@ void test_for_ints()
     for (int idx = 1000; idx < 2000; idx = idx + 200) {
         std::cout << "test_for_ints idx:" << idx << "| ";
         {
-#ifndef __TREE_AWARE_CACHE__
+#ifndef __TREE_WITH_CACHE__
 	std::cout << "....";
             typedef int KeyType;
             typedef int ValueType;
@@ -376,10 +376,10 @@ void test_for_ints()
             ptrTree.template init<DataNodeType>();
 
             int_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 50000000);
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
         }
         {
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
             typedef int KeyType;
             typedef int ValueType;
             typedef ObjectFatUID ObjectUIDType;
@@ -398,10 +398,10 @@ void test_for_ints()
             ptrTree.template init<NVMRODataNodeType>();
 
             int_test<BPlusStoreType, NVMROIndexNodeType, NVMRODataNodeType>(&ptrTree, idx, 5000);
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
         }
         {
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
             typedef int KeyType;
             typedef int ValueType;
             typedef ObjectFatUID ObjectUIDType;
@@ -417,11 +417,11 @@ void test_for_ints()
             ptrTree.template init<DataNodeType>();
 
             int_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 5000);
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
         }
 
         {
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
             typedef int KeyType;
             typedef int ValueType;
             typedef ObjectFatUID ObjectUIDType;
@@ -437,7 +437,7 @@ void test_for_ints()
             ptrTree->init<DataNodeType>(); 
             
             int_test<BPlusStoreType, IndexNodeType, DataNodeType>(ptrTree, idx, 10000);
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
         }
         std::cout << std::endl;
     }
@@ -448,7 +448,7 @@ void test_for_string()
     for (int idx = 3; idx < 40; idx++) {
         std::cout << "test_for_string idx:" << idx << "| ";
         {
-#ifndef __TREE_AWARE_CACHE__
+#ifndef __TREE_WITH_CACHE__
             typedef string KeyType;
             typedef string ValueType;
             typedef uintptr_t ObjectUIDType;
@@ -461,10 +461,10 @@ void test_for_string()
             ptrTree1->init<DataNodeType>();
 
             string_test<BPlusStoreType, IndexNodeType, DataNodeType>(ptrTree1, idx, 10000);
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
         }
         {
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
             /*typedef string KeyType;
             typedef string ValueType;
             typedef ObjectFatUID ObjectUIDType;
@@ -480,10 +480,10 @@ void test_for_string()
             ptrTree2->init<DataNodeType>();
 
             string_test<BPlusStoreType, IndexNodeType, DataNodeType>(ptrTree2, idx, 10000);*/
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
         }
         {
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
             /*typedef string KeyType;
             typedef string ValueType;
             typedef ObjectFatUID ObjectUIDType;
@@ -499,7 +499,7 @@ void test_for_string()
             ptrTree->init<DataNodeType>();
 
             string_test<BPlusStoreType, IndexNodeType, DataNodeType>(ptrTree, idx, 10000);*/
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
         }
         std::cout << std::endl;
     }
@@ -511,7 +511,7 @@ void test_for_threaded()
     for (int idx = 3; idx < 20; idx++) {
         std::cout << "iteration.." << idx << std::endl;
         {
-#ifndef __TREE_AWARE_CACHE__
+#ifndef __TREE_WITH_CACHE__
             typedef int KeyType;
             typedef int ValueType;
             typedef uintptr_t ObjectUIDType;
@@ -524,11 +524,11 @@ void test_for_threaded()
             ptrTree.template init<DataNodeType>();
 
             threaded_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 3 * 10000, 10);
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 
         }
         {
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
             typedef int KeyType;
             typedef int ValueType;
             typedef ObjectFatUID ObjectUIDType;
@@ -548,10 +548,10 @@ void test_for_threaded()
             ptrTree.template init<NVMRODataNodeType>();
 
             threaded_test<BPlusStoreType, NVMROIndexNodeType, NVMRODataNodeType>(&ptrTree, idx, 3 * 10000, 10);
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
         }
         {
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
             typedef int KeyType;
             typedef int ValueType;
             typedef ObjectFatUID ObjectUIDType;
@@ -568,10 +568,10 @@ void test_for_threaded()
             ptrTree.template init<DataNodeType>();
 
             threaded_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 3 * 10000, 10);
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
         }
         {
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
             typedef int KeyType;
             typedef int ValueType;
             typedef ObjectFatUID ObjectUIDType;
@@ -587,7 +587,7 @@ void test_for_threaded()
             ptrTree.template init<DataNodeType>();
 
             threaded_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 3 * 10000, 10);
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
         }
     }
 #endif __CONCURRENT__
@@ -602,7 +602,7 @@ int main(int argc, char* argv[])
     typedef int KeyType;
     typedef int ValueType;
 
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
     //typedef ObjectFatUID ObjectUIDType;
     //typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
     //typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> IndexNodeType;
@@ -630,7 +630,7 @@ int main(int argc, char* argv[])
     BPlusStoreType* ptrTree = new BPlusStoreType(3, 100, 1024, 1024 * 1024 * 1024);
     ptrTree->init<NVMRODataNodeType>();
 
-#else //__TREE_AWARE_CACHE__
+#else //__TREE_WITH_CACHE__
     typedef int KeyType;
     typedef int ValueType;
     typedef uintptr_t ObjectUIDType;
@@ -642,7 +642,7 @@ int main(int argc, char* argv[])
     BPlusStoreType* ptrTree = new BPlusStoreType(3);
     ptrTree->template init<DataNodeType>();
 
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 
     for (size_t nCntr = 0; nCntr < 1000000; nCntr++)
     {

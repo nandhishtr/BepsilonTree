@@ -9,8 +9,6 @@
 #include <cmath>
 #include <libpmem.h>
 
-//#define __CONCURRENT__
-
 bool createMMapFile(void*& hMemory, const char* szPath, size_t nFileSize, size_t& nMappedLen, int& bIsPMem)
 {
 	if ((hMemory = pmem_map_file(szPath,

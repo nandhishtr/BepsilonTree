@@ -22,17 +22,15 @@
 #include <fstream>
 #include <assert.h>
 
-#define __CONCURRENT__
-#define __TREE_AWARE_CACHE__
 using namespace std::chrono_literals;
 
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
 template <typename ICallback, typename KeyType, typename ValueType, typename CacheType>
 class BPlusStore : public ICallback
-#else // !__TREE_AWARE_CACHE__
+#else // !__TREE_WITH_CACHE__
 template <typename KeyType, typename ValueType, typename CacheType>
 class BPlusStore
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 {
     typedef CacheType::ObjectUIDType ObjectUIDType;
     typedef CacheType::ObjectType ObjectType;
@@ -66,9 +64,9 @@ public:
     template <typename DefaultNodeType>
     void init()
     {
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
         m_ptrCache->init(this);
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 
         m_ptrCache->template createObjectOfType<DefaultNodeType>(m_uidRootNode);
     }
@@ -98,7 +96,7 @@ public:
 //            if (print) { std::this_thread::sleep_for(10ms);
 //std::cout << uidCurrentNode.toString().c_str() << std::endl;}
 
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
             std::optional<ObjectUIDType> uidUpdated = std::nullopt;
             m_ptrCache->getObject(uidCurrentNode, ptrCurrentNode, uidUpdated);    //TODO: lock
 
@@ -131,9 +129,9 @@ public:
 
                 uidCurrentNode = *uidUpdated;
             }
-#else __TREE_AWARE_CACHE__
+#else __TREE_WITH_CACHE__
             m_ptrCache->getObject(uidCurrentNode, ptrCurrentNode);    //TODO: lock
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 
 #ifdef __CONCURRENT__
             vtLocks.push_back(std::unique_lock<std::shared_mutex>(ptrCurrentNode->mutex));
@@ -174,9 +172,9 @@ public:
                 //if (print) { std::cout << "3." << std::endl;}
                 std::shared_ptr<DataNodeType> ptrDataNode = std::get<std::shared_ptr<DataNodeType>>(*ptrCurrentNode->data);
 
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
                 ptrCurrentNode->dirty = true;
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 
                 if (ptrDataNode->insert(key, value) != ErrorCode::Success)
                 {
@@ -266,9 +264,9 @@ public:
                     throw new std::logic_error("should not occur!"); // for the time being!
                 }
 
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
                 prNodeDetails.second->dirty = true;
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 
                 uidRHSNode = std::nullopt;
 
@@ -296,9 +294,9 @@ public:
                     throw new std::logic_error("should not occur!"); // for the time being!
                 }
 
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
                 prNodeDetails.second->dirty = true;
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
             }
 
             uidLHSNode = prNodeDetails.first;
@@ -328,7 +326,7 @@ public:
         {
             ObjectTypePtr prNodeDetails = nullptr;
 
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
             std::optional<ObjectUIDType> uidUpdated = std::nullopt;
             m_ptrCache->getObject(uidCurrentNode, prNodeDetails, uidUpdated);    //TODO: lock
 
@@ -358,9 +356,9 @@ public:
 
                 uidCurrentNode = *uidUpdated;
             }
-#else __TREE_AWARE_CACHE__
+#else __TREE_WITH_CACHE__
             m_ptrCache->getObject(uidCurrentNode, prNodeDetails);    //TODO: lock
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 
 
 #ifdef __CONCURRENT__
@@ -420,7 +418,7 @@ public:
 
         do
         {
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
             std::optional<ObjectUIDType> uidUpdated = std::nullopt;
             m_ptrCache->getObject(uidCurrentNode, ptrCurrentNode, uidUpdated);    //TODO: lock
 
@@ -448,9 +446,9 @@ public:
 
                 uidCurrentNode = *uidUpdated;
             }
-#else __TREE_AWARE_CACHE__
+#else __TREE_WITH_CACHE__
             m_ptrCache->getObject(uidCurrentNode, ptrCurrentNode);    //TODO: lock
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 
 
 #ifdef __CONCURRENT__
@@ -497,9 +495,9 @@ public:
                     throw new std::logic_error("should not occur!");
                 }
 
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
                 ptrCurrentNode->dirty = true;
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 
                 if (ptrDataNode->requireMerge(m_nDegree))
                 {
@@ -539,16 +537,16 @@ public:
 
                 ObjectTypePtr ptrCurrentRoot;
 
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
                 std::optional<ObjectUIDType> uidUpdated = std::nullopt;
                 m_ptrCache->getObject(*m_uidRootNode, ptrCurrentRoot, uidUpdated);
 
                 assert(uidUpdated == std::nullopt);
 
                 ptrCurrentRoot->dirty = true;
-#else __TREE_AWARE_CACHE__
+#else __TREE_WITH_CACHE__
                 m_ptrCache->getObject(*m_uidRootNode, ptrCurrentRoot);
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 
                 if (std::holds_alternative<std::shared_ptr<IndexNodeType>>(*ptrCurrentRoot->data))
                 {
@@ -558,9 +556,9 @@ public:
                         m_ptrCache->remove(*m_uidRootNode);
                         m_uidRootNode = _tmp;
 
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
                         ptrCurrentRoot->dirty = true;
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
                     }
                 }
                 else if (std::holds_alternative<std::shared_ptr<DataNodeType>>(*ptrCurrentRoot->data))
@@ -589,10 +587,10 @@ public:
                     {
                         ptrParentIndexNode->template rebalanceIndexNode<std::shared_ptr<CacheType>, std::shared_ptr<IndexNodeType>>(m_ptrCache, uidChildNode, ptrChildIndexNode, key, m_nDegree, uidToDelete);
 
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
                         prNodeDetails.second->dirty = true;
                         ptrChildNode->dirty = true;
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 
                         if (uidToDelete)
                         {
@@ -625,10 +623,10 @@ public:
 
                     ptrParentIndexNode->template rebalanceDataNode<std::shared_ptr<CacheType>, std::shared_ptr<DataNodeType>>(m_ptrCache, uidChildNode, ptrChildDataNode, key, m_nDegree, uidToDelete);
 
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
                     prNodeDetails.second->dirty = true;
                     ptrChildNode->dirty = true;
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 
                     if (uidToDelete)
                     {
@@ -704,7 +702,7 @@ public:
         return m_ptrCache->getCacheState(lru, map);
     }
 
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
 public:
     void applyExistingUpdates(std::shared_ptr<ObjectType> ptrObject
         , std::unordered_map<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>& mpUIDUpdates)
@@ -835,5 +833,5 @@ public:
             }
         }
     }
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 };

@@ -11,8 +11,6 @@
 #include "ErrorCodes.h"
 #include "IFlushCallback.h"
 
-#define __CONCURRENT__
-
 template<
 	typename ICallback,
 	typename ObjectUIDType_, 

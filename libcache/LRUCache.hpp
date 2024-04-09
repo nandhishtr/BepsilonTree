@@ -15,9 +15,6 @@
 #include "IFlushCallback.h"
 #include "VariadicNthType.h"
 
-#define __CONCURRENT__
-#define __TREE_AWARE_CACHE__
-
 #define FLUSH_COUNT 100
 
 template <typename ICallback, typename StorageType>
@@ -100,7 +97,7 @@ public:
 		, m_ptrTail(nullptr)
 	{
 		m_ptrStorage = std::make_unique<StorageType>(args...);
-
+		
 #ifdef __CONCURRENT__
 		m_bStop = false;
 		m_threadCacheFlush = std::thread(handlerCacheFlush, this);
@@ -790,7 +787,7 @@ private:
 	}
 #endif __CONCURRENT__
 
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
 public:
 	void applyExistingUpdates(std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>>& vtNodes
 		, std::unordered_map<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>& mpUpdatedUIDs)
@@ -809,5 +806,5 @@ public:
 	{
 
 	}
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 };

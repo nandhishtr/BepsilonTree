@@ -15,8 +15,6 @@
 
 #include "ErrorCodes.h"
 
-#define __TREE_AWARE_CACHE__
-
 using namespace std;
 
 template <typename KeyType, typename ValueType, typename ObjectUIDType, uint8_t TYPE_UID>
@@ -181,7 +179,7 @@ public:
 
 		if (nChildIdx > 0)
 		{
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
 			std::optional<ObjectUIDType> uidUpdated = std::nullopt;
 			ptrCache->template getObjectOfType<ObjectCoreType>(m_ptrData->m_vtChildren[nChildIdx - 1], ptrLHSNode, uidUpdated);    //TODO: lock
 
@@ -189,9 +187,9 @@ public:
 			{
 				m_ptrData->m_vtChildren[nChildIdx - 1] = *uidUpdated;
 			}
-#else __TREE_AWARE_CACHE__
+#else __TREE_WITH_CACHE__
 			ptrCache->template getObjectOfType<ObjectCoreType>(m_ptrData->m_vtChildren[nChildIdx - 1], ptrLHSNode);    //TODO: lock
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 
 			if (ptrLHSNode->getKeysCount() > std::ceil(nDegree / 2.0f))	// TODO: macro?
 			{
@@ -205,7 +203,7 @@ public:
 
 		if (nChildIdx < m_ptrData->m_vtPivots.size())
 		{
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
 			std::optional<ObjectUIDType> uidUpdated = std::nullopt;
 			ptrCache->template getObjectOfType<ObjectCoreType>(m_ptrData->m_vtChildren[nChildIdx + 1], ptrRHSNode, uidUpdated);    //TODO: lock
 
@@ -213,9 +211,9 @@ public:
 			{
 				m_ptrData->m_vtChildren[nChildIdx + 1] = *uidUpdated;
 			}
-#else __TREE_AWARE_CACHE__
+#else __TREE_WITH_CACHE__
 			ptrCache->template getObjectOfType<ObjectCoreType>(m_ptrData->m_vtChildren[nChildIdx + 1], ptrRHSNode);    //TODO: lock
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 
 			if (ptrRHSNode->getKeysCount() > std::ceil(nDegree / 2.0f))
 			{
@@ -272,7 +270,7 @@ public:
 
 		if (nChildIdx > 0)
 		{
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
 			std::optional<ObjectUIDType> uidUpdated = std::nullopt;
 			ptrCache->template getObjectOfType<ObjectCoreType>(m_ptrData->m_vtChildren[nChildIdx - 1], ptrLHSNode, uidUpdated);    //TODO: lock
 
@@ -280,9 +278,9 @@ public:
 			{
 				m_ptrData->m_vtChildren[nChildIdx - 1] = *uidUpdated;
 			}
-#else __TREE_AWARE_CACHE__
+#else __TREE_WITH_CACHE__
 			ptrCache->template getObjectOfType<ObjectCoreType>(m_ptrData->m_vtChildren[nChildIdx - 1], ptrLHSNode);    //TODO: lock
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 
 			if (ptrLHSNode->getKeysCount() > std::ceil(nDegree / 2.0f))
 			{
@@ -296,7 +294,7 @@ public:
 
 		if (nChildIdx < m_ptrData->m_vtPivots.size())
 		{
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
 			std::optional<ObjectUIDType> uidUpdated = std::nullopt;
 			ptrCache->template getObjectOfType<ObjectCoreType>(m_ptrData->m_vtChildren[nChildIdx + 1], ptrRHSNode, uidUpdated);    //TODO: lock
 
@@ -304,9 +302,9 @@ public:
 			{
 				m_ptrData->m_vtChildren[nChildIdx + 1] = *uidUpdated;
 			}
-#else __TREE_AWARE_CACHE__
+#else __TREE_WITH_CACHE__
 			ptrCache->template getObjectOfType<ObjectCoreType>(m_ptrData->m_vtChildren[nChildIdx + 1], ptrRHSNode);    //TODO: lock
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 
 
 			if (ptrRHSNode->getKeysCount() > std::ceil(nDegree / 2.0f))
