@@ -3,7 +3,7 @@
 #include "gtest/gtest.h"
 
 //#define __CONCURRENT__
-//#define __TREE_AWARE_CACHE__
+#define __TREE_AWARE_CACHE__
 
 int main(int argc, char** argv)
 {

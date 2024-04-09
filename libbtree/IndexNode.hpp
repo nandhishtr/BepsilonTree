@@ -15,7 +15,7 @@
 
 #include "ErrorCodes.h"
 
-//#define __TREE_AWARE_CACHE__
+#define __TREE_AWARE_CACHE__
 
 using namespace std;
 

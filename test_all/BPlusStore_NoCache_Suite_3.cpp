@@ -23,7 +23,7 @@ namespace BPlusStore_NoCache_Suite
     typedef int ValueType;
     typedef uintptr_t ObjectUIDType;
 
-    typedef IFlushCallback<ObjectUIDType> ICallback;
+    //typedef IFlushCallback<ObjectUIDType> ICallback;
 
     typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT > DataNodeType;
     typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT > InternalNodeType;

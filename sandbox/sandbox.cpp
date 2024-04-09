@@ -177,7 +177,7 @@ void int_test(BPlusStoreType* ptrTree, int degree, int total_entries)
     std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
     int i = 0;
-    //while (i++ < 10) 
+    while (i++ < 10) 
     {
         //std::cout << i << ",";;
         for (size_t nCntr = 0; nCntr < total_entries; nCntr = nCntr + 1)
@@ -185,7 +185,7 @@ void int_test(BPlusStoreType* ptrTree, int degree, int total_entries)
             //std::cout << nCntr << ",";
             ptrTree->insert(nCntr, nCntr);
         }
-/*
+
         for (size_t nCntr = 0; nCntr < total_entries; nCntr++)
         {
             int nValue = 0;
@@ -214,9 +214,9 @@ void int_test(BPlusStoreType* ptrTree, int degree, int total_entries)
         size_t lru, map;
         ptrTree->getCacheState(lru, map);
         assert(lru == 1 && map == 1);
-*/
+
     }
-/*    i = 0;
+   i = 0;
     while (i++ < 10) {
         std::cout << "rev:" << i << ",";
         for (int nCntr = total_entries; nCntr >= 0; nCntr = nCntr - 2)
@@ -256,7 +256,7 @@ void int_test(BPlusStoreType* ptrTree, int degree, int total_entries)
         size_t lru, map;
         ptrTree->getCacheState(lru, map);
         assert(lru == 1 && map == 1);
-    }*/
+    }
     std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[�s]" << std::endl;
     std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
@@ -432,11 +432,11 @@ void test_for_ints()
             typedef LRUCacheObject<TypeMarshaller, DataNodeType, IndexNodeType> ObjectType;
             typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
 
-            //typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, FileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
-            //BPlusStoreType* ptrTree = new BPlusStoreType(idx, 1000, 1024, 1024 * 1024 * 1024, "/home/skarim/workspace/code/haldendb/filestore.hdb");
-            //ptrTree->init<DataNodeType>(); 
+            typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, FileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
+            BPlusStoreType* ptrTree = new BPlusStoreType(idx, 1000, 1024, 1024 * 1024 * 1024, "D:\\filestore.hdb");
+            ptrTree->init<DataNodeType>(); 
             
-            //int_test<BPlusStoreType, IndexNodeType, DataNodeType>(ptrTree, idx, 10000);
+            int_test<BPlusStoreType, IndexNodeType, DataNodeType>(ptrTree, idx, 10000);
 #endif __TREE_AWARE_CACHE__
         }
         std::cout << std::endl;
@@ -583,10 +583,10 @@ void test_for_threaded()
             typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
 
             typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, FileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
-            //BPlusStoreType ptrTree(idx, 1000, 1024, 1024 * 1024 * 1024, "/home/skarim/workspace/code/haldendb/filestore.hdb");
-            //ptrTree.template init<DataNodeType>();
+            BPlusStoreType ptrTree(idx, 1000, 1024, 1024 * 1024 * 1024, "D:\\filestore.hdb");
+            ptrTree.template init<DataNodeType>();
 
-            //threaded_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 3 * 10000, 10);
+            threaded_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 3 * 10000, 10);
 #endif __TREE_AWARE_CACHE__
         }
     }
@@ -597,28 +597,31 @@ int main(int argc, char* argv[])
 {
     //test_for_ints();
     //test_for_string();
-    //test_for_threaded();
+    test_for_threaded();
 
     typedef int KeyType;
     typedef int ValueType;
 
 #ifdef __TREE_AWARE_CACHE__
-   /*typedef ObjectFatUID ObjectUIDType;
-   ?ypedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
-    typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> IndexNodeType;
-    typedef LRUCacheObject<TypeMarshaller, DataNodeType, IndexNodeType> ObjectType;
-    typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
-    typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, FileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
-    BPlusStoreType* ptrTree = new BPlusStoreType(3, 200, 1024, 1024 * 1024 * 1024, "filestore.hdb");
-    ptrTree->init<DataNodeType>();
-    */
+    //typedef ObjectFatUID ObjectUIDType;
+    //typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
+    //typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> IndexNodeType;
+    //typedef LRUCacheObject<TypeMarshaller, DataNodeType, IndexNodeType> ObjectType;
+    //typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
+    //typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, FileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
+    //BPlusStoreType* ptrTree = new BPlusStoreType(3, 200, 1024, 1024 * 1024 * 1024, "D:\\filestore.hdb");
+    //ptrTree->init<DataNodeType>();
+    
 
     typedef ObjectFatUID ObjectUIDType;
     typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
     typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> IndexNodeType;
 
-    typedef NVMRODataNode<KeyType, ValueType, ObjectUIDType, DataNodeType, DataNodeType, TYPE_UID::DATA_NODE_INT_INT> NVMRODataNodeType;
-    typedef NVMROIndexNode<KeyType, ValueType, ObjectUIDType, IndexNodeType, IndexNodeType, TYPE_UID::INDEX_NODE_INT_INT> NVMROIndexNodeType;
+    typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> NVMRODataNodeType;
+    typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> NVMROIndexNodeType;
+
+    //typedef NVMRODataNode<KeyType, ValueType, ObjectUIDType, DataNodeType, DataNodeType, TYPE_UID::DATA_NODE_INT_INT> NVMRODataNodeType;
+    //typedef NVMROIndexNode<KeyType, ValueType, ObjectUIDType, IndexNodeType, IndexNodeType, TYPE_UID::INDEX_NODE_INT_INT> NVMROIndexNodeType;
 
     typedef LRUCacheObject<TypeMarshaller, NVMRODataNodeType, NVMROIndexNodeType> ObjectType;
     typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;

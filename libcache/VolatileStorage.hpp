@@ -11,7 +11,7 @@
 #include "ErrorCodes.h"
 #include "IFlushCallback.h"
 
-#define __CONCURRENT__
+//#define __CONCURRENT__
 
 template<
 	typename ICallback,
@@ -184,7 +184,7 @@ public:
 #endif __CONCURRENT__
 
 		m_nNextBlock = nNewOffset;
-
+		int j = 0;
 		auto it = vtObjects.begin();
 		while (it != vtObjects.end())
 		{
@@ -208,7 +208,7 @@ public:
 			//delete[] vtBuffer[idx];
 
 			delete[] szBuffer;
-
+			j++;
 			it++;
 		}
 		//m_fsStorage.flush();
