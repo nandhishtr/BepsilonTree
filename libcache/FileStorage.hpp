@@ -69,7 +69,10 @@ public:
 		m_vtAllocationTable.resize(nFileSize/nBlockSize, false);
 
 		//m_fsStorage.rdbuf()->pubsetbuf(0, 0);
-		m_fsStorage.open(stFilename.c_str(), std::ios::binary | std::ios::in | std::ios::out);
+		m_fsStorage.open(stFilename.c_str(), std::ios::out | std::ios::binary);
+		m_fsStorage.close();
+
+		m_fsStorage.open(stFilename.c_str(), std::ios::out | std::ios::binary | std::ios::in);
 		m_fsStorage.seekp(0);
 		m_fsStorage.seekg(0);
 

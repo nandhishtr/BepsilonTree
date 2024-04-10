@@ -6,6 +6,8 @@
 #include <variant>
 #include <typeinfo>
 #include <type_traits>
+#include <fstream>
+#include <filesystem>
 
 #include "glog/logging.h"
 
@@ -23,7 +25,7 @@
 #ifdef __TREE_WITH_CACHE__
 namespace BPlusStore_LRUCache_FileStorage_Suite
 {
-    class BPlusStore_LRUCache_FileStorage_Suite_1 : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, int, string>>
+    class BPlusStore_LRUCache_FileStorage_Suite_1 : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, int>>
     {
     protected:
         typedef int KeyType;
@@ -42,14 +44,16 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
 
         void SetUp() override
         {
-            std::tie(nDegree, nBegin_BulkInsert, nEnd_BulkInsert, nCacheSize, nBlockSize, nFileSize, stFileName) = GetParam();
+            std::tie(nDegree, nBegin_BulkInsert, nEnd_BulkInsert, nCacheSize, nBlockSize, nFileSize) = GetParam();
+
+            stFileName = (std::filesystem::temp_directory_path() / "tempfile.hdb").string();
 
             //m_ptrTree = new BPlusStoreType(3);
             //m_ptrTree->template init<DataNodeType>();
         }
 
         void TearDown() override {
-            //delete m_ptrTree;
+            std::filesystem::remove(std::filesystem::temp_directory_path() / "tempfile.hdb");
         }
 
         int nDegree;
@@ -291,16 +295,16 @@ namespace BPlusStore_LRUCache_FileStorage_Suite
         Bulk_Insert_Search_Delete,
         BPlusStore_LRUCache_FileStorage_Suite_1,
         ::testing::Values(
-            std::make_tuple(3, 0, 99999, 100, 1024, 1024 * 1024 * 1024, "D:\\filestore.hdb"),
-            std::make_tuple(4, 0, 99999, 100, 1024, 1024 * 1024 * 1024, "D:\\filestore.hdb"),
-            std::make_tuple(5, 0, 99999, 100, 1024, 1024 * 1024 * 1024, "D:\\filestore.hdb"),
-            std::make_tuple(6, 0, 99999, 100, 1024, 1024 * 1024 * 1024, "D:\\filestore.hdb"),
-            std::make_tuple(7, 0, 99999, 100, 1024, 1024 * 1024 * 1024, "D:\\filestore.hdb"),
-            std::make_tuple(8, 0, 99999, 100, 1024, 1024 * 1024 * 1024, "D:\\filestore.hdb"),
-            std::make_tuple(15, 0, 199999, 100, 1024, 1024* 1024 * 1024, "D:\\filestore.hdb"),
-            std::make_tuple(16, 0, 199999, 100, 1024, 1024* 1024 * 1024, "D:\\filestore.hdb"),
-            std::make_tuple(32, 0, 199999, 100, 1024, 1024* 1024 * 1024, "D:\\filestore.hdb"),
-            std::make_tuple(64, 0, 199999, 100, 2048, 1024* 1024 * 1024, "D:\\filestore.hdb")
+            std::make_tuple(3, 0, 99999, 100, 1024, 1024 * 1024 * 1024),
+            std::make_tuple(4, 0, 99999, 100, 1024, 1024 * 1024 * 1024),
+            std::make_tuple(5, 0, 99999, 100, 1024, 1024 * 1024 * 1024),
+            std::make_tuple(6, 0, 99999, 100, 1024, 1024 * 1024 * 1024),
+            std::make_tuple(7, 0, 99999, 100, 1024, 1024 * 1024 * 1024),
+            std::make_tuple(8, 0, 99999, 100, 1024, 1024 * 1024 * 1024),
+            std::make_tuple(15, 0, 199999, 100, 1024, 1024* 1024 * 1024),
+            std::make_tuple(16, 0, 199999, 100, 1024, 1024* 1024 * 1024),
+            std::make_tuple(32, 0, 199999, 100, 1024, 1024* 1024 * 1024),
+            std::make_tuple(64, 0, 199999, 100, 2048, 1024* 1024 * 1024)
         ));    
 }
 #endif __TREE_WITH_CACHE__
