@@ -17,6 +17,10 @@
 
 #define FLUSH_COUNT 100
 
+
+using namespace std::chrono_literals;
+
+
 template <typename ICallback, typename StorageType>
 class LRUCache : public ICallback
 {
