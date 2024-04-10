@@ -27,9 +27,9 @@ add_executable(test_all
                BPlusStore_LRUCache_VolatileStorage_Suite_1.cpp
                BPlusStore_LRUCache_VolatileStorage_Suite_2.cpp
                BPlusStore_LRUCache_VolatileStorage_Suite_3.cpp
-               BPlusTree_NoCache_Suite_1.cpp 
-               BPlusTree_NoCache_Suite_2.cpp 
-               BPlusTree_NoCache_Suite_3.cpp 
+               BPlusStore_NoCache_Suite_1.cpp 
+               BPlusStore_NoCache_Suite_2.cpp 
+               BPlusStore_NoCache_Suite_3.cpp 
                main.cpp 
 )
 
