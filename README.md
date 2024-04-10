@@ -28,6 +28,14 @@ What things you need to install the software and how to install them, for exampl
    1.2. C++ development tools for Visual Studio
 
 2. **Linux**
+
+   2.1. CMake
+   
+   2.2 g++-11
+
+   2.2. glog
+
+   2.5. libpmem (when using NVRAM)
   
 ### Installing
 
@@ -56,6 +64,11 @@ A step by step series of examples that tell you how to get a development environ
    Run the project by clicking on Debug > Start Without Debugging or pressing Ctrl+F5.
 
 4. **Linux**
+   4.1. cd test_all
+   4.2. mkdir build
+   4.3. cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-D__CONCURRENT__ -D__TREE_WITH_CACHE__"
+   4.4. cmake --build .
+   4.5. ./test_all
 
    
 
