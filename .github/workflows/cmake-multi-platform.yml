@@ -59,7 +59,7 @@ jobs:
         echo "build-output-dir=${{ github.workspace }}/build" >> "$GITHUB_OUTPUT"
 
     - name: Create Build Directory
-      run: mkdir -p ./test_all/build
+      run: mkdir -p test_all/build
       working-directory: /test_all
       
 #      - name: Pre-configure
