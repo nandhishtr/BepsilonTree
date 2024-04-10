@@ -29,7 +29,7 @@ jobs:
     strategy:
       matrix:
         #configuration: [Release_VT, Release_CT, Release_NVT, Release_NVCT]
-        configuration: [Release_VT, Release_CT]
+        configuration: [Release_NVT]
         platform: [x64]
     steps:
     - uses: actions/checkout@v2
