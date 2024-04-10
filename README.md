@@ -4,11 +4,11 @@ Note: Use branch "feature/sctp"
 
 # Project
 
-This C++ project is an ongoing effort to explore and implement various B+ Tree variants. Designed as a resource for both educational and practical applications, it aims to provide insights into the different optimizations and uses of B+ Trees in databases and filesystems. As work progresses, the project will feature implementations ranging from basic structures suitable for learning purposes to more advanced versions optimized for specific challenges such as concurrency and cache efficiency. Contributors are welcome to join in this evolving exploration of one of the most fundamental data structures in computer science.
+This C++ project is an ongoing effort to explore and implement various B<sup>$\epsilon$</sup>-Tree and B<sup>+</sup>-Tree variants. Designed as a resource for both educational and practical applications, it aims to provide insights into the different optimizations and uses of B<sup>$\epsilon$</sup>-Tree and B<sup>+</sup>-Tree in databases and filesystems. As work progresses, the project will feature implementations ranging from basic structures suitable for learning purposes to more advanced versions optimized for specific challenges such as concurrency and cache efficiency. Contributors are welcome to join in this evolving exploration of one of the most fundamental data structures in computer science.
 
 The project currently includes the following modules:
 - **libcache**: A library for managing cache operations, including LRUCache.
-- **libbtree**: The main library for implementing various B+-tree variants.
+- **libbtree**: The main library for implementing various B<sup>$\epsilon$</sup>-Tree and B<sup>+</sup>-Tree variants.
 - **sandbox**: A utility for debugging and validating functionality.
 - **test_all**: A unit testing suite.
 
