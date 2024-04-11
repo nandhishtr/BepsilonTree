@@ -20,6 +20,7 @@
 #include "LRUCacheObject.hpp"
 #include "FileStorage.hpp"
 #include "TypeMarshaller.hpp"
+#include "PMemStorage.hpp"
 
 #include "TypeUID.h"
 #include <iostream>
@@ -604,14 +605,22 @@ int main(int argc, char* argv[])
 
 #ifdef __TREE_WITH_CACHE__
     typedef ObjectFatUID ObjectUIDType;
+
     typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
     typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> IndexNodeType;
-    typedef LRUCacheObject<TypeMarshaller, DataNodeType, IndexNodeType> ObjectType;
+
+    typedef NVMRODataNode<KeyType, ValueType, ObjectUIDType, DataNodeType, DataNodeType, TYPE_UID::DATA_NODE_INT_INT> NVMRODataNodeType;
+    typedef NVMROIndexNode<KeyType, ValueType, ObjectUIDType, IndexNodeType, IndexNodeType, TYPE_UID::INDEX_NODE_INT_INT> NVMROIndexNodeType;
+
+
+
+
+    typedef LRUCacheObject<TypeMarshaller, NVMRODataNodeType, NVMROIndexNodeType> ObjectType;
     typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
-    typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, FileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
-    BPlusStoreType* ptrTree = new BPlusStoreType(3, 100, 512, 1024 * 1024 * 1024, "D:\\filestore.hdb");
-    ptrTree->init<DataNodeType>();
-    
+    typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, PMemStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, NVMRODataNodeType, NVMROIndexNodeType>>> BPlusStoreType;
+    BPlusStoreType* ptrTree = new BPlusStoreType(3, 100, 512, 1024 * 1024 * 1024, "/mnt/tmpfs/filestore.hdb");
+    ptrTree->init<NVMRODataNodeType>();
+  
 
     //typedef ObjectFatUID ObjectUIDType;
     //typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
@@ -645,7 +654,7 @@ int main(int argc, char* argv[])
 #endif __TREE_WITH_CACHE__
 
 
-    for (size_t nCntr = 0; nCntr <= 99999; nCntr = nCntr + 2)
+/*    for (size_t nCntr = 0; nCntr <= 99999; nCntr = nCntr + 2)
     {
         ptrTree->insert(nCntr, nCntr);
     }
@@ -654,7 +663,7 @@ int main(int argc, char* argv[])
     {
         ptrTree->insert(nCntr, nCntr);
     }
-
+*/
 
     for (size_t nCntr = 0; nCntr < 1000000; nCntr++)
     {
