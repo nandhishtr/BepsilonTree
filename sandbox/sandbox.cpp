@@ -673,8 +673,9 @@ int main(int argc, char* argv[])
         ptrTree->insert(nCntr, nCntr);
     }
 
+#ifdef __TREE_WITH_CACHE__    
     ptrTree->flush();
-
+#endif __TREE_WITH_CACHE__
     for (size_t nCntr = 0; nCntr < 10000; nCntr++)
     {
         int nValue = 0;
@@ -683,8 +684,9 @@ int main(int argc, char* argv[])
         assert(nValue == nCntr);
     }
 
+#ifdef __TREE_WITH_CACHE__
     ptrTree->flush();
-
+#endif __TREE_WITH_CACHE__
     for (size_t nCntr = 0; nCntr < 10000; nCntr++)
     {
         ErrorCode code = ptrTree->remove(nCntr);
