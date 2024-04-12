@@ -704,6 +704,13 @@ public:
 
 #ifdef __TREE_WITH_CACHE__
 public:
+    ErrorCode flush()
+    {
+        m_ptrCache->flush();
+
+        return ErrorCode::Success;
+    }
+
     void applyExistingUpdates(std::shared_ptr<ObjectType> ptrObject
         , std::unordered_map<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>& mpUIDUpdates)
     {

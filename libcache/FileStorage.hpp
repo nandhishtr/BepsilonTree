@@ -57,6 +57,8 @@ public:
 
 		m_mpObjects.clear();
 #endif __CONCURRENT__
+
+		m_fsStorage.close();
 	}
 
 	FileStorage(size_t nBlockSize, size_t nFileSize, const std::string& stFilename)

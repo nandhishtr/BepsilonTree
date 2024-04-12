@@ -484,6 +484,13 @@ public:
 		map = m_mpObjects.size();
 	}
 
+	CacheErrorCode flush()
+	{
+		flushCacheToStorage();
+
+		return CacheErrorCode::Success;
+	}
+
 private:
 	void moveToTail(std::shared_ptr<Item> tail, std::shared_ptr<Item> nodeToMove) 
 	{
@@ -620,7 +627,7 @@ private:
 
 		size_t nFlushCount = m_mpObjects.size() - m_nCacheCapacity;
 
-		if (nFlushCount > FLUSH_COUNT)
+		if (nFlushCount > FLUSH_COUNT)	//todo: should push all the outstanding orders all together?
 			nFlushCount = FLUSH_COUNT;
 
 		for (size_t idx = 0; idx < nFlushCount; idx++)
@@ -774,6 +781,73 @@ private:
 			{
 				m_ptrHead = nullptr;
 			}
+		}
+#endif __CONCURRENT__
+	}
+
+	inline void flushCacheToStorage()
+	{
+#ifdef __CONCURRENT__
+		//The current implementation blocks the whole cache, should not be flush allowed at the node level!
+		//throw new std::logic_error("implementation missing!");
+		return; //fix this
+#else __CONCURRENT__
+
+		std::shared_ptr<Item> ptrCurrentTail = m_ptrTail;
+		int i = 0;
+		std::cout << m_mpObjects.size() << std::endl;
+
+		while (ptrCurrentTail)
+		{
+			//std::cout << i++ << std::endl;
+			if (ptrCurrentTail->m_ptrObject.use_count() > 1)
+			{
+				// Node in use.. technically this should not occur when flush is called.. anyhow abort the operation.. Also handle thsi case properly later!
+				/* Info:
+				 * Should proceed with the preceeding one?
+				 * But since each operation reorders the items at the end, therefore, the prceeding items would be in use as well!
+				 */
+				return;
+			}
+
+			if (ptrCurrentTail->m_ptrObject->dirty)
+			{
+				if (m_mpUpdatedUIDs.size() > 0)
+				{
+					m_ptrCallback->applyExistingUpdates(ptrCurrentTail->m_ptrObject, m_mpUpdatedUIDs);
+				}
+
+				ObjectUIDType uidUpdated;
+				if (m_ptrStorage->addObject(ptrCurrentTail->m_uidSelf, ptrCurrentTail->m_ptrObject, uidUpdated) != CacheErrorCode::Success)
+				{
+					throw new std::logic_error("should not occur!");
+				}
+
+				if (m_mpUpdatedUIDs.find(ptrCurrentTail->m_uidSelf) != m_mpUpdatedUIDs.end())
+				{
+					throw new std::logic_error("should not occur!");
+				}
+
+				m_mpUpdatedUIDs[ptrCurrentTail->m_uidSelf] = std::make_pair(uidUpdated, ptrCurrentTail->m_ptrObject);
+
+				m_mpObjects[uidUpdated] = ptrCurrentTail;
+				m_mpObjects.erase(ptrCurrentTail->m_uidSelf);
+			}
+
+			//m_mpObjects.erase(m_ptrTail->m_uidSelf);
+
+			//std::shared_ptr<Item> ptrTemp = m_ptrTail;
+
+			ptrCurrentTail = ptrCurrentTail->m_ptrPrev;
+
+			//if (m_ptrTail)
+			//{
+			//	m_ptrTail->m_ptrNext = nullptr;
+			//}
+			//else
+			//{
+			//	m_ptrHead = nullptr;
+			//}
 		}
 #endif __CONCURRENT__
 	}

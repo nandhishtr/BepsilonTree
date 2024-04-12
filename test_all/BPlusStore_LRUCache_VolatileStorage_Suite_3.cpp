@@ -37,19 +37,19 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
     class BPlusStore_LRUCache_VolatileStorage_Suite_3 : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, int>>
     {
     protected:
-        BPlusStoreType* m_ptrTree;
-
         void SetUp() override
         {
             std::tie(nDegree, nThreadCount, nTotalEntries, nCacheSize, nBlockSize, nStorageSize) = GetParam();
 
-            //m_ptrTree = new BPlusStoreType(3);
-            //m_ptrTree->init<DataNodeType>();
+            m_ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nStorageSize);
+            m_ptrTree->init<DataNodeType>();
         }
 
         void TearDown() override {
-            //delete m_ptrTree;
+            delete m_ptrTree;
         }
+
+        BPlusStoreType* m_ptrTree;
 
         int nDegree;
         int nThreadCount;
@@ -59,21 +59,24 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
         int nStorageSize;
     };
 
-    void insert_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
+    void insert_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) 
+    {
         for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
         {
             ptrTree->insert(nCntr, nCntr);
         }
     }
 
-    void reverse_insert_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
+    void reverse_insert_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) 
+    {
         for (int nCntr = nRangeEnd - 1; nCntr >= nRangeStart; nCntr--)
         {
             ptrTree->insert(nCntr, nCntr);
         }
     }
 
-    void search_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
+    void search_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) 
+    {
         for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
         {
             int nValue = 0;
@@ -83,7 +86,8 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
         }
     }
 
-    void search_not_found_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
+    void search_not_found_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) 
+    {
         for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
         {
             int nValue = 0;
@@ -93,31 +97,30 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
         }
     }
 
-    void delete_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
+    void delete_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) 
+    {
         for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
         {
             ErrorCode code = ptrTree->remove(nCntr);
         }
     }
 
-    void reverse_delete_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
+    void reverse_delete_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) 
+    {
         for (int nCntr = nRangeEnd - 1; nCntr >= nRangeStart; nCntr--)
         {
             ErrorCode code = ptrTree->remove(nCntr);
         }
     }
 
-    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_3, Bulk_Insert_v1) {
-
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nStorageSize);
-        ptrTree->init<DataNodeType>();
-
+    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_3, Insert_v1) 
+    {
         std::vector<std::thread> vtThreads;
 
         for (int nIdx = 0; nIdx < nThreadCount; nIdx++)
         {
             int nTotal = nTotalEntries / nThreadCount;
-            vtThreads.push_back(std::thread(insert_concurent, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
+            vtThreads.push_back(std::thread(insert_concurent, m_ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
         }
 
         auto it = vtThreads.begin();
@@ -126,21 +129,16 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
             (*it).join();
             it++;
         }
-
-        delete ptrTree;
     }
 
-    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_3, Bulk_Insert_v2) {
-
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nStorageSize);
-        ptrTree->init<DataNodeType>();
-
+    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_3, Insert_v2) 
+    {
         std::vector<std::thread> vtThreads;
 
         for (int nIdx = 0; nIdx < nThreadCount; nIdx++)
         {
             int nTotal = nTotalEntries / nThreadCount;
-            vtThreads.push_back(std::thread(reverse_insert_concurent, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
+            vtThreads.push_back(std::thread(reverse_insert_concurent, m_ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
         }
 
         auto it = vtThreads.begin();
@@ -149,21 +147,16 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
             (*it).join();
             it++;
         }
-
-        delete ptrTree;
     }
 
-    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_3, Bulk_Search_v1) {
-
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nStorageSize);
-        ptrTree->init<DataNodeType>();
-
+    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_3, Search_v1) 
+    {
         std::vector<std::thread> vtThreads;
 
         for (int nIdx = 0; nIdx < nThreadCount; nIdx++)
         {
             int nTotal = nTotalEntries / nThreadCount;
-            vtThreads.push_back(std::thread(insert_concurent, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
+            vtThreads.push_back(std::thread(insert_concurent, m_ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
         }
 
         auto it = vtThreads.begin();
@@ -178,7 +171,7 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
         for (int nIdx = 0; nIdx < nThreadCount; nIdx++)
         {
             int nTotal = nTotalEntries / nThreadCount;
-            vtThreads.push_back(std::thread(search_concurent, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
+            vtThreads.push_back(std::thread(search_concurent, m_ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
         }
 
         it = vtThreads.begin();
@@ -187,22 +180,17 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
             (*it).join();
             it++;
         }
-
-        delete ptrTree;
     }
 
 
-    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_3, Bulk_Search_v2) {
-
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nStorageSize);
-        ptrTree->init<DataNodeType>();
-
+    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_3, Search_v2) 
+    {
         std::vector<std::thread> vtThreads;
 
         for (int nIdx = 0; nIdx < nThreadCount; nIdx++)
         {
             int nTotal = nTotalEntries / nThreadCount;
-            vtThreads.push_back(std::thread(reverse_insert_concurent, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
+            vtThreads.push_back(std::thread(reverse_insert_concurent, m_ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
         }
 
         auto it = vtThreads.begin();
@@ -217,7 +205,7 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
         for (int nIdx = 0; nIdx < nThreadCount; nIdx++)
         {
             int nTotal = nTotalEntries / nThreadCount;
-            vtThreads.push_back(std::thread(search_concurent, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
+            vtThreads.push_back(std::thread(search_concurent, m_ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
         }
 
         it = vtThreads.begin();
@@ -226,21 +214,16 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
             (*it).join();
             it++;
         }
-
-        delete ptrTree;
     }
 
-    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_3, Bulk_Delete_v1) {
-
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nStorageSize);
-        ptrTree->init<DataNodeType>();
-
+    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_3, Delete_v1) 
+    {
         std::vector<std::thread> vtThreads;
 
         for (int nIdx = 0; nIdx < nThreadCount; nIdx++)
         {
             int nTotal = nTotalEntries / nThreadCount;
-            vtThreads.push_back(std::thread(insert_concurent, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
+            vtThreads.push_back(std::thread(insert_concurent, m_ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
         }
 
         auto it = vtThreads.begin();
@@ -255,7 +238,7 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
         for (int nIdx = 0; nIdx < nThreadCount; nIdx++)
         {
             int nTotal = nTotalEntries / nThreadCount;
-            vtThreads.push_back(std::thread(delete_concurent, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
+            vtThreads.push_back(std::thread(delete_concurent, m_ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
         }
 
         it = vtThreads.begin();
@@ -270,7 +253,7 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
         for (int nIdx = 0; nIdx < nThreadCount; nIdx++)
         {
             int nTotal = nTotalEntries / nThreadCount;
-            vtThreads.push_back(std::thread(search_not_found_concurent, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
+            vtThreads.push_back(std::thread(search_not_found_concurent, m_ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
         }
 
         it = vtThreads.begin();
@@ -279,21 +262,16 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
             (*it).join();
             it++;
         }
-
-        delete ptrTree;
     }
 
-    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_3, Bulk_Delete_v2) {
-
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nStorageSize);
-        ptrTree->init<DataNodeType>();
-
+    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_3, Delete_v2) 
+    {
         std::vector<std::thread> vtThreads;
 
         for (int nIdx = 0; nIdx < nThreadCount; nIdx++)
         {
             int nTotal = nTotalEntries / nThreadCount;
-            vtThreads.push_back(std::thread(reverse_insert_concurent, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
+            vtThreads.push_back(std::thread(reverse_insert_concurent, m_ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
         }
 
         auto it = vtThreads.begin();
@@ -308,7 +286,7 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
         for (int nIdx = 0; nIdx < nThreadCount; nIdx++)
         {
             int nTotal = nTotalEntries / nThreadCount;
-            vtThreads.push_back(std::thread(reverse_delete_concurent, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
+            vtThreads.push_back(std::thread(reverse_delete_concurent, m_ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
         }
 
         it = vtThreads.begin();
@@ -323,7 +301,7 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
         for (int nIdx = 0; nIdx < nThreadCount; nIdx++)
         {
             int nTotal = nTotalEntries / nThreadCount;
-            vtThreads.push_back(std::thread(search_not_found_concurent, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
+            vtThreads.push_back(std::thread(search_not_found_concurent, m_ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
         }
 
         it = vtThreads.begin();
@@ -332,13 +310,11 @@ namespace BPlusStore_LRUCache_VolatileStorage_Suite
             (*it).join();
             it++;
         }
-
-        delete ptrTree;
     }
 
 #ifdef __CONCURRENT__
     INSTANTIATE_TEST_CASE_P(
-        Bulk_Insert_Search_Delete,
+        Insert_Search_Delete,
         BPlusStore_LRUCache_VolatileStorage_Suite_3,
         ::testing::Values(
             std::make_tuple(3, 2, 99999, 100, 1024, 20000000),

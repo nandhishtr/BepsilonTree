@@ -485,7 +485,7 @@ public:
 	}
 
 public:
-	inline void writeToStream(std::fstream& os, uint8_t& uidObjectType, size_t& nDataSize)
+	inline void writeToStream(std::fstream& os, uint8_t& uidObjectType, size_t& nDataSize) const
 	{
 		static_assert(
 			std::is_trivial<KeyType>::value &&

@@ -22,271 +22,226 @@
 #ifdef __TREE_WITH_CACHE__
 namespace BPlusStore_LRUCache_VolatileStorage_Suite
 {
+    typedef int KeyType;
+    typedef int ValueType;
+    typedef ObjectFatUID ObjectUIDType;
+
+    typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT > DataNodeType;
+    typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT > InternalNodeType;
+
+    typedef LRUCacheObject<TypeMarshaller, DataNodeType, InternalNodeType> ObjectType;
+    typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
+
+    typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, VolatileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, InternalNodeType>>> BPlusStoreType;
     class BPlusStore_LRUCache_VolatileStorage_Suite_1 : public ::testing::TestWithParam<std::tuple<int, int, int, int, int, int>>
     {
     protected:
-        typedef int KeyType;
-        typedef int ValueType;
-        typedef ObjectFatUID ObjectUIDType;
-
-        typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT > DataNodeType;
-        typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT > InternalNodeType;
-
-        typedef LRUCacheObject<TypeMarshaller, DataNodeType, InternalNodeType> ObjectType;
-        typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
-
-        typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, VolatileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, InternalNodeType>>> BPlusStoreType;
-
-        //BPlusStoreType* m_ptrTree;
-
         void SetUp() override
         {
-            std::tie(nDegree, nBegin_BulkInsert, nEnd_BulkInsert, nCacheSize, nBlockSize, nStorageSize) = GetParam();
+            std::tie(nDegree, nBulkInsert_StartKey, nBulkInsert_EndKey, nCacheSize, nBlockSize, nStorageSize) = GetParam();
 
-            //m_ptrTree = new BPlusStoreType(3);
-            //m_ptrTree->init<DataNodeType>();
+            m_ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nStorageSize);
+            m_ptrTree->init<DataNodeType>();
         }
 
-        void TearDown() override {
-            //delete m_ptrTree;
+        void TearDown() override 
+        {
+            delete m_ptrTree;
         }
+
+        BPlusStoreType* m_ptrTree;
 
         int nDegree;
-        int nBegin_BulkInsert;
-        int nEnd_BulkInsert;
+        int nBulkInsert_StartKey;
+        int nBulkInsert_EndKey;
         int nCacheSize;
         int nBlockSize;
         int nStorageSize;
     };
 
-    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Insert_v1) {
-
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nStorageSize);
-        ptrTree->init<DataNodeType>();
-
-        for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
+    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Insert_v1) 
+    {
+        for (size_t nCntr = nBulkInsert_StartKey; nCntr <= nBulkInsert_EndKey; nCntr++)
         {
-            ptrTree->insert(nCntr, nCntr);
+            m_ptrTree->insert(nCntr, nCntr);
         }
-
-        delete ptrTree;
     }
 
-    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Insert_v2) {
-
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nStorageSize);
-        ptrTree->init<DataNodeType>();
-
-        for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
+    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Insert_v2) 
+    {
+        for (size_t nCntr = nBulkInsert_StartKey; nCntr <= nBulkInsert_EndKey; nCntr = nCntr + 2)
         {
-            ptrTree->insert(nCntr, nCntr);
+            m_ptrTree->insert(nCntr, nCntr);
         }
 
-        for (size_t nCntr = nBegin_BulkInsert + 1; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
+        for (size_t nCntr = nBulkInsert_StartKey + 1; nCntr <= nBulkInsert_EndKey; nCntr = nCntr + 2)
         {
-            ptrTree->insert(nCntr, nCntr);
+            m_ptrTree->insert(nCntr, nCntr);
         }
-
-        delete ptrTree;
     }
 
-    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Insert_v3) {
-
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nStorageSize);
-        ptrTree->init<DataNodeType>();
-
-        for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
+    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Insert_v3) 
+    {
+        for (int nCntr = nBulkInsert_EndKey; nCntr >= nBulkInsert_StartKey; nCntr--)
         {
-            ptrTree->insert(nCntr, nCntr);
+            m_ptrTree->insert(nCntr, nCntr);
         }
-
-        delete ptrTree;
     }
 
-    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Search_v1) {
-
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nStorageSize);
-        ptrTree->init<DataNodeType>();
-
-        for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
+    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Search_v1) 
+    {
+        for (size_t nCntr = nBulkInsert_StartKey; nCntr <= nBulkInsert_EndKey; nCntr++)
         {
-            ptrTree->insert(nCntr, nCntr);
+            m_ptrTree->insert(nCntr, nCntr);
         }
 
-        for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
+        for (size_t nCntr = nBulkInsert_StartKey; nCntr <= nBulkInsert_EndKey; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->search(nCntr, nValue);
+            ErrorCode code = m_ptrTree->search(nCntr, nValue);
+
+            ASSERT_EQ(nValue, nCntr);
+        }
+    }
+
+    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Search_v2) 
+    {
+        for (size_t nCntr = nBulkInsert_StartKey; nCntr <= nBulkInsert_EndKey; nCntr = nCntr + 2)
+        {
+            m_ptrTree->insert(nCntr, nCntr);
+        }
+
+        for (size_t nCntr = nBulkInsert_StartKey + 1; nCntr <= nBulkInsert_EndKey; nCntr = nCntr + 2)
+        {
+            m_ptrTree->insert(nCntr, nCntr);
+        }
+
+        for (size_t nCntr = nBulkInsert_StartKey; nCntr <= nBulkInsert_EndKey; nCntr++)
+        {
+            int nValue = 0;
+            ErrorCode code = m_ptrTree->search(nCntr, nValue);
+
+            ASSERT_EQ(nValue, nCntr);
+        }
+    }
+
+    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Search_v3) 
+    {
+        for (int nCntr = nBulkInsert_EndKey; nCntr >= nBulkInsert_StartKey; nCntr--)
+        {
+            m_ptrTree->insert(nCntr, nCntr);
+        }
+
+        for (size_t nCntr = nBulkInsert_StartKey; nCntr <= nBulkInsert_EndKey; nCntr++)
+        {
+            int nValue = 0;
+            ErrorCode code = m_ptrTree->search(nCntr, nValue);
+
+            ASSERT_EQ(nValue, nCntr);
+        }
+    }
+
+    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Delete_v1) 
+    {
+        for (size_t nCntr = nBulkInsert_StartKey; nCntr <= nBulkInsert_EndKey; nCntr++)
+        {
+            m_ptrTree->insert(nCntr, nCntr);
+        }
+
+        for (size_t nCntr = nBulkInsert_StartKey; nCntr <= nBulkInsert_EndKey; nCntr++)
+        {
+            int nValue = 0;
+            ErrorCode code = m_ptrTree->search(nCntr, nValue);
 
             ASSERT_EQ(nValue, nCntr);
         }
 
-        delete ptrTree;
-    }
-
-    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Search_v2) {
-
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nStorageSize);
-        ptrTree->init<DataNodeType>();
-
-        for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
+        for (size_t nCntr = nBulkInsert_StartKey; nCntr <= nBulkInsert_EndKey; nCntr++)
         {
-            ptrTree->insert(nCntr, nCntr);
-        }
-
-        for (size_t nCntr = nBegin_BulkInsert + 1; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
-        {
-            ptrTree->insert(nCntr, nCntr);
-        }
-
-        for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
-        {
-            int nValue = 0;
-            ErrorCode code = ptrTree->search(nCntr, nValue);
-
-            ASSERT_EQ(nValue, nCntr);
-        }
-
-        delete ptrTree;
-    }
-
-    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Search_v3) {
-
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nStorageSize);
-        ptrTree->init<DataNodeType>();
-
-        for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
-        {
-            ptrTree->insert(nCntr, nCntr);
-        }
-
-        for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
-        {
-            int nValue = 0;
-            ErrorCode code = ptrTree->search(nCntr, nValue);
-
-            ASSERT_EQ(nValue, nCntr);
-        }
-
-        delete ptrTree;
-    }
-
-    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Delete_v1) {
-
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nStorageSize);
-        ptrTree->init<DataNodeType>();
-
-        for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
-        {
-            ptrTree->insert(nCntr, nCntr);
-        }
-
-        for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
-        {
-            int nValue = 0;
-            ErrorCode code = ptrTree->search(nCntr, nValue);
-
-            ASSERT_EQ(nValue, nCntr);
-        }
-
-        for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
-        {
-            ErrorCode code = ptrTree->remove(nCntr);
+            ErrorCode code = m_ptrTree->remove(nCntr);
 
             ASSERT_EQ(code, ErrorCode::Success);
         }
 
-        for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
+        for (size_t nCntr = nBulkInsert_StartKey; nCntr <= nBulkInsert_EndKey; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->search(nCntr, nValue);
+            ErrorCode code = m_ptrTree->search(nCntr, nValue);
 
             ASSERT_EQ(code, ErrorCode::KeyDoesNotExist);
         }
-
-        delete ptrTree;
     }
 
-    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Delete_v2) {
+    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Delete_v2) 
+    {
 
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nStorageSize);
-        ptrTree->init<DataNodeType>();
-
-        for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
+        for (size_t nCntr = nBulkInsert_StartKey; nCntr <= nBulkInsert_EndKey; nCntr = nCntr + 2)
         {
-            ptrTree->insert(nCntr, nCntr);
+            m_ptrTree->insert(nCntr, nCntr);
         }
 
-        for (size_t nCntr = nBegin_BulkInsert + 1; nCntr <= nEnd_BulkInsert; nCntr = nCntr + 2)
+        for (size_t nCntr = nBulkInsert_StartKey + 1; nCntr <= nBulkInsert_EndKey; nCntr = nCntr + 2)
         {
-            ptrTree->insert(nCntr, nCntr);
+            m_ptrTree->insert(nCntr, nCntr);
         }
 
-        for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
+        for (size_t nCntr = nBulkInsert_StartKey; nCntr <= nBulkInsert_EndKey; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->search(nCntr, nValue);
+            ErrorCode code = m_ptrTree->search(nCntr, nValue);
 
             ASSERT_EQ(nValue, nCntr);
         }
 
-        for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
+        for (size_t nCntr = nBulkInsert_StartKey; nCntr <= nBulkInsert_EndKey; nCntr++)
         {
-            ErrorCode code = ptrTree->remove(nCntr);
+            ErrorCode code = m_ptrTree->remove(nCntr);
 
             ASSERT_EQ(code, ErrorCode::Success);
         }
 
-        for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
+        for (size_t nCntr = nBulkInsert_StartKey; nCntr <= nBulkInsert_EndKey; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->search(nCntr, nValue);
+            ErrorCode code = m_ptrTree->search(nCntr, nValue);
 
             ASSERT_EQ(code, ErrorCode::KeyDoesNotExist);
         }
-
-        delete ptrTree;
     }
 
-    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Bulk_Delete_v3) {
-
-        BPlusStoreType* ptrTree = new BPlusStoreType(nDegree, nCacheSize, nBlockSize, nStorageSize);
-        ptrTree->init<DataNodeType>();
-
-        for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
+    TEST_P(BPlusStore_LRUCache_VolatileStorage_Suite_1, Delete_v3) 
+    {
+        for (int nCntr = nBulkInsert_EndKey; nCntr >= nBulkInsert_StartKey; nCntr--)
         {
-            ptrTree->insert(nCntr, nCntr);
+            m_ptrTree->insert(nCntr, nCntr);
         }
 
-        for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
+        for (size_t nCntr = nBulkInsert_StartKey; nCntr <= nBulkInsert_EndKey; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->search(nCntr, nValue);
+            ErrorCode code = m_ptrTree->search(nCntr, nValue);
 
             ASSERT_EQ(nValue, nCntr);
         }
 
-        for (int nCntr = nEnd_BulkInsert; nCntr >= nBegin_BulkInsert; nCntr--)
+        for (int nCntr = nBulkInsert_EndKey; nCntr >= nBulkInsert_StartKey; nCntr--)
         {
-            ErrorCode code = ptrTree->remove(nCntr);
+            ErrorCode code = m_ptrTree->remove(nCntr);
 
             ASSERT_EQ(code, ErrorCode::Success);
         }
 
-        for (size_t nCntr = nBegin_BulkInsert; nCntr <= nEnd_BulkInsert; nCntr++)
+        for (size_t nCntr = nBulkInsert_StartKey; nCntr <= nBulkInsert_EndKey; nCntr++)
         {
             int nValue = 0;
-            ErrorCode code = ptrTree->search(nCntr, nValue);
+            ErrorCode code = m_ptrTree->search(nCntr, nValue);
 
             ASSERT_EQ(code, ErrorCode::KeyDoesNotExist);
         }
-
-
-        delete ptrTree;
     }
 
     INSTANTIATE_TEST_CASE_P(
-        Bulk_Insert_Search_Delete,
+        Insert_Search_Delete,
         BPlusStore_LRUCache_VolatileStorage_Suite_1,
         ::testing::Values(
             std::make_tuple(3, 0, 99999, 100, 1024, 900000000),
