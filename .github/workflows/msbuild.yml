@@ -28,7 +28,7 @@ jobs:
     runs-on: windows-latest
     strategy:
       matrix:
-        #configuration: [Release_VT, Release_CT, Release_NVT, Release_NVCT]
+        #configuration: [Release_TWoC, Release_CTWoC, Release_TWC, Release_CTWC]
         configuration: [Release_NVCT]
         platform: [x64]
     steps:
