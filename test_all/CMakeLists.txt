@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 
 project(test_all VERSION 1.0)
 
-find_package (glog 0.7.0 REQUIRED)
+find_package (glog 0.6.0 REQUIRED)
 
 add_library(haldendb_compiler_flags INTERFACE)
 target_compile_features(haldendb_compiler_flags  INTERFACE cxx_std_20)
