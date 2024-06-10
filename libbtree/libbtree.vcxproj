@@ -748,6 +748,10 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="BeTree.hpp" />
+    <ClInclude Include="BeTreeLeafNode.hpp" />
+    <ClInclude Include="BeTreeMessage.hpp" />
+    <ClInclude Include="BeTreeNode.hpp" />
     <ClInclude Include="BPlusStore.hpp" />
     <ClInclude Include="DataNode.hpp" />
     <ClInclude Include="ErrorCodes.h" />
@@ -760,6 +764,7 @@
     <ClInclude Include="TypeMarshaller.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="BeTreeInternalNode.hpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug_TWC|x64'">Create</PrecompiledHeader>
