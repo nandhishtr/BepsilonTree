@@ -46,6 +46,7 @@ public:
         return this->messageBuffer.size() >= maxBufferSize;
     }
 
+    // TODO: We could somehow add a lowerstSearchKey field to the node to avoid searching for it
     KeyType getLowestSearchKey() const override {
         return this->children[0]->getLowestSearchKey();
     }
@@ -188,7 +189,10 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::flushBuffer(ChildChange& child
     if (this->isOverflowing()) {
         return this->split(childChange);
     } else if (this->isUnderflowing() && !this->isRoot()) {
-        uint16_t indexInParent = this->parent->getIndex(this->keys[0]) - this->parent->keys.begin();
+        // OPTIMIZE: Pass the index of the parent down to avoid searching for it again
+        //uint16_t indexInParent = this->parent->getIndex(this->getLowestSearchKey()) - this->parent->keys.begin(); // use upper bound instead
+        uint16_t indexInParent = std::upper_bound(this->parent->keys.begin(), this->parent->keys.end(), this->getLowestSearchKey()) - this->parent->keys.begin();
+        // TODO: After a merge the message buffer might be overflown
         return handleUnderflow(indexInParent, childChange);
     }
 
