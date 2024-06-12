@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BeTreeMessage.hpp"
+#include "BeTreeNode.hpp"
 #include "ErrorCodes.h"
 #include <cassert>
 #include <cstdint>
@@ -70,7 +71,9 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::remove(MessagePtr message, uint16_
     auto it = this->getIndex(message->key);
     auto idx = it - this->keys.begin();
     if (it == this->keys.end() || *it != message->key) {
-        return ErrorCode::KeyDoesNotExist;
+        // NOTE: this happens when we have an insert message followed by a remove message for the same key
+        //       without the insert message being applied yet
+        return ErrorCode::Success;
     }
 
     this->keys.erase(it);

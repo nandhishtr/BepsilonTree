@@ -96,10 +96,10 @@ std::pair<ValueType, ErrorCode> BeTreeInternalNode<KeyType, ValueType>::search(M
     auto it = this->messageBuffer.find(message->key);
     if (it != this->messageBuffer.end()) {
         if (it->second->type != MessageType::Remove) {
-        return { it->second->value, ErrorCode::Success };
+            return { it->second->value, ErrorCode::Success };
         } else {
             return { ValueType(), ErrorCode::KeyDoesNotExist };
-    }
+        }
     }
 
     // If not found in the buffer, search in the child node
@@ -146,10 +146,13 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::flushBuffer(ChildChange& child
     // Flush the messages to the child node
     uint16_t idx = std::upper_bound(this->keys.begin(), this->keys.end(), maxStart->first) - this->keys.begin();
     ChildChange newChild = { KeyType(), nullptr , true };
-    ChildChange oldChild = { KeyType(), nullptr , true };
+    ChildChange oldChild = { KeyType(), nullptr , false };
 
     // NOTE: For now we will stop flushing messages if the child node splits or merges
     //       This is to avoid the complexity of handling the index changes in the buffer
+    // TODO: Right now this does not really work as intended, because when the child of a child splits or merges
+    //       we may call that child again. Right now this isn't a problem, but when we are using files for storage
+    //       this will be a latency issue.
     auto it = maxStart;
     for (it = maxStart; it != maxEnd; ++it) {
         if (it->second->type == MessageType::Insert) {
@@ -399,8 +402,8 @@ void BeTreeInternalNode<KeyType, ValueType>::printNode(std::ostream& out) const 
         } else if (message->type == MessageType::Insert) {
             out << "\033[1;32m+" << key << "\033[0m ";
         } else {
-        out << key << " ";
-    }
+            out << key << " ";
+        }
     }
     out << "\n";
     for (size_t i = 0; i < this->children.size(); ++i) {
