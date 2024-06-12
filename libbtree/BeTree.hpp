@@ -113,7 +113,26 @@ ErrorCode BeTree<KeyType, ValueType>::applyMessage(MessagePtr message) {
         if (rootNode->isLeaf()) {
             rootNode = nullptr;
         } else {
-            rootNode = std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(rootNode)->children[0];
+            InternalNodePtr oldRoot = std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(rootNode);
+            if (oldRoot->children[0]->isLeaf()) {
+                auto newRoot = std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(oldRoot->children[0]);
+                newRoot->parent = nullptr;
+
+                // TODO: handle message buffer of current rootNode to the newRoot because the old root is being deleted
+                // because the leaf node doesn't have a message buffer, this is not implemented yet
+                rootNode = newRoot;
+            } else {
+                auto newRoot = std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(oldRoot->children[0]);
+                newRoot->parent = nullptr;
+
+                // add message buffer of current rootNode to the newRoot because the old root is being deleted
+                // for now just move the messages and don't call insert/remove because handling split/merge would be more complicated
+                for (auto& msg : oldRoot->messageBuffer) {
+                    newRoot->messageBuffer.insert_or_assign(msg.first, std::move(msg.second));
+                }
+
+                rootNode = newRoot;
+            }
         }
     }
 
