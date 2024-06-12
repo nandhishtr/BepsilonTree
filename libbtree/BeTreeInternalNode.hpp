@@ -8,7 +8,6 @@
 #include <map>
 #include <memory>
 #include <ostream>
-#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -95,7 +94,11 @@ std::pair<ValueType, ErrorCode> BeTreeInternalNode<KeyType, ValueType>::search(M
     // Search for the message in the buffer
     auto it = this->messageBuffer.find(message->key);
     if (it != this->messageBuffer.end()) {
+        if (it->second->type != MessageType::Remove) {
         return { it->second->value, ErrorCode::Success };
+        } else {
+            return { ValueType(), ErrorCode::KeyDoesNotExist };
+    }
     }
 
     // If not found in the buffer, search in the child node
@@ -385,7 +388,15 @@ void BeTreeInternalNode<KeyType, ValueType>::printNode(std::ostream& out) const 
     }
     out << "Buffer: ";
     for (auto& [key, message] : this->messageBuffer) {
+        // if the message is a remove message, print it with a '-' and red
+        // if the message is a insert message, print it with a '+' and green
+        if (message->type == MessageType::Remove) {
+            out << "\033[1;31m-" << key << "\033[0m ";
+        } else if (message->type == MessageType::Insert) {
+            out << "\033[1;32m+" << key << "\033[0m ";
+        } else {
         out << key << " ";
+    }
     }
     out << "\n";
     for (size_t i = 0; i < this->children.size(); ++i) {
