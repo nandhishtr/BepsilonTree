@@ -1,5 +1,15 @@
 #pragma once
 
+#include "BeTreeInternalNode.hpp"
+#include "BeTreeLeafNode.hpp"
+#include "BeTreeMessage.hpp"
+#include "ErrorCodes.h"
+#include <cstdint>
+#include <iosfwd>
+#include <memory>
+#include <utility>
+#include <vector>
+
 // Forward declarations
 template <typename KeyType, typename ValueType> class BeTreeNode;
 template <typename KeyType, typename ValueType> class BeTreeInternalNode;
@@ -7,15 +17,6 @@ template <typename KeyType, typename ValueType> class BeTreeLeafNode;
 template <typename KeyType, typename ValueType> struct Message;
 enum class ErrorCode;
 enum class MessageType;
-
-#include "BeTreeInternalNode.hpp"
-#include "BeTreeLeafNode.hpp"
-#include "BeTreeMessage.hpp"
-#include <cstdint>
-#include <iosfwd>
-#include <memory>
-#include <utility>
-#include <vector>
 
 template <typename KeyType, typename ValueType>
 class BeTreeNode : public std::enable_shared_from_this<BeTreeNode<KeyType, ValueType>> {

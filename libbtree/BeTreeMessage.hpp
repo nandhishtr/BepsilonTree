@@ -1,9 +1,5 @@
 #pragma once
 
-// Forward declarations
-template <typename KeyType, typename ValueType> struct Message;
-enum class MessageType;
-
 // Base Message struct template
 enum class MessageType {
     Insert,
