@@ -2,6 +2,7 @@
 
 #include "pch.h"
 #include "ErrorCodes.h"
+#include "BeTreeMessage.hpp"
 #include <cassert>
 #include <cstdint>
 #include <iosfwd>

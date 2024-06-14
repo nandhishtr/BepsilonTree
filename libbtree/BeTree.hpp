@@ -5,6 +5,7 @@
 #include "BeTreeMessage.hpp"
 #include "BeTreeNode.hpp"
 #include "ErrorCodes.h"
+#include <algorithm>
 #include <cstdint>
 #include <iosfwd>
 #include <memory>
@@ -29,13 +30,14 @@ private:
     using childChange = typename BeTreeNode<KeyType, ValueType>::ChildChange;
     using ChildChangeType = typename BeTreeNode<KeyType, ValueType>::ChildChangeType;
 
-    uint32_t fanout;
+    uint16_t fanout;
+    uint16_t maxBufferSize;
     BeTreeNodePtr rootNode;
 
     ErrorCode applyMessage(MessagePtr message);
 public:
     ~BeTree() = default;
-    BeTree(uint32_t fanout) : fanout(fanout), rootNode(nullptr) {}
+    BeTree(uint16_t fanout, uint16_t maxBufferSize = 0) : fanout(fanout), maxBufferSize(maxBufferSize), rootNode(nullptr) {}
 
     ErrorCode insert(const KeyType& key, const ValueType& value);
     ErrorCode remove(const KeyType& key);
@@ -95,7 +97,7 @@ ErrorCode BeTree<KeyType, ValueType>::applyMessage(MessagePtr message) {
 
     // Handle root node split
     if (childChange.node) {
-        auto newRoot = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(fanout, rootNode->level + 1);
+        auto newRoot = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(fanout, rootNode->level + 1, maxBufferSize);
         newRoot->keys.push_back(childChange.key);
         newRoot->children.push_back(rootNode);
         newRoot->children.push_back(childChange.node);
@@ -111,12 +113,12 @@ ErrorCode BeTree<KeyType, ValueType>::applyMessage(MessagePtr message) {
         } else {
             InternalNodePtr oldRoot = std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(rootNode);
             if (oldRoot->children[0]->isLeaf()) {
-                auto newRoot = std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(oldRoot->children[0]);
-                newRoot->parent = nullptr;
-
-                // TODO: handle message buffer of current rootNode to the newRoot because the old root is being deleted
-                // because the leaf node doesn't have a message buffer
-                rootNode = newRoot;
+                // auto newRoot = std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(oldRoot->children[0]);
+                // newRoot->parent = nullptr;
+                //
+                // // TODO: handle message buffer of current rootNode to the newRoot because the old root is being deleted
+                // // because the leaf node doesn't have a message buffer
+                // rootNode = newRoot;
             } else {
                 auto newRoot = std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(oldRoot->children[0]);
                 newRoot->parent = nullptr;
