@@ -26,6 +26,7 @@ public:
     using typename BeTreeNode<KeyType, ValueType>::InternalNodePtr;
     using typename BeTreeNode<KeyType, ValueType>::LeafNodePtr;
     using typename BeTreeNode<KeyType, ValueType>::ChildChange;
+    using typename BeTreeNode<KeyType, ValueType>::ChildChangeType;
 
     std::vector<ValueType> values;
 
@@ -36,19 +37,32 @@ public:
         return this->keys[0];
     }
 
+    ErrorCode applyMessage(MessagePtr message, uint16_t indexInParent, ChildChange& childChange) override;
     ErrorCode insert(MessagePtr message, ChildChange& newChild) override;
     ErrorCode remove(MessagePtr message, uint16_t indexInParent, ChildChange& oldChild) override;
     std::pair<ValueType, ErrorCode> search(MessagePtr message) override;
 
     ErrorCode split(ChildChange& newChild);
-
     ErrorCode handleUnderflow(uint16_t indexInParent, ChildChange& oldChild);
-    ErrorCode redistribute(uint16_t indexInParent, bool withLeft);
+    ErrorCode redistribute(uint16_t indexInParent, bool withLeft, ChildChange& oldChild);
     ErrorCode merge(ChildChange& oldChild, bool withLeft);
+
     void printNode(std::ostream& out) const override;
 };
 
 // Implementations
+
+template <typename KeyType, typename ValueType>
+ErrorCode BeTreeLeafNode<KeyType, ValueType>::applyMessage(MessagePtr message, uint16_t indexInParent, ChildChange& childChange) {
+    switch (message->type) {
+        case MessageType::Insert:
+            return insert(std::move(message), childChange);
+        case MessageType::Remove:
+            return remove(std::move(message), indexInParent, childChange);
+        default:
+            assert(false && "Invalid message type for leaf node");
+    }
+}
 
 template <typename KeyType, typename ValueType>
 ErrorCode BeTreeLeafNode<KeyType, ValueType>::insert(MessagePtr message, ChildChange& newChild) {
@@ -57,6 +71,7 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::insert(MessagePtr message, ChildCh
     auto idx = std::distance(this->keys.begin(), it);
     this->keys.insert(it, message->key);
     this->values.insert(this->values.begin() + idx, message->value);
+    newChild = { KeyType(), nullptr, ChildChangeType::None };
 
     if (this->isOverflowing()) {
         return this->split(newChild);
@@ -117,8 +132,8 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::split(ChildChange& newChild) {
     this->rightSibling = newLeaf;
 
     // Update parent
-    newChild = { newPivot, newLeaf, true };
-    return ErrorCode::Success;
+    newChild = { newPivot, newLeaf, ChildChangeType::Split };
+    return ErrorCode::FinishedMessagePassing;
 }
 
 template <typename KeyType, typename ValueType>
@@ -129,11 +144,11 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::handleUnderflow(uint16_t indexInPa
 
     // redistribute or merge with sibling
     if (this->leftSibling && this->leftSibling->isBorrowable() && this->leftSibling->parent == this->parent) {
-        return redistribute(indexInParent, true);
+        return redistribute(indexInParent, true, oldChild);
     } else if (this->leftSibling && this->leftSibling->parent == this->parent) {
         return merge(oldChild, true);
     } else if (this->rightSibling && this->rightSibling->isBorrowable() && this->rightSibling->parent == this->parent) {
-        return redistribute(indexInParent, false);
+        return redistribute(indexInParent, false, oldChild);
     } else if (this->rightSibling && this->rightSibling->parent == this->parent) {
         return merge(oldChild, false);
     } else {
@@ -142,32 +157,34 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::handleUnderflow(uint16_t indexInPa
 }
 
 template <typename KeyType, typename ValueType>
-ErrorCode BeTreeLeafNode<KeyType, ValueType>::redistribute(uint16_t indexInParent, bool withLeft) {
+ErrorCode BeTreeLeafNode<KeyType, ValueType>::redistribute(uint16_t indexInParent, bool withLeft, ChildChange& oldChild) {
     auto sibling = withLeft ?
         std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->leftSibling) :
         std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->rightSibling);
 
-    //auto sizeDiff = (this->size() - sibling->size()) / 2;
     auto sizeDiff = (sibling->size() - this->size()) / 2;
     assert(sizeDiff >= 0);
 
+    // TODO: use childChange
     if (withLeft) {
         this->keys.insert(this->keys.begin(), sibling->keys.end() - sizeDiff, sibling->keys.end());
         this->values.insert(this->values.begin(), sibling->values.end() - sizeDiff, sibling->values.end());
         sibling->keys.erase(sibling->keys.end() - sizeDiff, sibling->keys.end());
         sibling->values.erase(sibling->values.end() - sizeDiff, sibling->values.end());
         // Update pivot key in parent
-        this->parent->keys[indexInParent - 1] = this->getLowestSearchKey();
+        this->parent->keys[indexInParent - 1] = this->getLowestSearchKey(); // TODO: handle with ChildChange
+        oldChild = { this->getLowestSearchKey(), nullptr, ChildChangeType::RedistributeLeft };
     } else {
         this->keys.insert(this->keys.end(), sibling->keys.begin(), sibling->keys.begin() + sizeDiff);
         this->values.insert(this->values.end(), sibling->values.begin(), sibling->values.begin() + sizeDiff);
         sibling->keys.erase(sibling->keys.begin(), sibling->keys.begin() + sizeDiff);
         sibling->values.erase(sibling->values.begin(), sibling->values.begin() + sizeDiff);
         // Update pivot key in parent
-        this->parent->keys[indexInParent] = sibling->getLowestSearchKey();
+        this->parent->keys[indexInParent] = sibling->getLowestSearchKey(); // TODO: handle with ChildChange
+        oldChild = { sibling->getLowestSearchKey(), nullptr, ChildChangeType::RedistributeRight };
     }
 
-    return ErrorCode::Success;
+    return ErrorCode::FinishedMessagePassing;
 }
 
 template <typename KeyType, typename ValueType>
@@ -183,7 +200,7 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::merge(ChildChange& oldChild, bool 
         if (this->rightSibling) {
             this->rightSibling->leftSibling = sibling;
         }
-        oldChild.node = this->shared_from_this();
+        oldChild = { KeyType(), this->shared_from_this(), ChildChangeType::MergeLeft };
     } else {
         this->keys.insert(this->keys.end(), sibling->keys.begin(), sibling->keys.end());
         this->values.insert(this->values.end(), sibling->values.begin(), sibling->values.end());
@@ -191,10 +208,10 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::merge(ChildChange& oldChild, bool 
         if (sibling->rightSibling) {
             sibling->rightSibling->leftSibling = this->shared_from_this();
         }
-        oldChild.node = sibling;
+        oldChild = { KeyType(), sibling, ChildChangeType::MergeRight };
     }
 
-    return ErrorCode::Success;
+    return ErrorCode::FinishedMessagePassing;
 }
 
 template <typename KeyType, typename ValueType>

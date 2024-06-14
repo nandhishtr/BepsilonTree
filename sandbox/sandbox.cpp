@@ -544,6 +544,31 @@ void test_for_threaded() {
 #endif __CONCURRENT__
 }
 
+#define ASSERT_WITH_PRINT(expr, message) \
+    do { \
+        if (!(expr)) { \
+            std::cerr << "Assertion failed: (" << #expr << ") " \
+                      << "at " << __FILE__ << ":" << __LINE__ << std::endl; \
+            std::cerr << message << std::endl; \
+            std::abort(); \
+        } \
+    } while (0)
+
+void print_progress(int iteration, int total) {
+    int barWidth = 70; // Width of the progress bar
+    float progress = (float)iteration / total;
+    std::cout << "[";
+    int pos = barWidth * progress;
+
+    for (int i = 0; i < barWidth; ++i) {
+        if (i < pos) std::cout << "=";
+        else if (i == pos) std::cout << ">";
+        else std::cout << " ";
+    }
+    std::cout << "] " << int(progress * 100.0) << "% (" << iteration << "/" << total << ")\r";
+    std::cout.flush(); // Important to flush, so the progress bar is updated in the same line
+}
+
 int main(int argc, char* argv[]) {
     //test_for_ints();
     //test_for_string();
@@ -571,21 +596,24 @@ int main(int argc, char* argv[]) {
     auto start = std::chrono::high_resolution_clock::now();
     cout << "Testing insert..." << endl;
     for (int i = 0; i < size; i++) {
-        //cout << "inserting " << arr2[i] << endl;
+        if (i % 100 == 0)
+            print_progress(i, size);
+
+        //cout << "inserting " << arr[i] << endl;
         tree.insert(arr[i], arr[i]);
         //tree.printTree(std::cout);
         //cout << endl;
 
-        //auto [value, err] = tree.search(arr2[i]);
-        //assert(err == ErrorCode::Success);
-        //assert(value == arr2[i]);
         // all inserted keys should be in the tree
         for (int j = 0; j <= i; j++) {
             auto [value, err] = tree.search(arr[j]);
-            assert(err == ErrorCode::Success);
-            assert(value == arr[j]);
+            ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[j], "insert failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value);
         }
     }
+
+    auto middle = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(middle - start).count();
+    cout << "Time taken: " << duration << "ms" << endl;
 
     // shuffle again
     for (int i = 0; i < size; i++) {
@@ -599,15 +627,17 @@ int main(int argc, char* argv[]) {
     // remove
     int breakon = size;
     for (int i = 0; i < size; i++) {
-        cout << "removing " << arr[i] << " " << i << endl;
-        if (i >= breakon) {
-            cout << "breaking " << arr[i] << endl;
+        if (i % 100 == 0)
+            print_progress(i, size);
+        //cout << "removing key " << arr[i] << " i: " << i << endl;
+        if (i == breakon) {
+            cout << "break" << endl;
         }
         tree.remove(arr[i]);
-        if (i >= breakon - 1) {
-            tree.printTree(cout);
-        }
-        cout << endl;
+        //if (i >= breakon - 1) {
+        //tree.printTree(cout);
+        //}
+        //cout << endl;
 
         auto [value, err] = tree.search(arr[i]);
         assert(err == ErrorCode::KeyDoesNotExist);
@@ -615,14 +645,16 @@ int main(int argc, char* argv[]) {
         // all not removed keys should still be in the tree
         for (int j = i + 1; j < size; j++) {
             auto [value, err] = tree.search(arr[j]);
-            assert(err == ErrorCode::Success);
-            assert(value == arr[j]);
+            ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[j], "remove failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value);
         }
     }
 
     auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - middle).count();
     cout << "Time taken: " << duration << "ms" << endl;
+
+    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    cout << "Total time taken: " << duration << "ms" << endl;
 
     cout << "All tests passed!" << endl;
 

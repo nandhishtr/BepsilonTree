@@ -26,7 +26,7 @@ public:
     using InternalNodePtr = std::shared_ptr<BeTreeInternalNode<KeyType, ValueType>>;
     using LeafNodePtr = std::shared_ptr<BeTreeLeafNode<KeyType, ValueType>>;
 
-    uint16_t fanout;
+    uint16_t fanout; // maximum amount of children an internal node can have
     uint16_t level;
     std::vector<KeyType> keys;
 
@@ -34,16 +34,26 @@ public:
     BeTreeNodePtr leftSibling;
     BeTreeNodePtr rightSibling;
 
+    enum ChildChangeType {
+        None,
+        Split,
+        RedistributeLeft,
+        RedistributeRight,
+        MergeLeft,
+        MergeRight,
+    };
+
     struct ChildChange {
         KeyType key;
         BeTreeNodePtr node;
-        bool isInsert;
+        ChildChangeType type;
     };
 
     virtual ~BeTreeNode() = default;
     BeTreeNode(uint16_t fanout, uint16_t level, InternalNodePtr parent = nullptr)
         : fanout(fanout), level(level), parent(parent) {}
 
+    virtual ErrorCode applyMessage(MessagePtr message, uint16_t indexInParent, ChildChange& oldChild) = 0;
     virtual ErrorCode insert(MessagePtr message, ChildChange& newChild) = 0;
     virtual ErrorCode remove(MessagePtr message, uint16_t indexInParent, ChildChange& oldChild) = 0;
     virtual std::pair<ValueType, ErrorCode> search(MessagePtr message) = 0;

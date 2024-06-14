@@ -19,7 +19,6 @@ template <typename KeyType, typename ValueType> struct Message;
 enum class ErrorCode;
 enum class MessageType;
 
-
 template <typename KeyType, typename ValueType>
 class BeTree {
 private:
@@ -28,12 +27,14 @@ private:
     using InternalNodePtr = std::shared_ptr<BeTreeInternalNode<KeyType, ValueType>>;
     using LeafNodePtr = std::shared_ptr<BeTreeLeafNode<KeyType, ValueType>>;
     using childChange = typename BeTreeNode<KeyType, ValueType>::ChildChange;
+    using ChildChangeType = typename BeTreeNode<KeyType, ValueType>::ChildChangeType;
 
     uint32_t fanout;
     BeTreeNodePtr rootNode;
 
     ErrorCode applyMessage(MessagePtr message);
 public:
+    ~BeTree() = default;
     BeTree(uint32_t fanout) : fanout(fanout), rootNode(nullptr) {}
 
     ErrorCode insert(const KeyType& key, const ValueType& value);
@@ -86,13 +87,8 @@ void BeTree<KeyType, ValueType>::printTree(std::ostream& out) {
 
 template <typename KeyType, typename ValueType>
 ErrorCode BeTree<KeyType, ValueType>::applyMessage(MessagePtr message) {
-    childChange childChange = { KeyType(), nullptr, false };
-    ErrorCode err;
-    if (message->type == MessageType::Insert) {
-        err = rootNode->insert(std::move(message), childChange);
-    } else if (message->type == MessageType::Remove) {
-        err = rootNode->remove(std::move(message), 0, childChange);
-    }
+    childChange childChange = { KeyType(), nullptr, ChildChangeType::None };
+    ErrorCode err = rootNode->applyMessage(std::move(message), 0, childChange);
 
     // Because of the buffering both insert and remove messages are handled in the same way
     // meaning that the tree can split and merge on both insert and remove operations
@@ -119,7 +115,7 @@ ErrorCode BeTree<KeyType, ValueType>::applyMessage(MessagePtr message) {
                 newRoot->parent = nullptr;
 
                 // TODO: handle message buffer of current rootNode to the newRoot because the old root is being deleted
-                // because the leaf node doesn't have a message buffer, this is not implemented yet
+                // because the leaf node doesn't have a message buffer
                 rootNode = newRoot;
             } else {
                 auto newRoot = std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(oldRoot->children[0]);
