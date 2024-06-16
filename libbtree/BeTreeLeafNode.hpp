@@ -3,6 +3,7 @@
 #include "BeTreeMessage.hpp"
 #include "BeTreeNode.hpp"
 #include "ErrorCodes.h"
+#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <iosfwd>
@@ -69,8 +70,17 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::insert(MessagePtr message, ChildCh
     assert(message->type == MessageType::Insert);
     auto it = this->getIndex(message->key);
     auto idx = std::distance(this->keys.begin(), it);
-    this->keys.insert(it, message->key);
-    this->values.insert(this->values.begin() + idx, message->value);
+
+    // Check if the key already exists
+    if (it != this->keys.end() && *it == message->key) {
+        // Key exists, update the value
+        this->values[idx] = message->value;
+    } else {
+        // Key does not exist, insert the key-value pair
+        this->keys.insert(it, message->key);
+        this->values.insert(this->values.begin() + idx, message->value);
+    }
+
     newChild = { KeyType(), nullptr, ChildChangeType::None };
 
     if (this->isOverflowing()) {
