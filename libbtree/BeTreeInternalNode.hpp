@@ -50,7 +50,13 @@ public:
 
     // TODO: We could somehow add a lowerstSearchKey field to the node to avoid searching for it
     KeyType getLowestSearchKey() const override {
-        return this->children[0]->getLowestSearchKey();
+        // Return the lowest key of the first child or the lowest key of the buffer
+        auto lowestKey = this->children[0]->getLowestSearchKey();
+        if (this->messageBuffer.size() > 0) {
+            return std::min(lowestKey, this->messageBuffer.begin()->first);
+        } else {
+            return lowestKey;
+        }
     }
 
     ErrorCode applyMessage(MessagePtr message, uint16_t indexInParent, ChildChange& childChange) override;
@@ -324,7 +330,11 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::redistribute(uint16_t indexInP
         // Move messages from sibling to this node
         // TODO: Use binary search to find the split point in the buffer instead of iterating through it
         for (auto it = sibling->messageBuffer.begin(); it != sibling->messageBuffer.end();) {
-            if (it->first < sibling->getLowestSearchKey()) {
+            //if (it->first < sibling->getLowestSearchKey()) {
+            // NOTE: we can't directly call getLowestSearchKey because the lowest key of the sibling might be in their buffer
+            //       which leads to the case where we don't move any messages from the sibling to this node
+            //       so we have to call getLowestSearchKey on the siblings first child
+            if (it->first < sibling->children[0]->getLowestSearchKey()) {
                 this->messageBuffer.insert_or_assign(it->first, std::move(it->second));
                 it = sibling->messageBuffer.erase(it);
             } else {
