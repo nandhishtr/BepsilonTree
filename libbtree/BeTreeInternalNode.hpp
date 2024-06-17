@@ -1,8 +1,8 @@
 #pragma once
 
 #include "pch.h"
-#include "ErrorCodes.h"
 #include "BeTreeMessage.hpp"
+#include "ErrorCodes.h"
 #include <cassert>
 #include <cstdint>
 #include <iosfwd>
@@ -95,7 +95,7 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::insert(MessagePtr message, Chi
 template <typename KeyType, typename ValueType>
 ErrorCode BeTreeInternalNode<KeyType, ValueType>::remove(MessagePtr message, uint16_t indexInParent, ChildChange& oldChild) {
     return this->applyMessage(std::move(message), indexInParent, oldChild);
-    }
+}
 
 template <typename KeyType, typename ValueType>
 std::pair<ValueType, ErrorCode> BeTreeInternalNode<KeyType, ValueType>::search(MessagePtr message) {
@@ -155,7 +155,7 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::flushBuffer(ChildChange& child
     uint16_t idx = std::upper_bound(this->keys.begin(), this->keys.end(), maxStart->first) - this->keys.begin();
     ChildChange newChild = { KeyType(), nullptr , ChildChangeType::None };
 
-    // NOTE: For now we will stop flushing messages if the child node splits or merges
+    // NOTE: For now we will stop flushing messages if the child node splits or merges or if we arrived at a leaf node
     //       This is to avoid the complexity of handling the index changes in the buffer
     // TODO: Right now this does not really work as intended, because when the child of a child splits or merges
     //       we may call that child again. Right now this isn't a problem, but when we are using files for storage
@@ -163,10 +163,6 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::flushBuffer(ChildChange& child
     auto it = maxStart;
     ErrorCode err = ErrorCode::Success;
     for (it = maxStart; it != maxEnd; ++it) {
-        // TODO: Right now this fails if the child splits when we call remove because of index out of bounds.
-        //       If we insert and it merges we will insert the same child again which leads to the tree being in an invalid state.
-        //       To fix this create a new applyMessage function, that handles both insert and remove messages, since they are handled the same way.
-        //       Then we can easily check if the child has split or merged and handle it accordingly here.
         err = this->children[idx]->applyMessage(std::move(it->second), idx, newChild);
         switch (newChild.type) {
             case ChildChangeType::Split:
@@ -183,21 +179,21 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::flushBuffer(ChildChange& child
                 break;
             case ChildChangeType::MergeLeft:
                 // Remove the child
-                    this->keys.erase(this->keys.begin() + idx - 1);
-                    this->children.erase(this->children.begin() + idx);
+                this->keys.erase(this->keys.begin() + idx - 1);
+                this->children.erase(this->children.begin() + idx);
                 break;
             case ChildChangeType::MergeRight:
-                    this->keys.erase(this->keys.begin() + idx);
-                    this->children.erase(this->children.begin() + idx + 1);
+                this->keys.erase(this->keys.begin() + idx);
+                this->children.erase(this->children.begin() + idx + 1);
                 break;
             default:
                 break;
-                }
+        }
 
         if (err != ErrorCode::Success) {
-                break;
-            }
+            break;
         }
+    }
     // Remove the flushed messages from the buffer
     if (it != maxEnd) {
         it++;
@@ -220,7 +216,7 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::flushBuffer(ChildChange& child
             return ErrorCode::Error;
         } else {
             return err;
-    }
+        }
     }
 
     return err;

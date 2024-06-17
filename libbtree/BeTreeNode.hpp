@@ -3,7 +3,6 @@
 #include "BeTreeInternalNode.hpp"
 #include "BeTreeLeafNode.hpp"
 #include "BeTreeMessage.hpp"
-#include "ErrorCodes.h"
 #include <cstdint>
 #include <iosfwd>
 #include <memory>
@@ -62,9 +61,9 @@ public:
     bool isLeaf() const { return level == 0; }
     bool isRoot() const { return this->parent == nullptr; }
     uint16_t size() const { return this->keys.size(); }
-    bool isUnderflowing() const { return size() < this->fanout / 2; }
+    bool isUnderflowing() const { return size() < (this->fanout - 1) / 2; }
     bool isMergeable() const { return size() == this->fanout / 2; }
-    bool isBorrowable() const { return size() > this->fanout / 2; }
+    bool isBorrowable() const { return size() > (this->fanout - 1) / 2; }
     bool isSplittable() const { return size() >= this->fanout - 1; }
     bool isOverflowing() const { return size() >= this->fanout; }
 

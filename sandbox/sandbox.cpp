@@ -556,6 +556,7 @@ void test_for_threaded() {
 
 void print_progress(int iteration, int total, int step = 1) {
     iteration++;
+    if (step == 0) return;
     if (iteration % step != 0 && iteration != total) return; // Print only at step intervals (and at the end)
 
     int barWidth = 70; // Width of the progress bar
@@ -582,6 +583,7 @@ void shuffle(int* arr, int size) {
 }
 
 bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1) {
+    cout << "Testing BeTree with fanout=" << fanout << " bufferSize=" << bufferSize << " testSize=" << testSize << endl;
     typedef int KeyType;
     typedef int ValueType;
 
@@ -594,7 +596,7 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1) {
 
     shuffle(arr, testSize);
     auto start = std::chrono::high_resolution_clock::now();
-    std::cout << "Testing insert..." << std::endl;
+    cout << "Testing insert..." << endl;
     for (int i = 0; i < testSize; i++) {
         print_progress(i, testSize, step);
         tree.insert(arr[i], arr[i]);
@@ -619,9 +621,6 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1) {
 
         // all not removed keys should still be in the tree
         for (int j = i + 1; j < testSize; j++) {
-            //if (i == breakon && j == 906) {
-            //    cout << "break" << endl;
-            //}
             auto [value, err] = tree.search(arr[j]);
             ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[j], "remove failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value);
         }
@@ -662,8 +661,6 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1) {
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
     cout << endl << "Time taken: " << duration << "ms" << endl;
 
-    cout << "All tests passed!" << endl;
-
     delete[] arr;
     delete[] insertArr;
     delete[] removeArr;
@@ -676,7 +673,22 @@ int main(int argc, char* argv[]) {
     //test_for_string();
     //test_for_threaded();
 
-    testBeTree(5, 0, 1000);
+    int size = 10000;
+    int step = size / 10;
+    testBeTree(2, 0, size, step);
+    testBeTree(3, 0, size, step);
+    testBeTree(4, 0, size, step);
+    testBeTree(5, 0, size, step);
+    testBeTree(6, 0, size, step);
+    testBeTree(7, 0, size, step);
+    testBeTree(8, 0, size, step);
+    testBeTree(16, 0, size, step);
+    testBeTree(32, 0, size, step);
+    testBeTree(64, 0, size, step);
+    testBeTree(128, 0, size, step);
+    testBeTree(256, 0, size, step);
+
+    cout << "All tests passed!" << endl;
 
 
 #ifdef __TREE_WITH_CACHE__
@@ -756,7 +768,7 @@ int main(int argc, char* argv[]) {
         ErrorCode code = ptrTree->search(nCntr, nValue);
 
         assert(nValue == nCntr);
-    }
+}
 
 #ifdef __TREE_WITH_CACHE__
     ptrTree->flush();
