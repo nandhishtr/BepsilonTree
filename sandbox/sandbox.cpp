@@ -554,7 +554,10 @@ void test_for_threaded() {
         } \
     } while (0)
 
-void print_progress(int iteration, int total) {
+void print_progress(int iteration, int total, int step = 1) {
+    iteration++;
+    if (iteration % step != 0 && iteration != total) return; // Print only at step intervals (and at the end)
+
     int barWidth = 70; // Width of the progress bar
     float progress = (float)iteration / total;
     std::cout << "[";
@@ -566,43 +569,35 @@ void print_progress(int iteration, int total) {
         else std::cout << " ";
     }
     std::cout << "] " << int(progress * 100.0) << "% (" << iteration << "/" << total << ")\r";
-    std::cout.flush(); // Important to flush, so the progress bar is updated in the same line
+    //std::cout.flush(); // Important to flush, so the progress bar is updated in the same line
 }
 
-int main(int argc, char* argv[]) {
-    //test_for_ints();
-    //test_for_string();
-    //test_for_threaded();
-
-    typedef int KeyType;
-    typedef int ValueType;
-
-    BeTree<KeyType, ValueType> tree(5);
-
-    int size = 1000000;
-    int* arr = new int[size];
-    for (int i = 0; i < size; i++) {
-        arr[i] = i;
-    }
-
-    // shuffle
+void shuffle(int* arr, int size) {
     for (int i = 0; i < size; i++) {
         int j = rand() % size;
         int temp = arr[i];
         arr[i] = arr[j];
         arr[j] = temp;
     }
+}
 
+bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1) {
+    typedef int KeyType;
+    typedef int ValueType;
+
+    BeTree<KeyType, ValueType> tree(fanout, bufferSize);
+
+    int* arr = new int[testSize];
+    for (int i = 0; i < testSize; i++) {
+        arr[i] = i;
+    }
+
+    shuffle(arr, testSize);
     auto start = std::chrono::high_resolution_clock::now();
-    cout << "Testing insert..." << endl;
-    for (int i = 0; i < size; i++) {
-        if (i % 100 == 0)
-            print_progress(i, size);
-
-        //cout << "inserting " << arr[i] << endl;
+    std::cout << "Testing insert..." << std::endl;
+    for (int i = 0; i < testSize; i++) {
+        print_progress(i, testSize, step);
         tree.insert(arr[i], arr[i]);
-        //tree.printTree(std::cout);
-        //cout << endl;
 
         // all inserted keys should be in the tree
         for (int j = 0; j <= i; j++) {
@@ -611,52 +606,78 @@ int main(int argc, char* argv[]) {
         }
     }
 
-    auto middle = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(middle - start).count();
-    cout << "Time taken: " << duration << "ms" << endl;
-
-    // shuffle again
-    for (int i = 0; i < size; i++) {
-        int j = rand() % size;
-        KeyType tempKey = arr[i];
-        arr[i] = arr[j];
-        arr[j] = tempKey;
-    }
-
-    cout << "Testing remove..." << endl;
+    shuffle(arr, testSize);
+    cout << endl << "Testing remove..." << endl;
     // remove
-    int breakon = size;
-    for (int i = 0; i < size; i++) {
-        if (i % 100 == 0)
-            print_progress(i, size);
-        //cout << "removing key " << arr[i] << " i: " << i << endl;
-        if (i == breakon) {
-            cout << "break" << endl;
-        }
+    int breakon = 490;
+    for (int i = 0; i < testSize; i++) {
+        print_progress(i, testSize, step);
         tree.remove(arr[i]);
-        //if (i >= breakon - 1) {
-        //tree.printTree(cout);
-        //}
-        //cout << endl;
 
         auto [value, err] = tree.search(arr[i]);
         assert(err == ErrorCode::KeyDoesNotExist);
 
         // all not removed keys should still be in the tree
-        for (int j = i + 1; j < size; j++) {
+        for (int j = i + 1; j < testSize; j++) {
+            //if (i == breakon && j == 906) {
+            //    cout << "break" << endl;
+            //}
             auto [value, err] = tree.search(arr[j]);
             ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[j], "remove failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value);
         }
     }
 
-    auto end = std::chrono::high_resolution_clock::now();
-    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - middle).count();
-    cout << "Time taken: " << duration << "ms" << endl;
+    // Interleaved insert and remove
+    int* insertArr = new int[testSize];
+    int* removeArr = new int[testSize];
+    for (int i = 0; i < testSize; i++) {
+        insertArr[i] = i;
+        removeArr[i] = i;
+    }
+    shuffle(insertArr, testSize);
+    shuffle(removeArr, testSize);
 
-    duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    cout << "Total time taken: " << duration << "ms" << endl;
+    cout << endl << "Testing interleaved insert and remove..." << endl;
+    int repeat = 10;
+    int i;
+    for (int j = 0; j < testSize * repeat;j++) {
+        print_progress(j, testSize * repeat, step);
+        i = j % testSize;
+
+        // Insert
+        tree.insert(insertArr[i], insertArr[i]);
+        auto [value, err] = tree.search(insertArr[i]);
+        ASSERT_WITH_PRINT(err == ErrorCode::Success && value == insertArr[i], "insert failed: j=" << j << " arr[i]=" << insertArr[i] << " value=" << value);
+
+        // Delete
+        if (j > testSize * 2) {
+            tree.remove(removeArr[i]);
+            auto [value, err] = tree.search(removeArr[i]);
+            ASSERT_WITH_PRINT(err == ErrorCode::KeyDoesNotExist, "remove failed: j=" << j << " arr[i]=" << removeArr[i] << " value=" << value);
+        }
+    }
+
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    cout << endl << "Time taken: " << duration << "ms" << endl;
 
     cout << "All tests passed!" << endl;
+
+    delete[] arr;
+    delete[] insertArr;
+    delete[] removeArr;
+
+    return true;
+}
+
+int main(int argc, char* argv[]) {
+    //test_for_ints();
+    //test_for_string();
+    //test_for_threaded();
+
+    testBeTree(5, 0, 1000);
+
 
 #ifdef __TREE_WITH_CACHE__
     typedef ObjectFatUID ObjectUIDType;
