@@ -15,7 +15,6 @@
 //#include "PMemStorage.hpp"
 
 #include "TypeUID.h"
-#include <iostream>
 #include <cstdio>
 #include <cstdlib>
 #include <map>
@@ -582,7 +581,7 @@ void shuffle(int* arr, int size) {
     }
 }
 
-bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1) {
+bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool stochastic = false) {
     cout << "Testing BeTree with fanout=" << fanout << " bufferSize=" << bufferSize << " testSize=" << testSize << endl;
     typedef int KeyType;
     typedef int ValueType;
@@ -601,11 +600,24 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1) {
         print_progress(i, testSize, step);
         tree.insert(arr[i], arr[i]);
 
+        if (!stochastic) {
         // all inserted keys should be in the tree
         for (int j = 0; j <= i; j++) {
             auto [value, err] = tree.search(arr[j]);
             ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[j], "insert failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value);
         }
+        } else {
+            // only test the last inserted key and some random keys
+            auto [value, err] = tree.search(arr[i]);
+            ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[i], "insert failed: i=" << i << " arr[i]=" << arr[i] << " value=" << value);
+
+            for (int j = 0; j < 10; j++) {
+                int k = rand() % (i + 1);
+                auto [value, err] = tree.search(arr[k]);
+                ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[k], "insert failed: i=" << i << " j=" << j << " k=" << k << " arr[k]=" << arr[k] << " value=" << value);
+    }
+        }
+
     }
 
     shuffle(arr, testSize);
@@ -619,10 +631,23 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1) {
         auto [value, err] = tree.search(arr[i]);
         assert(err == ErrorCode::KeyDoesNotExist);
 
+        if (!stochastic) {
         // all not removed keys should still be in the tree
         for (int j = i + 1; j < testSize; j++) {
             auto [value, err] = tree.search(arr[j]);
             ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[j], "remove failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value);
+        }
+        } else {
+            // only test the last removed key and some random keys
+            auto [value, err] = tree.search(arr[i]);
+            ASSERT_WITH_PRINT(err == ErrorCode::KeyDoesNotExist, "remove failed: i=" << i << " arr[i]=" << arr[i] << " value=" << value);
+
+            for (int j = 0; j < 10; j++) {
+                if (i + j >= testSize - 1) break;
+                int k = rand() % (testSize - i - 1) + i + 1;
+                auto [value, err] = tree.search(arr[k]);
+                ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[k], "remove failed: i=" << i << " j=" << j << " k=" << k << " arr[k]=" << arr[k] << " value=" << value);
+    }
         }
     }
 
@@ -673,20 +698,17 @@ int main(int argc, char* argv[]) {
     //test_for_string();
     //test_for_threaded();
 
-    int size = 10000;
-    int step = size / 10;
-    testBeTree(2, 0, size, step);
-    testBeTree(3, 0, size, step);
-    testBeTree(4, 0, size, step);
-    testBeTree(5, 0, size, step);
-    testBeTree(6, 0, size, step);
-    testBeTree(7, 0, size, step);
-    testBeTree(8, 0, size, step);
-    testBeTree(16, 0, size, step);
-    testBeTree(32, 0, size, step);
-    testBeTree(64, 0, size, step);
-    testBeTree(128, 0, size, step);
-    testBeTree(256, 0, size, step);
+    int fanouts[] = { 2, 3, 4, 5, 6, 7, 8, 16, 32, 64, 128, 256 };
+    int bufferSizes[] = { 2, 4, 8, 16, 32, 64, 128, 256 };
+    int size = 100;
+    for (int i = 0; i < sizeof(fanouts) / sizeof(fanouts[0]); i++) {
+        for (int j = 0; j < sizeof(bufferSizes) / sizeof(bufferSizes[0]); j++) {
+            int localSize = fanouts[i] * bufferSizes[j] * size;
+        bool stochastic = localSize > 1500;
+        int step = localSize / 10;
+            testBeTree(fanouts[i], bufferSizes[j], localSize, step, stochastic);
+    }
+    }
 
     cout << "All tests passed!" << endl;
 
