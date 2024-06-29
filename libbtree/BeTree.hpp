@@ -5,7 +5,6 @@
 #include "BeTreeMessage.hpp"
 #include "BeTreeNode.hpp"
 #include "ErrorCodes.h"
-#include <algorithm>
 #include <cstdint>
 #include <iosfwd>
 #include <memory>
@@ -42,6 +41,7 @@ public:
     ErrorCode insert(const KeyType& key, const ValueType& value);
     ErrorCode remove(const KeyType& key);
     std::pair<ValueType, ErrorCode> search(const KeyType& key);
+    ErrorCode flush();
     void printTree(std::ostream& out);
 };
 
@@ -135,4 +135,10 @@ ErrorCode BeTree<KeyType, ValueType>::applyMessage(MessagePtr message) {
     }
 
     return err;
+}
+
+template <typename KeyType, typename ValueType>
+ErrorCode BeTree<KeyType, ValueType>::flush() {
+    // TODO: implement
+    return ErrorCode::Error;
 }

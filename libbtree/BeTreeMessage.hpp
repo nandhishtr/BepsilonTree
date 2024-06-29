@@ -17,7 +17,7 @@ public:
 
     //Message(MessageType type, KeyType key) : type(type), key(key), timestamp(++global_timestamp) {}
     //Message(MessageType type, KeyType key, ValueType value) : type(type), key(key), value(value), timestamp(++global_timestamp) {}
-    Message(MessageType type, KeyType key) : type(type), key(key) {}
+    Message(MessageType type, KeyType key) : type(type), key(key), value(0) {}
     Message(MessageType type, KeyType key, ValueType value) : type(type), key(key), value(value) {}
     virtual ~Message() = default;
 

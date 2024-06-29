@@ -162,7 +162,7 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::handleUnderflow(uint16_t indexInPa
     } else if (this->rightSibling && this->rightSibling->parent == this->parent) {
         return merge(oldChild, false);
     } else {
-        return ErrorCode::Success;
+        return ErrorCode::Error;
     }
 }
 
