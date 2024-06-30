@@ -121,7 +121,7 @@ ErrorCode BeTree<KeyType, ValueType>::applyMessage(MessagePtr message) {
                 // rootNode = newRoot;
             } else {
                 auto newRoot = std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(oldRoot->children[0]);
-                newRoot->parent = nullptr;
+                newRoot->parent.reset();
 
                 // add message buffer of current rootNode to the newRoot because the old root is being deleted
                 // for now just move the messages and don't call insert/remove because handling split/merge would be more complicated
@@ -129,6 +129,8 @@ ErrorCode BeTree<KeyType, ValueType>::applyMessage(MessagePtr message) {
                     newRoot->messageBuffer.insert_or_assign(msg.first, std::move(msg.second));
                 }
 
+                newRoot->leftSibling.reset();
+                newRoot->rightSibling.reset();
                 rootNode = newRoot;
             }
         }

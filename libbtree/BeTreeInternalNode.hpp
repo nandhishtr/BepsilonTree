@@ -44,6 +44,12 @@ public:
         }
     }
 
+    ~BeTreeInternalNode() {
+        std::vector<KeyType>().swap(this->keys);
+        std::vector<BeTreeNodePtr>().swap(this->children);
+        std::map<KeyType, MessagePtr>().swap(this->messageBuffer);
+    }
+
     bool isFlushable() const {
         return this->messageBuffer.size() >= maxBufferSize;
     }
@@ -210,7 +216,7 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::flushBuffer(ChildChange& child
     } else if (this->isUnderflowing() && !this->isRoot()) {
         // OPTIMIZE: Pass the index of the parent down to avoid searching for it again
         //uint16_t indexInParent = this->parent->getIndex(this->getLowestSearchKey()) - this->parent->keys.begin(); // use upper bound instead
-        uint16_t indexInParent = std::upper_bound(this->parent->keys.begin(), this->parent->keys.end(), this->getLowestSearchKey()) - this->parent->keys.begin();
+        uint16_t indexInParent = std::upper_bound(this->parent.lock()->keys.begin(), this->parent.lock()->keys.end(), this->getLowestSearchKey()) - this->parent.lock()->keys.begin();
         // TODO: After a merge the message buffer might be overflown
         if (handleUnderflow(indexInParent, childChange) == ErrorCode::Error) {
             return ErrorCode::Error;
@@ -225,7 +231,7 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::flushBuffer(ChildChange& child
 template <typename KeyType, typename ValueType>
 ErrorCode BeTreeInternalNode<KeyType, ValueType>::split(ChildChange& newChild) {
     // Split the node
-    auto newInternal = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(this->fanout, this->level, this->maxBufferSize, this->parent);
+    auto newInternal = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(this->fanout, this->level, this->maxBufferSize, this->parent.lock());
     auto mid = this->keys.size() / 2;
     KeyType newPivot = this->keys[mid];
     newInternal->keys.insert(newInternal->keys.begin(), this->keys.begin() + mid + 1, this->keys.end());
@@ -246,9 +252,9 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::split(ChildChange& newChild) {
 
     // Set sibling pointers
     newInternal->leftSibling = this->shared_from_this();
-    newInternal->rightSibling = this->rightSibling;
-    if (this->rightSibling) {
-        this->rightSibling->leftSibling = newInternal;
+    newInternal->rightSibling = this->rightSibling.lock();
+    if (this->rightSibling.lock()) {
+        this->rightSibling.lock()->leftSibling = newInternal;
     }
     this->rightSibling = newInternal;
 
@@ -268,13 +274,13 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::handleUnderflow(uint16_t index
         return ErrorCode::Success;
     }
     // redistribute or merge with sibling
-    if (this->leftSibling && this->leftSibling->isBorrowable() && this->leftSibling->parent == this->parent) {
+    if (this->leftSibling.lock() && this->leftSibling.lock()->isBorrowable() && this->leftSibling.lock()->parent.lock() == this->parent.lock()) {
         return redistribute(indexInParent, true, oldChild);
-    } else if (this->leftSibling && this->leftSibling->parent == this->parent) {
+    } else if (this->leftSibling.lock() && this->leftSibling.lock()->parent.lock() == this->parent.lock()) {
         return merge(indexInParent, oldChild, true);
-    } else if (this->rightSibling && this->rightSibling->isBorrowable() && this->rightSibling->parent == this->parent) {
+    } else if (this->rightSibling.lock() && this->rightSibling.lock()->isBorrowable() && this->rightSibling.lock()->parent.lock() == this->parent.lock()) {
         return redistribute(indexInParent, false, oldChild);
-    } else if (this->rightSibling && this->rightSibling->parent == this->parent) {
+    } else if (this->rightSibling.lock() && this->rightSibling.lock()->parent.lock() == this->parent.lock()) {
         return merge(indexInParent, oldChild, false);
     } else {
         return ErrorCode::Success;
@@ -284,8 +290,8 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::handleUnderflow(uint16_t index
 template <typename KeyType, typename ValueType>
 ErrorCode BeTreeInternalNode<KeyType, ValueType>::redistribute(uint16_t indexInParent, bool withLeft, ChildChange& oldChild) {
     auto sibling = withLeft ?
-        std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(this->leftSibling) :
-        std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(this->rightSibling);
+        std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(this->leftSibling.lock()) :
+        std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(this->rightSibling.lock());
 
     auto sizeDiff = (sibling->size() - this->size()) / 2;
     assert(sizeDiff >= 0);
@@ -353,12 +359,12 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::redistribute(uint16_t indexInP
 template <typename KeyType, typename ValueType>
 ErrorCode BeTreeInternalNode<KeyType, ValueType>::merge(uint16_t indexInParent, ChildChange& oldChild, bool withLeft) {
     auto sibling = withLeft ?
-        std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(this->leftSibling) :
-        std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(this->rightSibling);
+        std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(this->leftSibling.lock()) :
+        std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(this->rightSibling.lock());
 
     if (withLeft) {
         // pull the pivot key from the parent
-        sibling->keys.insert(sibling->keys.end(), this->parent->keys[indexInParent - 1]);
+        sibling->keys.insert(sibling->keys.end(), this->parent.lock()->keys[indexInParent - 1]);
 
         // merge the keys and children
         sibling->keys.insert(sibling->keys.end(), this->keys.begin(), this->keys.end());
@@ -370,9 +376,9 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::merge(uint16_t indexInParent, 
         }
 
         // Update sibling pointers
-        sibling->rightSibling = this->rightSibling;
-        if (this->rightSibling) {
-            this->rightSibling->leftSibling = sibling;
+        sibling->rightSibling = this->rightSibling.lock();
+        if (this->rightSibling.lock()) {
+            this->rightSibling.lock()->leftSibling = sibling;
         }
 
         // Update parent pointers
@@ -383,12 +389,11 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::merge(uint16_t indexInParent, 
         oldChild = { KeyType(), this->shared_from_this(), ChildChangeType::MergeLeft };
     } else {
         // pull the pivot key from the parent
-        this->keys.insert(this->keys.end(), this->parent->keys[indexInParent]);
+        this->keys.insert(this->keys.end(), this->parent.lock()->keys[indexInParent]);
 
         // merge the keys and children
         this->keys.insert(this->keys.end(), sibling->keys.begin(), sibling->keys.end());
         this->children.insert(this->children.end(), sibling->children.begin(), sibling->children.end());
-        this->rightSibling = sibling->rightSibling;
 
         // combine the message buffers
         for (auto& [key, message] : sibling->messageBuffer) {
@@ -396,8 +401,9 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::merge(uint16_t indexInParent, 
         }
 
         // Update sibling pointers
-        if (sibling->rightSibling) {
-            sibling->rightSibling->leftSibling = this->shared_from_this();
+        this->rightSibling = sibling->rightSibling;
+        if (sibling->rightSibling.lock()) {
+            sibling->rightSibling.lock()->leftSibling = this->shared_from_this();
         }
 
         // Update parent pointers

@@ -29,9 +29,9 @@ public:
     uint16_t level;
     std::vector<KeyType> keys;
 
-    InternalNodePtr parent;
-    BeTreeNodePtr leftSibling;
-    BeTreeNodePtr rightSibling;
+    std::weak_ptr<BeTreeInternalNode<KeyType, ValueType>> parent;
+    std::weak_ptr<BeTreeNode<KeyType, ValueType>> leftSibling;
+    std::weak_ptr<BeTreeNode<KeyType, ValueType>> rightSibling;
 
     enum ChildChangeType {
         None,
@@ -59,7 +59,7 @@ public:
 
     // Helper functions
     bool isLeaf() const { return level == 0; }
-    bool isRoot() const { return this->parent == nullptr; }
+    bool isRoot() const { return this->parent.expired(); }
     uint16_t size() const { return this->keys.size(); }
     bool isUnderflowing() const { return size() < (this->fanout - 1) / 2; }
     bool isMergeable() const { return size() == this->fanout / 2; }

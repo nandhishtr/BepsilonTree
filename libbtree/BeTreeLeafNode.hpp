@@ -3,7 +3,6 @@
 #include "BeTreeMessage.hpp"
 #include "BeTreeNode.hpp"
 #include "ErrorCodes.h"
-#include <algorithm>
 #include <cassert>
 #include <cstdint>
 #include <iosfwd>
@@ -33,6 +32,11 @@ public:
 
     BeTreeLeafNode(uint16_t fanout, InternalNodePtr parent = nullptr)
         : BeTreeNode<KeyType, ValueType>(fanout, 0, parent) {}
+
+    ~BeTreeLeafNode() {
+        std::vector<KeyType>().swap(this->keys);
+        std::vector<ValueType>().swap(this->values);
+    }
 
     KeyType getLowestSearchKey() const override {
         return this->keys[0];
@@ -125,7 +129,7 @@ std::pair<ValueType, ErrorCode> BeTreeLeafNode<KeyType, ValueType>::search(Messa
 template <typename KeyType, typename ValueType>
 ErrorCode BeTreeLeafNode<KeyType, ValueType>::split(ChildChange& newChild) {
     // Split the node
-    auto newLeaf = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->fanout, this->parent);
+    auto newLeaf = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->fanout, this->parent.lock());
     auto mid = this->keys.size() / 2;
     KeyType newPivot = this->keys[mid];
     newLeaf->keys.insert(newLeaf->keys.begin(), this->keys.begin() + mid, this->keys.end());
@@ -135,9 +139,9 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::split(ChildChange& newChild) {
 
     // Set sibling pointers
     newLeaf->leftSibling = this->shared_from_this();
-    newLeaf->rightSibling = this->rightSibling;
-    if (this->rightSibling) {
-        this->rightSibling->leftSibling = newLeaf;
+    newLeaf->rightSibling = this->rightSibling.lock();
+    if (this->rightSibling.lock()) {
+        this->rightSibling.lock()->leftSibling = newLeaf;
     }
     this->rightSibling = newLeaf;
 
@@ -153,13 +157,13 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::handleUnderflow(uint16_t indexInPa
     }
 
     // redistribute or merge with sibling
-    if (this->leftSibling && this->leftSibling->isBorrowable() && this->leftSibling->parent == this->parent) {
+    if (this->leftSibling.lock() && this->leftSibling.lock()->isBorrowable() && this->leftSibling.lock()->parent.lock() == this->parent.lock()) {
         return redistribute(indexInParent, true, oldChild);
-    } else if (this->leftSibling && this->leftSibling->parent == this->parent) {
+    } else if (this->leftSibling.lock() && this->leftSibling.lock()->parent.lock() == this->parent.lock()) {
         return merge(oldChild, true);
-    } else if (this->rightSibling && this->rightSibling->isBorrowable() && this->rightSibling->parent == this->parent) {
+    } else if (this->rightSibling.lock() && this->rightSibling.lock()->isBorrowable() && this->rightSibling.lock()->parent.lock() == this->parent.lock()) {
         return redistribute(indexInParent, false, oldChild);
-    } else if (this->rightSibling && this->rightSibling->parent == this->parent) {
+    } else if (this->rightSibling.lock() && this->rightSibling.lock()->parent.lock() == this->parent.lock()) {
         return merge(oldChild, false);
     } else {
         return ErrorCode::Error;
@@ -169,8 +173,8 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::handleUnderflow(uint16_t indexInPa
 template <typename KeyType, typename ValueType>
 ErrorCode BeTreeLeafNode<KeyType, ValueType>::redistribute(uint16_t indexInParent, bool withLeft, ChildChange& oldChild) {
     auto sibling = withLeft ?
-        std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->leftSibling) :
-        std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->rightSibling);
+        std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->leftSibling.lock()) :
+        std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->rightSibling.lock());
 
     auto sizeDiff = (sibling->size() - this->size()) / 2;
     assert(sizeDiff >= 0);
@@ -182,7 +186,7 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::redistribute(uint16_t indexInParen
         sibling->keys.erase(sibling->keys.end() - sizeDiff, sibling->keys.end());
         sibling->values.erase(sibling->values.end() - sizeDiff, sibling->values.end());
         // Update pivot key in parent
-        this->parent->keys[indexInParent - 1] = this->getLowestSearchKey(); // TODO: handle with ChildChange
+        this->parent.lock()->keys[indexInParent - 1] = this->getLowestSearchKey(); // TODO: handle with ChildChange
         oldChild = { this->getLowestSearchKey(), nullptr, ChildChangeType::RedistributeLeft };
     } else {
         this->keys.insert(this->keys.end(), sibling->keys.begin(), sibling->keys.begin() + sizeDiff);
@@ -190,7 +194,7 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::redistribute(uint16_t indexInParen
         sibling->keys.erase(sibling->keys.begin(), sibling->keys.begin() + sizeDiff);
         sibling->values.erase(sibling->values.begin(), sibling->values.begin() + sizeDiff);
         // Update pivot key in parent
-        this->parent->keys[indexInParent] = sibling->getLowestSearchKey(); // TODO: handle with ChildChange
+        this->parent.lock()->keys[indexInParent] = sibling->getLowestSearchKey(); // TODO: handle with ChildChange
         oldChild = { sibling->getLowestSearchKey(), nullptr, ChildChangeType::RedistributeRight };
     }
 
@@ -200,23 +204,23 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::redistribute(uint16_t indexInParen
 template <typename KeyType, typename ValueType>
 ErrorCode BeTreeLeafNode<KeyType, ValueType>::merge(ChildChange& oldChild, bool withLeft) {
     auto sibling = withLeft ?
-        std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->leftSibling) :
-        std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->rightSibling);
+        std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->leftSibling.lock()) :
+        std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->rightSibling.lock());
 
     if (withLeft) {
         sibling->keys.insert(sibling->keys.end(), this->keys.begin(), this->keys.end());
         sibling->values.insert(sibling->values.end(), this->values.begin(), this->values.end());
-        sibling->rightSibling = this->rightSibling;
-        if (this->rightSibling) {
-            this->rightSibling->leftSibling = sibling;
+        sibling->rightSibling = this->rightSibling.lock();
+        if (this->rightSibling.lock()) {
+            this->rightSibling.lock()->leftSibling = sibling;
         }
         oldChild = { KeyType(), this->shared_from_this(), ChildChangeType::MergeLeft };
     } else {
         this->keys.insert(this->keys.end(), sibling->keys.begin(), sibling->keys.end());
         this->values.insert(this->values.end(), sibling->values.begin(), sibling->values.end());
-        this->rightSibling = sibling->rightSibling;
-        if (sibling->rightSibling) {
-            sibling->rightSibling->leftSibling = this->shared_from_this();
+        this->rightSibling = sibling->rightSibling.lock();
+        if (sibling->rightSibling.lock()) {
+            sibling->rightSibling.lock()->leftSibling = this->shared_from_this();
         }
         oldChild = { KeyType(), sibling, ChildChangeType::MergeRight };
     }
