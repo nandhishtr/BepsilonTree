@@ -9,6 +9,7 @@
 #include <iosfwd>
 #include <memory>
 #include <utility>
+#include "LRU1Cache.hpp"
 
 // Forward declarations
 template <typename KeyType, typename ValueType> class BeTree;
@@ -28,15 +29,20 @@ private:
     using LeafNodePtr = std::shared_ptr<BeTreeLeafNode<KeyType, ValueType>>;
     using childChange = typename BeTreeNode<KeyType, ValueType>::ChildChange;
     using ChildChangeType = typename BeTreeNode<KeyType, ValueType>::ChildChangeType;
+    using LRU1CachePtr = std::shared_ptr<LRU1Cache<KeyType, ValueType>>;
 
     uint16_t fanout;
     uint16_t maxBufferSize;
     BeTreeNodePtr rootNode;
+    LRU1CachePtr m_ptrCache;
 
     ErrorCode applyMessage(MessagePtr message);
 public:
     ~BeTree() = default;
-    BeTree(uint16_t fanout, uint16_t maxBufferSize = 0) : fanout(fanout), maxBufferSize(maxBufferSize), rootNode(nullptr) {}
+    BeTree(uint16_t fanout, uint16_t maxBufferSize = 0) : fanout(fanout), maxBufferSize(maxBufferSize), rootNode(nullptr) 
+    {
+        m_ptrCache = std::make_shared<LRU1Cache<KeyType, ValueType>>(10);
+    }
 
     ErrorCode insert(const KeyType& key, const ValueType& value);
     ErrorCode remove(const KeyType& key);
@@ -51,7 +57,8 @@ template <typename KeyType, typename ValueType>
 ErrorCode BeTree<KeyType, ValueType>::insert(const KeyType& key, const ValueType& value) {
     // If the tree is empty, create a new leaf node
     if (!rootNode) {
-        rootNode = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(fanout);
+        rootNode = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(fanout, m_ptrCache);
+        m_ptrCache->put(rootNode->id, rootNode);
     }
 
     MessagePtr message = std::make_unique<Message<KeyType, ValueType>>(MessageType::Insert, key, value);
@@ -75,7 +82,9 @@ std::pair<ValueType, ErrorCode> BeTree<KeyType, ValueType>::search(const KeyType
         return { ValueType(), ErrorCode::KeyDoesNotExist };
     }
     MessagePtr message = std::make_unique<Message<KeyType, ValueType>>(MessageType::Search, key);
-    return rootNode->search(std::move(message));
+    std::cout << "ROOT ID: " << rootNode->id;
+    auto rootPtr = this->m_ptrCache->get(rootNode->id);
+    return rootPtr->search(std::move(message));
 }
 
 template <typename KeyType, typename ValueType>
@@ -90,21 +99,23 @@ void BeTree<KeyType, ValueType>::printTree(std::ostream& out) {
 template <typename KeyType, typename ValueType>
 ErrorCode BeTree<KeyType, ValueType>::applyMessage(MessagePtr message) {
     childChange childChange = { KeyType(), nullptr, ChildChangeType::None };
-    ErrorCode err = rootNode->applyMessage(std::move(message), 0, childChange);
+    ErrorCode err = rootNode->applyMessage(std::move(message), 0, nullptr, childChange);
 
     // Because of the buffering both insert and remove messages are handled in the same way
     // meaning that the tree can split and merge on both insert and remove operations
 
     // Handle root node split
     if (childChange.node) {
-        auto newRoot = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(fanout, rootNode->level + 1, maxBufferSize);
+        auto newRoot = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(fanout, rootNode->level + 1, maxBufferSize, m_ptrCache);
         newRoot->keys.push_back(childChange.key);
         newRoot->children.push_back(rootNode);
         newRoot->children.push_back(childChange.node);
         rootNode->parent = newRoot;
         childChange.node->parent = newRoot;
         rootNode = newRoot;
+        m_ptrCache->put(rootNode->id, rootNode);
     }
+
 
     // Handle root node merge
     if (rootNode->size() == 0) {
@@ -132,6 +143,7 @@ ErrorCode BeTree<KeyType, ValueType>::applyMessage(MessagePtr message) {
                 newRoot->leftSibling.reset();
                 newRoot->rightSibling.reset();
                 rootNode = newRoot;
+                m_ptrCache->put(rootNode->id, rootNode);
             }
         }
     }
@@ -144,3 +156,4 @@ ErrorCode BeTree<KeyType, ValueType>::flush() {
     // TODO: implement
     return ErrorCode::Error;
 }
+

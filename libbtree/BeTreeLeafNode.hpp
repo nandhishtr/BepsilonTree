@@ -27,11 +27,13 @@ public:
     using typename BeTreeNode<KeyType, ValueType>::LeafNodePtr;
     using typename BeTreeNode<KeyType, ValueType>::ChildChange;
     using typename BeTreeNode<KeyType, ValueType>::ChildChangeType;
+    using typename BeTreeNode<KeyType, ValueType>::LRU1CachePtr;
 
     std::vector<ValueType> values;
+    //LRU1CachePtr ptrCache = nullptr;
 
-    BeTreeLeafNode(uint16_t fanout, InternalNodePtr parent = nullptr)
-        : BeTreeNode<KeyType, ValueType>(fanout, 0, parent) {}
+    BeTreeLeafNode(uint16_t fanout, LRU1CachePtr nodeCache = nullptr, InternalNodePtr parent = nullptr)
+        : BeTreeNode<KeyType, ValueType>(fanout, 0, nodeCache, parent) {}
 
     ~BeTreeLeafNode() {
         std::vector<KeyType>().swap(this->keys);
@@ -42,7 +44,7 @@ public:
         return this->keys[0];
     }
 
-    ErrorCode applyMessage(MessagePtr message, uint16_t indexInParent, ChildChange& childChange) override;
+    ErrorCode applyMessage(MessagePtr message, uint16_t indexInParent, LRU1CachePtr nodeCache, ChildChange& childChange) override;
     ErrorCode insert(MessagePtr message, ChildChange& newChild) override;
     ErrorCode remove(MessagePtr message, uint16_t indexInParent, ChildChange& oldChild) override;
     std::pair<ValueType, ErrorCode> search(MessagePtr message) override;
@@ -58,7 +60,8 @@ public:
 // Implementations
 
 template <typename KeyType, typename ValueType>
-ErrorCode BeTreeLeafNode<KeyType, ValueType>::applyMessage(MessagePtr message, uint16_t indexInParent, ChildChange& childChange) {
+ErrorCode BeTreeLeafNode<KeyType, ValueType>::applyMessage(MessagePtr message, uint16_t indexInParent, LRU1CachePtr nodeCache, ChildChange& childChange) {
+    ////this->ptrCache = nodeCache;
     switch (message->type) {
         case MessageType::Insert:
             return insert(std::move(message), childChange);
@@ -85,6 +88,7 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::insert(MessagePtr message, ChildCh
         this->values.insert(this->values.begin() + idx, message->value);
     }
 
+    this->ptrCache->put(this->id, this->shared_from_this());
     newChild = { KeyType(), nullptr, ChildChangeType::None };
 
     if (this->isOverflowing()) {
@@ -108,6 +112,7 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::remove(MessagePtr message, uint16_
     this->keys.erase(it);
     this->values.erase(this->values.begin() + idx);
 
+    //this->ptrCache->put(this->id, this->shared_from_this());
     if (this->isUnderflowing()) {
         return handleUnderflow(indexInParent, oldChild);
     } else {
@@ -129,7 +134,7 @@ std::pair<ValueType, ErrorCode> BeTreeLeafNode<KeyType, ValueType>::search(Messa
 template <typename KeyType, typename ValueType>
 ErrorCode BeTreeLeafNode<KeyType, ValueType>::split(ChildChange& newChild) {
     // Split the node
-    auto newLeaf = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->fanout, this->parent.lock());
+    auto newLeaf = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->fanout, this->ptrCache, this->parent.lock());
     auto mid = this->keys.size() / 2;
     KeyType newPivot = this->keys[mid];
     newLeaf->keys.insert(newLeaf->keys.begin(), this->keys.begin() + mid, this->keys.end());
@@ -145,6 +150,7 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::split(ChildChange& newChild) {
     }
     this->rightSibling = newLeaf;
 
+    //this->ptrCache->put(newLeaf->id, newLeaf);
     // Update parent
     newChild = { newPivot, newLeaf, ChildChangeType::Split };
     return ErrorCode::FinishedMessagePassing;
@@ -198,6 +204,8 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::redistribute(uint16_t indexInParen
         oldChild = { sibling->getLowestSearchKey(), nullptr, ChildChangeType::RedistributeRight };
     }
 
+    //this->ptrCache->put(this->id, this->shared_from_this());
+
     return ErrorCode::FinishedMessagePassing;
 }
 
@@ -224,6 +232,8 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::merge(ChildChange& oldChild, bool 
         }
         oldChild = { KeyType(), sibling, ChildChangeType::MergeRight };
     }
+
+    //this->ptrCache->put(this->id, this->shared_from_this());
 
     return ErrorCode::FinishedMessagePassing;
 }

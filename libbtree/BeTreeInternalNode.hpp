@@ -29,14 +29,16 @@ public:
     using typename BeTreeNode<KeyType, ValueType>::LeafNodePtr;
     using typename BeTreeNode<KeyType, ValueType>::ChildChange;
     using typename BeTreeNode<KeyType, ValueType>::ChildChangeType;
+    using typename BeTreeNode<KeyType, ValueType>::LRU1CachePtr;
 
     std::map<KeyType, MessagePtr> messageBuffer;
     uint16_t maxBufferSize;
 
     std::vector<BeTreeNodePtr> children;
+    //LRU1CachePtr ptrCache = nullptr;
 
-    BeTreeInternalNode(uint16_t fanout, uint16_t level, uint16_t maxBufferSize = 0, InternalNodePtr parent = nullptr)
-        : BeTreeNode<KeyType, ValueType>(fanout, level, parent) {
+    BeTreeInternalNode(uint16_t fanout, uint16_t level, uint16_t maxBufferSize = 0, LRU1CachePtr nodeCache = nullptr, InternalNodePtr parent = nullptr)
+        : BeTreeNode<KeyType, ValueType>(fanout, level, nodeCache, parent) {
         if (maxBufferSize == 0) {
             this->maxBufferSize = fanout - 1;
         } else {
@@ -65,7 +67,7 @@ public:
         }
     }
 
-    ErrorCode applyMessage(MessagePtr message, uint16_t indexInParent, ChildChange& childChange) override;
+    ErrorCode applyMessage(MessagePtr message, uint16_t indexInParent, LRU1CachePtr nodeCache, ChildChange& childChange) override;
     ErrorCode insert(MessagePtr message, ChildChange& newChild) override;
     ErrorCode remove(MessagePtr message, uint16_t indexInParent, ChildChange& oldChild) override;
     std::pair<ValueType, ErrorCode> search(MessagePtr message) override;
@@ -83,28 +85,32 @@ public:
 // Implementations
 
 template <typename KeyType, typename ValueType>
-ErrorCode BeTreeInternalNode<KeyType, ValueType>::applyMessage(MessagePtr message, uint16_t indexInParent, ChildChange& childChange) {
+ErrorCode BeTreeInternalNode<KeyType, ValueType>::applyMessage(MessagePtr message, uint16_t indexInParent, LRU1CachePtr nodeCache, ChildChange& childChange) {
+    // load from cache
     this->messageBuffer.insert_or_assign(message->key, std::move(message));
 
     if (isFlushable()) {
         return flushBuffer(childChange);
     } else {
+        //this->ptrCache->put(this->id, std::shared_ptr<BeTreeNode<KeyType, ValueType>>(this));
         return ErrorCode::Success;
     }
 }
 
 template <typename KeyType, typename ValueType>
 ErrorCode BeTreeInternalNode<KeyType, ValueType>::insert(MessagePtr message, ChildChange& newChild) {
-    return this->applyMessage(std::move(message), 0, newChild);
+    return this->applyMessage(std::move(message), 0, nullptr, newChild);
 }
 
 template <typename KeyType, typename ValueType>
 ErrorCode BeTreeInternalNode<KeyType, ValueType>::remove(MessagePtr message, uint16_t indexInParent, ChildChange& oldChild) {
-    return this->applyMessage(std::move(message), indexInParent, oldChild);
+    return this->applyMessage(std::move(message), indexInParent, nullptr, oldChild);
 }
 
 template <typename KeyType, typename ValueType>
 std::pair<ValueType, ErrorCode> BeTreeInternalNode<KeyType, ValueType>::search(MessagePtr message) {
+    // load from cache
+
     // Search for the message in the buffer
     auto it = this->messageBuffer.find(message->key);
     if (it != this->messageBuffer.end()) {
@@ -169,7 +175,7 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::flushBuffer(ChildChange& child
     auto it = maxStart;
     ErrorCode err = ErrorCode::Success;
     for (it = maxStart; it != maxEnd; ++it) {
-        err = this->children[idx]->applyMessage(std::move(it->second), idx, newChild);
+        err = this->children[idx]->applyMessage(std::move(it->second), idx, nullptr, newChild);
         switch (newChild.type) {
             case ChildChangeType::Split:
                 // Insert the new child
@@ -231,7 +237,8 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::flushBuffer(ChildChange& child
 template <typename KeyType, typename ValueType>
 ErrorCode BeTreeInternalNode<KeyType, ValueType>::split(ChildChange& newChild) {
     // Split the node
-    auto newInternal = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(this->fanout, this->level, this->maxBufferSize, this->parent.lock());
+    auto newInternal = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(this->fanout, this->level, 
+        this->maxBufferSize, this->ptrCache, this->parent.lock());
     auto mid = this->keys.size() / 2;
     KeyType newPivot = this->keys[mid];
     newInternal->keys.insert(newInternal->keys.begin(), this->keys.begin() + mid + 1, this->keys.end());
@@ -263,6 +270,8 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::split(ChildChange& newChild) {
         child->parent = newInternal;
     }
 
+    //this->ptrCache->put(this->id, this);
+    //this->ptrCache->put(newInternal->id, newInternal);
     // Update parent
     newChild = { newPivot, newInternal, ChildChangeType::Split };
     return ErrorCode::Success;
@@ -352,6 +361,8 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::redistribute(uint16_t indexInP
         // Update pivot key in parent
         oldChild = { sibling->getLowestSearchKey(), nullptr, ChildChangeType::RedistributeRight };
     }
+    //this->ptrCache->put(this->id, this);
+    //this->ptrCache->put(sibling->id, sibling);
 
     return ErrorCode::Success;
 }
@@ -413,6 +424,8 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::merge(uint16_t indexInParent, 
 
         oldChild = { KeyType(), sibling, ChildChangeType::MergeRight };
     }
+    //this->ptrCache->put(this->id, this);
+    //this->ptrCache->put(sibling->id, sibling);
 
     return ErrorCode::Success;
 }

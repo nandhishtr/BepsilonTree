@@ -8,6 +8,7 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include "LRU1Cache.hpp"
 
 // Forward declarations
 template <typename KeyType, typename ValueType> class BeTreeNode;
@@ -24,7 +25,11 @@ public:
     using BeTreeNodePtr = std::shared_ptr<BeTreeNode<KeyType, ValueType>>;
     using InternalNodePtr = std::shared_ptr<BeTreeInternalNode<KeyType, ValueType>>;
     using LeafNodePtr = std::shared_ptr<BeTreeLeafNode<KeyType, ValueType>>;
+    using LRU1CachePtr = std::shared_ptr<LRU1Cache<KeyType, ValueType>>;
 
+    using NodeId = uint64_t;
+
+    NodeId id;
     uint16_t fanout; // maximum amount of children an internal node can have
     uint16_t level;
     std::vector<KeyType> keys;
@@ -48,11 +53,13 @@ public:
         ChildChangeType type;
     };
 
-    virtual ~BeTreeNode() = default;
-    BeTreeNode(uint16_t fanout, uint16_t level, InternalNodePtr parent = nullptr)
-        : fanout(fanout), level(level), parent(parent) {}
+    LRU1CachePtr ptrCache = nullptr;
 
-    virtual ErrorCode applyMessage(MessagePtr message, uint16_t indexInParent, ChildChange& oldChild) = 0;
+    virtual ~BeTreeNode() = default;
+    BeTreeNode(uint16_t fanout, uint16_t level, LRU1CachePtr nodeCache, InternalNodePtr parent = nullptr)
+        : fanout(fanout), level(level), ptrCache(nodeCache), parent(parent),  id(generateUniqueId()) {}
+
+    virtual ErrorCode applyMessage(MessagePtr message, uint16_t indexInParent, LRU1CachePtr nodeCache, ChildChange& oldChild) = 0;
     virtual ErrorCode insert(MessagePtr message, ChildChange& newChild) = 0;
     virtual ErrorCode remove(MessagePtr message, uint16_t indexInParent, ChildChange& oldChild) = 0;
     virtual std::pair<ValueType, ErrorCode> search(MessagePtr message) = 0;
@@ -74,4 +81,11 @@ public:
     virtual KeyType getLowestSearchKey() const = 0;
 
     virtual void printNode(std::ostream& out) const = 0;
+
+private: 
+    static NodeId generateUniqueId() {
+        static NodeId nextId = 0;
+        return ++nextId;
+    }
+
 };

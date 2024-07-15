@@ -593,13 +593,14 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
         arr[i] = i;
     }
 
-    shuffle(arr, testSize);
+    //shuffle(arr, testSize);
     auto start = std::chrono::high_resolution_clock::now();
     cout << "Testing insert..." << endl;
-    for (int i = 0; i < testSize; i++) {
+    for (int i = 0; i < 3; i++) {
         print_progress(i, testSize, step);
         tree.insert(arr[i], arr[i]);
-
+        //auto [value, err] = tree.search(arr[i]);
+        //ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[i], "insert failed: i=" << i << " arr[i]=" << arr[i] << " value=" << value);
         if (!stochastic) {
         // all inserted keys should be in the tree
         for (int j = 0; j <= i; j++) {

@@ -755,8 +755,10 @@
     <ClInclude Include="BPlusStore.hpp" />
     <ClInclude Include="DataNode.hpp" />
     <ClInclude Include="ErrorCodes.h" />
+    <ClInclude Include="File1Storage.hpp" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="IndexNode.hpp" />
+    <ClInclude Include="LRU1Cache.hpp" />
     <ClInclude Include="NVMRODataNode.hpp" />
     <ClInclude Include="NVMROIndexNode.hpp" />
     <ClInclude Include="pch.h" />
