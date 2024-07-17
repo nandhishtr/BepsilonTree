@@ -112,7 +112,7 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::remove(MessagePtr message, uint16_
     this->keys.erase(it);
     this->values.erase(this->values.begin() + idx);
 
-    //this->ptrCache->put(this->id, this->shared_from_this());
+    this->ptrCache->put(this->id, this->shared_from_this());
     if (this->isUnderflowing()) {
         return handleUnderflow(indexInParent, oldChild);
     } else {
@@ -150,7 +150,7 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::split(ChildChange& newChild) {
     }
     this->rightSibling = newLeaf;
 
-    //this->ptrCache->put(newLeaf->id, newLeaf);
+    this->ptrCache->put(newLeaf->id, newLeaf);
     // Update parent
     newChild = { newPivot, newLeaf, ChildChangeType::Split };
     return ErrorCode::FinishedMessagePassing;
@@ -204,7 +204,7 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::redistribute(uint16_t indexInParen
         oldChild = { sibling->getLowestSearchKey(), nullptr, ChildChangeType::RedistributeRight };
     }
 
-    //this->ptrCache->put(this->id, this->shared_from_this());
+    this->ptrCache->put(this->id, this->shared_from_this());
 
     return ErrorCode::FinishedMessagePassing;
 }

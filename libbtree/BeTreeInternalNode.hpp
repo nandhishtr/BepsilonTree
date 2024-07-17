@@ -11,6 +11,7 @@
 #include <ostream>
 #include <utility>
 #include <vector>
+#include <iostream>
 
 // Forward declarations
 template <typename KeyType, typename ValueType> class BeTreeInternalNode;
@@ -78,7 +79,7 @@ public:
     ErrorCode handleUnderflow(uint16_t indexInParent, ChildChange& oldChild);
     ErrorCode redistribute(uint16_t indexInParent, bool withLeft, ChildChange& oldChild);
     ErrorCode merge(uint16_t indexInParent, ChildChange& oldChild, bool withLeft);
-
+    int count = 0;
     void printNode(std::ostream& out) const override;
 };
 
@@ -87,12 +88,16 @@ public:
 template <typename KeyType, typename ValueType>
 ErrorCode BeTreeInternalNode<KeyType, ValueType>::applyMessage(MessagePtr message, uint16_t indexInParent, LRU1CachePtr nodeCache, ChildChange& childChange) {
     // load from cache
+    if (this->id == 37)
+    {
+        std::cout << "test" <<count++;
+    }
     this->messageBuffer.insert_or_assign(message->key, std::move(message));
 
     if (isFlushable()) {
         return flushBuffer(childChange);
     } else {
-        //this->ptrCache->put(this->id, std::shared_ptr<BeTreeNode<KeyType, ValueType>>(this));
+        this->ptrCache->put(this->id, this->shared_from_this());
         return ErrorCode::Success;
     }
 }
@@ -212,6 +217,8 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::flushBuffer(ChildChange& child
     }
     messageBuffer.erase(maxStart, it);
 
+    this->ptrCache->put(this->id, this->shared_from_this());
+
     // Handle overflow and underflow of our node
     if (this->isOverflowing()) {
         if (this->split(childChange) == ErrorCode::Error) {
@@ -270,8 +277,8 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::split(ChildChange& newChild) {
         child->parent = newInternal;
     }
 
-    //this->ptrCache->put(this->id, this);
-    //this->ptrCache->put(newInternal->id, newInternal);
+    this->ptrCache->put(this->id, this->shared_from_this());
+    this->ptrCache->put(newInternal->id, newInternal);
     // Update parent
     newChild = { newPivot, newInternal, ChildChangeType::Split };
     return ErrorCode::Success;
@@ -361,7 +368,7 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::redistribute(uint16_t indexInP
         // Update pivot key in parent
         oldChild = { sibling->getLowestSearchKey(), nullptr, ChildChangeType::RedistributeRight };
     }
-    //this->ptrCache->put(this->id, this);
+    this->ptrCache->put(this->id, this->shared_from_this());
     //this->ptrCache->put(sibling->id, sibling);
 
     return ErrorCode::Success;
@@ -424,7 +431,7 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::merge(uint16_t indexInParent, 
 
         oldChild = { KeyType(), sibling, ChildChangeType::MergeRight };
     }
-    //this->ptrCache->put(this->id, this);
+    this->ptrCache->put(this->id, this->shared_from_this());
     //this->ptrCache->put(sibling->id, sibling);
 
     return ErrorCode::Success;

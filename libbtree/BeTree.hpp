@@ -82,7 +82,7 @@ std::pair<ValueType, ErrorCode> BeTree<KeyType, ValueType>::search(const KeyType
         return { ValueType(), ErrorCode::KeyDoesNotExist };
     }
     MessagePtr message = std::make_unique<Message<KeyType, ValueType>>(MessageType::Search, key);
-    std::cout << "ROOT ID: " << rootNode->id;
+    //std::cout << "ROOT ID: " << rootNode->id;
     auto rootPtr = this->m_ptrCache->get(rootNode->id);
     return rootPtr->search(std::move(message));
 }

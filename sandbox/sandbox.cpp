@@ -596,7 +596,7 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
     //shuffle(arr, testSize);
     auto start = std::chrono::high_resolution_clock::now();
     cout << "Testing insert..." << endl;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < testSize; i++) {
         print_progress(i, testSize, step);
         tree.insert(arr[i], arr[i]);
         //auto [value, err] = tree.search(arr[i]);

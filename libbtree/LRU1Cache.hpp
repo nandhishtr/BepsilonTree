@@ -14,10 +14,9 @@ public:
     using NodeId = uint64_t;
 
     LRU1Cache(size_t capacity)
-        : capacity_(capacity) 
+        : capacity_(capacity)
     {
         fileStorage_ = std::make_shared<File1Storage<KeyType, ValueType>>("D:/filestore.hdb");
-
     }
 
     void put(NodeId id, NodePtr node) {
@@ -29,7 +28,7 @@ public:
         else {
             // Add new item
             if (cache_.size() >= capacity_) {
-                flushToStorage();
+                evictLeastUsed();
             }
             lruList_.push_front({ id, node });
             cache_[id] = lruList_.begin();
@@ -40,7 +39,7 @@ public:
         auto it = cache_.find(id);
         if (it == cache_.end()) {
             // Node not in cache, try to load from file storage
-        /*    NodePtr node = fileStorage_->loadNode(id);
+           /* NodePtr node = fileStorage_->loadNode(id);
             if (node) {
                 put(id, node);
                 return node;
@@ -52,12 +51,9 @@ public:
         return it->second->second;
     }
 
-    void flushToStorage() {
-        if (!lruList_.empty()) {
-            auto lastItem = lruList_.back();
-            fileStorage_->saveNode(lastItem.first, lastItem.second);
-            cache_.erase(lastItem.first);
-            lruList_.pop_back();
+    void flushAllToStorage() {
+        for (const auto& item : lruList_) {
+            fileStorage_->saveNode(item.first, item.second);
         }
     }
 
@@ -66,4 +62,13 @@ private:
     std::list<std::pair<NodeId, NodePtr>> lruList_;
     std::unordered_map<NodeId, typename std::list<std::pair<NodeId, NodePtr>>::iterator> cache_;
     std::shared_ptr<File1Storage<KeyType, ValueType>> fileStorage_;
+
+    void evictLeastUsed() {
+        if (!lruList_.empty()) {
+            auto lastItem = lruList_.back();
+            fileStorage_->saveNode(lastItem.first, lastItem.second);
+            cache_.erase(lastItem.first);
+            lruList_.pop_back();
+        }
+    }
 };
