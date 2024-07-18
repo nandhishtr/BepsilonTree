@@ -27,6 +27,7 @@ public:
 
     uint16_t fanout; // maximum amount of children an internal node can have
     std::vector<KeyType> keys;
+    KeyType lowestSearchKey;
 
     std::weak_ptr<BeTreeInternalNode<KeyType, ValueType>> parent;
     std::weak_ptr<BeTreeNode<KeyType, ValueType>> leftSibling;
@@ -58,7 +59,7 @@ public:
 
     // Helper functions
     virtual bool isLeaf() const = 0;
-    bool isRoot() const { return this->parent.expired(); }
+    bool isRoot() const { return (!this->leftSibling.lock() && !this->rightSibling.lock()); }
     uint16_t size() const { return this->keys.size(); }
     bool isUnderflowing() const { return size() < (this->fanout - 1) / 2; }
     bool isMergeable() const { return size() == this->fanout / 2; }
@@ -69,8 +70,6 @@ public:
     auto getIndex(KeyType key) {
         return std::lower_bound(keys.begin(), keys.end(), key);
     }
-
-    virtual KeyType getLowestSearchKey() const = 0;
 
     virtual void printNode(std::ostream& out) const = 0;
 };

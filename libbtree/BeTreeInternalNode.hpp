@@ -57,17 +57,6 @@ public:
         return this->messageBuffer.size() >= maxBufferSize;
     }
 
-    // TODO: We could somehow add a lowerstSearchKey field to the node to avoid searching for it
-    KeyType getLowestSearchKey() const override {
-        // Return the lowest key of the first child or the lowest key of the buffer
-        auto lowestKey = this->children[0]->getLowestSearchKey();
-        if (this->messageBuffer.size() > 0) {
-            return std::min(lowestKey, this->messageBuffer.begin()->first);
-        } else {
-            return lowestKey;
-        }
-    }
-
     ErrorCode applyMessage(MessagePtr message, uint16_t indexInParent, ChildChange& childChange) override;
     ErrorCode insert(MessagePtr message, ChildChange& newChild) override;
     ErrorCode remove(MessagePtr message, uint16_t indexInParent, ChildChange& oldChild) override;
@@ -87,6 +76,8 @@ public:
 
 template <typename KeyType, typename ValueType>
 ErrorCode BeTreeInternalNode<KeyType, ValueType>::applyMessage(MessagePtr message, uint16_t indexInParent, ChildChange& childChange) {
+    this->lowestSearchKey = std::min(this->lowestSearchKey, message->key);
+
     this->messageBuffer.insert_or_assign(message->key, std::move(message));
 
     if (isFlushable()) {
@@ -218,8 +209,7 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::flushBuffer(ChildChange& child
         }
     } else if (this->isUnderflowing() && !this->isRoot()) {
         // OPTIMIZE: Pass the index of the parent down to avoid searching for it again
-        //uint16_t indexInParent = this->parent->getIndex(this->getLowestSearchKey()) - this->parent->keys.begin(); // use upper bound instead
-        uint16_t indexInParent = std::upper_bound(this->parent.lock()->keys.begin(), this->parent.lock()->keys.end(), this->getLowestSearchKey()) - this->parent.lock()->keys.begin();
+        uint16_t indexInParent = std::upper_bound(this->parent.lock()->keys.begin(), this->parent.lock()->keys.end(), this->lowestSearchKey) - this->parent.lock()->keys.begin();
         // TODO: After a merge the message buffer might be overflown
         if (handleUnderflow(indexInParent, childChange) == ErrorCode::Error) {
             return ErrorCode::Error;
@@ -251,6 +241,12 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::split(ChildChange& newChild) {
         } else {
             ++it;
         }
+    }
+
+    if (newInternal->messageBuffer.size() > 0) {
+        newInternal->lowestSearchKey = std::min(newInternal->children[0]->lowestSearchKey, newInternal->messageBuffer.begin()->first);
+    } else {
+        newInternal->lowestSearchKey = newInternal->children[0]->lowestSearchKey;
     }
 
     // Set sibling pointers
@@ -300,17 +296,19 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::redistribute(uint16_t indexInP
     assert(sizeDiff >= 0);
 
     if (withLeft) {
-        this->keys.insert(this->keys.begin(), this->getLowestSearchKey());
+        this->keys.insert(this->keys.begin(), this->lowestSearchKey);
 
         this->keys.insert(this->keys.begin(), sibling->keys.end() - sizeDiff + 1, sibling->keys.end());
         this->children.insert(this->children.begin(), sibling->children.end() - sizeDiff, sibling->children.end());
         sibling->keys.erase(sibling->keys.end() - sizeDiff, sibling->keys.end());
         sibling->children.erase(sibling->children.end() - sizeDiff, sibling->children.end());
 
+        this->lowestSearchKey = this->children[0]->lowestSearchKey;
+
         // Move messages from sibling to this node
         // TODO: Use binary search to find the split point in the buffer instead of iterating through it
         for (auto it = sibling->messageBuffer.begin(); it != sibling->messageBuffer.end();) {
-            if (it->first >= this->getLowestSearchKey()) {
+            if (it->first >= this->lowestSearchKey) {
                 this->messageBuffer.insert_or_assign(it->first, std::move(it->second));
                 it = sibling->messageBuffer.erase(it);
             } else {
@@ -324,26 +322,23 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::redistribute(uint16_t indexInP
         }
 
         // Update pivot key in parent
-        oldChild = { this->getLowestSearchKey(), nullptr, ChildChangeType::RedistributeLeft };
+        oldChild = { this->lowestSearchKey, nullptr, ChildChangeType::RedistributeLeft };
     } else {
-        this->keys.insert(this->keys.end(), sibling->getLowestSearchKey());
+        this->keys.insert(this->keys.end(), sibling->lowestSearchKey);
         this->keys.insert(this->keys.end(), sibling->keys.begin(), sibling->keys.begin() + sizeDiff - 1);
         this->children.insert(this->children.end(), sibling->children.begin(), sibling->children.begin() + sizeDiff);
         sibling->keys.erase(sibling->keys.begin(), sibling->keys.begin() + sizeDiff);
         sibling->children.erase(sibling->children.begin(), sibling->children.begin() + sizeDiff);
 
         // Move messages from sibling to this node
+        sibling->lowestSearchKey = sibling->children[0]->lowestSearchKey;
         // TODO: Use binary search to find the split point in the buffer instead of iterating through it
         for (auto it = sibling->messageBuffer.begin(); it != sibling->messageBuffer.end();) {
-            //if (it->first < sibling->getLowestSearchKey()) {
-            // NOTE: we can't directly call getLowestSearchKey because the lowest key of the sibling might be in their buffer
-            //       which leads to the case where we don't move any messages from the sibling to this node
-            //       so we have to call getLowestSearchKey on the siblings first child
-            if (it->first < sibling->children[0]->getLowestSearchKey()) {
+            if (it->first < sibling->lowestSearchKey) {
                 this->messageBuffer.insert_or_assign(it->first, std::move(it->second));
                 it = sibling->messageBuffer.erase(it);
             } else {
-                ++it;
+                break; // The buffer is sorted so we can break here
             }
         }
 
@@ -353,7 +348,7 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::redistribute(uint16_t indexInP
         }
 
         // Update pivot key in parent
-        oldChild = { sibling->getLowestSearchKey(), nullptr, ChildChangeType::RedistributeRight };
+        oldChild = { sibling->lowestSearchKey, nullptr, ChildChangeType::RedistributeRight };
     }
 
     return ErrorCode::Success;
@@ -438,6 +433,8 @@ void BeTreeInternalNode<KeyType, ValueType>::printNode(std::ostream& out) const 
             out << key << " ";
         }
     }
+    // also print the lowest search key
+    out << "Lowest: " << this->lowestSearchKey;
     out << "\n";
     for (size_t i = 0; i < this->children.size(); ++i) {
         this->children[i]->printNode(out);

@@ -84,6 +84,7 @@ void BeTree<KeyType, ValueType>::printTree(std::ostream& out) {
         out << "Empty tree\n";
         return;
     }
+    out << "Tree:\n";
     rootNode->printNode(out);
 }
 
@@ -101,6 +102,7 @@ ErrorCode BeTree<KeyType, ValueType>::applyMessage(MessagePtr message) {
         newRoot->keys.push_back(childChange.key);
         newRoot->children.push_back(rootNode);
         newRoot->children.push_back(childChange.node);
+        newRoot->lowestSearchKey = newRoot->children[0]->lowestSearchKey;
         rootNode->parent = newRoot;
         childChange.node->parent = newRoot;
         rootNode = newRoot;

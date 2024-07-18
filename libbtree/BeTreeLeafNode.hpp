@@ -41,9 +41,6 @@ public:
     bool isLeaf() const override {
         return true;
     }
-    KeyType getLowestSearchKey() const override {
-        return this->keys[0];
-    }
 
     ErrorCode applyMessage(MessagePtr message, uint16_t indexInParent, ChildChange& childChange) override;
     ErrorCode insert(MessagePtr message, ChildChange& newChild) override;
@@ -86,6 +83,11 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::insert(MessagePtr message, ChildCh
         // Key does not exist, insert the key-value pair
         this->keys.insert(it, message->key);
         this->values.insert(this->values.begin() + idx, message->value);
+
+        // Update lowest search key
+        if (this->keys.size() == 1 || message->key < this->lowestSearchKey) {
+            this->lowestSearchKey = message->key;
+        }
     }
 
     newChild = { KeyType(), nullptr, ChildChangeType::None };
@@ -110,6 +112,11 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::remove(MessagePtr message, uint16_
 
     this->keys.erase(it);
     this->values.erase(this->values.begin() + idx);
+
+    // Update lowest search key
+    if (this->keys.size() > 0) {
+        this->lowestSearchKey = this->keys[0];
+    }
 
     if (this->isUnderflowing()) {
         return handleUnderflow(indexInParent, oldChild);
@@ -139,6 +146,8 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::split(ChildChange& newChild) {
     newLeaf->values.insert(newLeaf->values.begin(), this->values.begin() + mid, this->values.end());
     this->keys.erase(this->keys.begin() + mid, this->keys.end());
     this->values.erase(this->values.begin() + mid, this->values.end());
+
+    newLeaf->lowestSearchKey = newLeaf->keys[0];
 
     // Set sibling pointers
     newLeaf->leftSibling = this->shared_from_this();
@@ -189,16 +198,18 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::redistribute(uint16_t indexInParen
         sibling->keys.erase(sibling->keys.end() - sizeDiff, sibling->keys.end());
         sibling->values.erase(sibling->values.end() - sizeDiff, sibling->values.end());
         // Update pivot key in parent
-        this->parent.lock()->keys[indexInParent - 1] = this->getLowestSearchKey(); // TODO: handle with ChildChange
-        oldChild = { this->getLowestSearchKey(), nullptr, ChildChangeType::RedistributeLeft };
+        this->lowestSearchKey = this->keys[0];
+        this->parent.lock()->keys[indexInParent - 1] = this->lowestSearchKey; // TODO: handle with ChildChange
+        oldChild = { this->lowestSearchKey, nullptr, ChildChangeType::RedistributeLeft };
     } else {
         this->keys.insert(this->keys.end(), sibling->keys.begin(), sibling->keys.begin() + sizeDiff);
         this->values.insert(this->values.end(), sibling->values.begin(), sibling->values.begin() + sizeDiff);
         sibling->keys.erase(sibling->keys.begin(), sibling->keys.begin() + sizeDiff);
         sibling->values.erase(sibling->values.begin(), sibling->values.begin() + sizeDiff);
         // Update pivot key in parent
-        this->parent.lock()->keys[indexInParent] = sibling->getLowestSearchKey(); // TODO: handle with ChildChange
-        oldChild = { sibling->getLowestSearchKey(), nullptr, ChildChangeType::RedistributeRight };
+        sibling->lowestSearchKey = sibling->keys[0];
+        this->parent.lock()->keys[indexInParent] = sibling->lowestSearchKey; // TODO: handle with ChildChange
+        oldChild = { sibling->lowestSearchKey, nullptr, ChildChangeType::RedistributeRight };
     }
 
     return ErrorCode::FinishedMessagePassing;
