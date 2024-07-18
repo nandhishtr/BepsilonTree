@@ -31,13 +31,16 @@ public:
     std::vector<ValueType> values;
 
     BeTreeLeafNode(uint16_t fanout, InternalNodePtr parent = nullptr)
-        : BeTreeNode<KeyType, ValueType>(fanout, 0, parent) {}
+        : BeTreeNode<KeyType, ValueType>(fanout, parent) {}
 
     ~BeTreeLeafNode() {
         std::vector<KeyType>().swap(this->keys);
         std::vector<ValueType>().swap(this->values);
     }
 
+    bool isLeaf() const override {
+        return true;
+    }
     KeyType getLowestSearchKey() const override {
         return this->keys[0];
     }

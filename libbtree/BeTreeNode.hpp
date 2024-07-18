@@ -26,7 +26,6 @@ public:
     using LeafNodePtr = std::shared_ptr<BeTreeLeafNode<KeyType, ValueType>>;
 
     uint16_t fanout; // maximum amount of children an internal node can have
-    uint16_t level;
     std::vector<KeyType> keys;
 
     std::weak_ptr<BeTreeInternalNode<KeyType, ValueType>> parent;
@@ -49,8 +48,8 @@ public:
     };
 
     virtual ~BeTreeNode() = default;
-    BeTreeNode(uint16_t fanout, uint16_t level, InternalNodePtr parent = nullptr)
-        : fanout(fanout), level(level), parent(parent) {}
+    BeTreeNode(uint16_t fanout, InternalNodePtr parent = nullptr)
+        : fanout(fanout), parent(parent) {}
 
     virtual ErrorCode applyMessage(MessagePtr message, uint16_t indexInParent, ChildChange& oldChild) = 0;
     virtual ErrorCode insert(MessagePtr message, ChildChange& newChild) = 0;
@@ -58,7 +57,7 @@ public:
     virtual std::pair<ValueType, ErrorCode> search(MessagePtr message) = 0;
 
     // Helper functions
-    bool isLeaf() const { return level == 0; }
+    virtual bool isLeaf() const = 0;
     bool isRoot() const { return this->parent.expired(); }
     uint16_t size() const { return this->keys.size(); }
     bool isUnderflowing() const { return size() < (this->fanout - 1) / 2; }

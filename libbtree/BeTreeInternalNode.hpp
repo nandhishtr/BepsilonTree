@@ -35,8 +35,8 @@ public:
 
     std::vector<BeTreeNodePtr> children;
 
-    BeTreeInternalNode(uint16_t fanout, uint16_t level, uint16_t maxBufferSize = 0, InternalNodePtr parent = nullptr)
-        : BeTreeNode<KeyType, ValueType>(fanout, level, parent) {
+    BeTreeInternalNode(uint16_t fanout, uint16_t maxBufferSize = 0, InternalNodePtr parent = nullptr)
+        : BeTreeNode<KeyType, ValueType>(fanout, parent) {
         if (maxBufferSize == 0) {
             this->maxBufferSize = fanout - 1;
         } else {
@@ -50,6 +50,9 @@ public:
         std::map<KeyType, MessagePtr>().swap(this->messageBuffer);
     }
 
+    bool isLeaf() const override {
+        return false;
+    }
     bool isFlushable() const {
         return this->messageBuffer.size() >= maxBufferSize;
     }
@@ -231,7 +234,7 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::flushBuffer(ChildChange& child
 template <typename KeyType, typename ValueType>
 ErrorCode BeTreeInternalNode<KeyType, ValueType>::split(ChildChange& newChild) {
     // Split the node
-    auto newInternal = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(this->fanout, this->level, this->maxBufferSize, this->parent.lock());
+    auto newInternal = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(this->fanout, this->maxBufferSize, this->parent.lock());
     auto mid = this->keys.size() / 2;
     KeyType newPivot = this->keys[mid];
     newInternal->keys.insert(newInternal->keys.begin(), this->keys.begin() + mid + 1, this->keys.end());

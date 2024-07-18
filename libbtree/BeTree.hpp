@@ -97,7 +97,7 @@ ErrorCode BeTree<KeyType, ValueType>::applyMessage(MessagePtr message) {
 
     // Handle root node split
     if (childChange.node) {
-        auto newRoot = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(fanout, rootNode->level + 1, maxBufferSize);
+        auto newRoot = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(fanout, maxBufferSize);
         newRoot->keys.push_back(childChange.key);
         newRoot->children.push_back(rootNode);
         newRoot->children.push_back(childChange.node);
