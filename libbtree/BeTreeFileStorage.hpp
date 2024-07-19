@@ -143,7 +143,7 @@ public:
         }
     }
 
-    void loadNode(uint64_t id, NodePtr node) {
+    NodePtr loadNode(uint64_t id) {
         assert(file.is_open());
         assert(id != 0);
 
@@ -154,16 +154,17 @@ public:
         file.read(reinterpret_cast<char*>(&type), sizeof(type));
         // seek back to the beginning of the node block
         file.seekg(id * this->blockSize);
-
+        NodePtr node;
         if (type == 0) { // internal node
             node = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(this->fanout, this->cache, this->maxBufferSize);
             node->deserialize(file);
         } else if (type == 1) { // leaf node
-            node = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->maxBufferSize, this->cache);
+            node = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->fanout, this->cache);
             node->deserialize(file);
         } else {
             throw std::runtime_error("Invalid node type");
         }
+        return node;
     }
 
     void removeNode(uint64_t id, NodePtr node) {

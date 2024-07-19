@@ -52,8 +52,7 @@ public:
     NodePtr get(uint64_t id) {
         auto it = cacheMap.find(id);
         if (it == cacheMap.end()) {
-            NodePtr node;
-            storage->loadNode(id, node);
+            NodePtr node = storage->loadNode(id);
             put(id, node);
             return node;
         } else {
