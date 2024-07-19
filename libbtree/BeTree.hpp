@@ -76,6 +76,7 @@ ErrorCode BeTree<KeyType, ValueType>::insert(const KeyType& key, const ValueType
         auto temp = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(fanout, this->cache);
         cache->create(temp);
         storage->updateRootNode(temp->id);
+        rootNode = temp->id;
     }
 
     MessagePtr message = std::make_unique<Message<KeyType, ValueType>>(MessageType::Insert, key, value);
@@ -133,7 +134,7 @@ ErrorCode BeTree<KeyType, ValueType>::applyMessage(MessagePtr message) {
 
         cache->create(newRoot);
         storage->updateRootNode(newRoot->id);
-
+        rootNode = newRoot->id;
         BeTreeNodePtr firstChild = cache->get(newRoot->children[0]);
         BeTreeNodePtr secondChild = cache->get(newRoot->children[1]);
         newRoot->lowestSearchKey = firstChild->lowestSearchKey;
