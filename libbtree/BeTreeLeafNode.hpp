@@ -1,12 +1,16 @@
 #pragma once
 
+#include "BeTreeInternalNode.hpp"
 #include "BeTreeMessage.hpp"
 #include "BeTreeNode.hpp"
 #include "ErrorCodes.h"
 #include <cassert>
 #include <cstdint>
+#include <cstring>
+#include <ios>
 #include <iosfwd>
-#include <iostream>
+#include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -51,6 +55,30 @@ public:
     ErrorCode handleUnderflow(uint16_t indexInParent, ChildChange& oldChild);
     ErrorCode redistribute(uint16_t indexInParent, bool withLeft, ChildChange& oldChild);
     ErrorCode merge(ChildChange& oldChild, bool withLeft);
+
+    // When serializing we for now write the maximum amount of keys and values we can have
+    // This is not optimal, but it is a start
+    // The Header is in the order of:
+    // 1. type (leaf = 1)
+    // 2. numKeys
+    // 3. parent
+    // 4. leftSibling
+    // 5. rightSibling
+    // 6. lowestSearchKey
+    // Then we write the keys in the order where first are all the used keys, then the space of the unused keys.
+    // Then we write the values in the same way.
+    size_t getSerializedSize() const {
+        return ((this->fanout - 1) * sizeof(KeyType))
+            + ((this->fanout - 1) * sizeof(ValueType))
+            + 1 * sizeof(uint8_t) // type (leaf = 1)
+            + 1 * sizeof(uint16_t) // numKeys
+            + 3 * sizeof(size_t) // parent, leftSibling, rightSibling
+            + 1 * sizeof(KeyType); // lowestSearchKey
+    }
+    size_t serialize(char*& buf) const; // returns the number of bytes written
+    void serialize(std::ostream& os) const;
+    size_t deserialize(char*& buf, size_t bufferSize); // returns the number of bytes read
+    void deserialize(std::istream& is);
 
     void printNode(std::ostream& out) const override;
 };
@@ -241,6 +269,96 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::merge(ChildChange& oldChild, bool 
 
     return ErrorCode::FinishedMessagePassing;
 }
+
+template <typename KeyType, typename ValueType>
+size_t BeTreeLeafNode<KeyType, ValueType>::serialize(char*& buf) const {
+    std::stringstream memoryStream{};
+    this->serialize(memoryStream);
+
+    std::string data = memoryStream.str();
+    size_t bufferSize = data.size();
+    buf = new char[bufferSize];
+    memcpy(buf, data.c_str(), bufferSize);
+
+    return bufferSize;
+}
+
+template <typename KeyType, typename ValueType>
+void BeTreeLeafNode<KeyType, ValueType>::serialize(std::ostream& os) const {
+    static_assert(
+        std::is_trivial<KeyType>::value &&
+        std::is_standard_layout<KeyType>::value &&
+        std::is_trivial<ValueType>::value &&
+        std::is_standard_layout<ValueType>::value,
+        "Can only deserialize POD types with this function");
+
+    assert(this->keys.size() == this->values.size() && "Keys and values must have the same size");
+    uint16_t numKeys = this->keys.size(); // values = keys
+    auto start = os.tellp();
+
+    os.put(1); // type (leaf = 1)
+    os.write(reinterpret_cast<const char*>(&numKeys), sizeof(uint16_t));
+    os.write(reinterpret_cast<const char*>(&this->parent), sizeof(uint64_t));
+    os.write(reinterpret_cast<const char*>(&this->leftSibling), sizeof(uint64_t));
+    os.write(reinterpret_cast<const char*>(&this->rightSibling), sizeof(uint64_t));
+    os.write(reinterpret_cast<const char*>(&this->lowestSearchKey), sizeof(KeyType));
+
+    os.write(reinterpret_cast<const char*>(this->keys.data()), numKeys * sizeof(KeyType));
+    size_t remainingBytes = ((this->fanout - 1) - numKeys) * sizeof(KeyType);
+    for (size_t i = 0; i < remainingBytes; ++i) {
+        os.put(0);
+    }
+
+    os.write(reinterpret_cast<const char*>(this->values.data()), numKeys * sizeof(ValueType));
+    remainingBytes = ((this->fanout - 1) - numKeys) * sizeof(ValueType);
+    for (size_t i = 0; i < remainingBytes; ++i) {
+        os.put(0);
+    }
+
+    auto end = os.tellp();
+    assert(this->getSerializedSize() == (end - start) && "Data size mismatch");
+}
+
+template <typename KeyType, typename ValueType>
+size_t BeTreeLeafNode<KeyType, ValueType>::deserialize(char*& buf, size_t bufferSize) {
+    std::stringstream memoryStream{};
+    memoryStream.write(buf, bufferSize);
+    this->deserialize(memoryStream);
+    return memoryStream.tellg();
+}
+
+template <typename KeyType, typename ValueType>
+void BeTreeLeafNode<KeyType, ValueType>::deserialize(std::istream& is) {
+    static_assert(
+        std::is_trivial<KeyType>::value &&
+        std::is_standard_layout<KeyType>::value &&
+        std::is_trivial<ValueType>::value &&
+        std::is_standard_layout<ValueType>::value,
+        "Can only deserialize POD types with this function");
+
+    uint8_t type = 0;
+    uint16_t numKeys = 0;
+    is.read(reinterpret_cast<char*>(&type), sizeof(uint8_t));
+    is.read(reinterpret_cast<char*>(&numKeys), sizeof(uint16_t));
+    is.read(reinterpret_cast<char*>(&parent), sizeof(uint64_t));
+    is.read(reinterpret_cast<char*>(&leftSibling), sizeof(uint64_t));
+    is.read(reinterpret_cast<char*>(&rightSibling), sizeof(uint64_t));
+    is.read(reinterpret_cast<char*>(&lowestSearchKey), sizeof(KeyType));
+
+    this->keys.resize(numKeys);
+    is.read(reinterpret_cast<char*>(this->keys.data()), numKeys * sizeof(KeyType));
+    size_t remainingBytes = ((this->fanout - 1) - numKeys) * sizeof(KeyType);
+    is.seekg(remainingBytes, std::ios_base::cur);
+
+    this->values.resize(numKeys);
+    is.read(reinterpret_cast<char*>(this->values.data()), numKeys * sizeof(ValueType));
+    remainingBytes = ((this->fanout - 1) - numKeys) * sizeof(ValueType);
+    is.seekg(remainingBytes, std::ios_base::cur);
+
+    assert(this->keys.size() == this->values.size() && "Keys and values must have the same size");
+    assert(this->getSerializedSize() == is.tellg() && "Data size mismatch");
+}
+
 
 template <typename KeyType, typename ValueType>
 void BeTreeLeafNode<KeyType, ValueType>::printNode(std::ostream& out) const {

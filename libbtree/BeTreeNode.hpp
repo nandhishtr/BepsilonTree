@@ -71,5 +71,11 @@ public:
         return std::lower_bound(keys.begin(), keys.end(), key);
     }
 
+    virtual size_t getSerializedSize() const = 0;
+    virtual size_t serialize(char*& buf) const; // returns the number of bytes written
+    virtual void serialize(std::ostream& os) const;
+    virtual size_t deserialize(char*& buf, size_t bufferSize); // returns the number of bytes read
+    virtual void deserialize(std::istream& is);
+
     virtual void printNode(std::ostream& out) const = 0;
 };
