@@ -1,6 +1,7 @@
 #pragma once
 #include <cstring>
 #include <iosfwd>
+#include <iostream>
 
 // Base Message struct template
 enum class MessageType {
@@ -23,7 +24,7 @@ public:
     Message(MessageType type, KeyType key, ValueType value) : type(type), key(key), value(value) {}
     virtual ~Message() = default;
 
-    static size_t getSerializedSize() const {
+    static size_t getSerializedSize() {
         return sizeof(MessageType) + sizeof(KeyType) + sizeof(ValueType);
     }
 

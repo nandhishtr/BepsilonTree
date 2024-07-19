@@ -1,8 +1,18 @@
-#pragma
+#pragma once
 
 #include <cstdint>
 
+#include "BeTreeInternalNode.hpp"
 #include "BeTreeIStorage.hpp"
+#include "BeTreeLeafNode.hpp"
+#include "BeTreeLRUCache.hpp"
+#include <cassert>
+#include <fstream>
+#include <iosfwd>
+#include <memory>
+#include <stdexcept>
+#include <string>
+#include <vector>
 
 #define MAGIC_NUMBER 11647106966631696989 // 8 bytes
 // the header is 8 + 8 + 2 + 2 = 20 bytes long
@@ -13,14 +23,18 @@ template <typename KeyType, typename ValueType>
 class BeTreeFileStorage : public BeTreeIStorage<KeyType, ValueType> {
     /* Storage class that stores nodes in a file */
 private:
+    using NodePtr = BeTreeIStorage<KeyType, ValueType>::NodePtr;
+    using CachePtr = std::shared_ptr<BeTreeLRUCache<KeyType, ValueType>>;
     uint64_t numBlocks = 0;
     std::fstream file;
     std::vector<bool> allocationTable;
-    using NodePtr = BeTreeIStorage<KeyType, ValueType>::NodePtr;
+    uint16_t fanout;
+    uint16_t maxBufferSize;
+    CachePtr cache;
 
 public:
-    BeTreeFileStorage(size_t blockSize, size_t storageSize, const std::string& filename)
-        : BeTreeIStorage<KeyType, ValueType>(blockSize, storageSize, filename) {
+    BeTreeFileStorage(size_t blockSize, size_t storageSize, const std::string& filename, CachePtr cache)
+        : BeTreeIStorage<KeyType, ValueType>(blockSize, storageSize, filename), cache(cache) {
         numBlocks = storageSize / blockSize;
         allocationTable.resize(numBlocks, false);
 
@@ -65,12 +79,16 @@ public:
                 return false;
             }
 
-            file.write(reinterpret_cast<char*>(&MAGIC_NUMBER), sizeof(uint64_t));
+            uint64_t temp = MAGIC_NUMBER;
+            file.write(reinterpret_cast<char*>(&temp), sizeof(uint64_t));
             file.write(reinterpret_cast<char*>(&rootNodeOffset), sizeof(rootNodeOffset));
             file.write(reinterpret_cast<char*>(&fanout), sizeof(fanout));
             file.write(reinterpret_cast<char*>(&maxBufferSize), sizeof(maxBufferSize));
             writeAllocationTable(file);
         }
+
+        this->fanout = fanout;
+        this->maxBufferSize = maxBufferSize;
 
         return true;
     }
@@ -114,7 +132,6 @@ public:
             // update the allocation table
             for (uint64_t i = start; i <= end; i++) {
                 allocationTable[i] = true;
-
             }
 
             return start;
@@ -139,10 +156,10 @@ public:
         file.seekg(id * this->blockSize);
 
         if (type == 0) { // internal node
-            node = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(this->fanout, this->maxBufferSize);
+            node = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(this->fanout, this->cache, this->maxBufferSize);
             node->deserialize(file);
         } else if (type == 1) { // leaf node
-            node = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->maxBufferSize);
+            node = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->maxBufferSize, this->cache);
             node->deserialize(file);
         } else {
             throw std::runtime_error("Invalid node type");
@@ -161,6 +178,13 @@ public:
         }
     }
 
+    void updateRootNode(uint64_t rootNodeOffset) {
+        assert(file.is_open());
+
+        file.seekp(sizeof(uint64_t));
+        file.write(reinterpret_cast<char*>(&rootNodeOffset), sizeof(rootNodeOffset));
+    }
+
     void flush() {
         assert(file.is_open());
 
@@ -172,6 +196,7 @@ public:
 private:
     void writeAllocationTable(std::fstream& file) {
         // NOTE: we can't write the allocation table in one go because std::vector<bool> is a specialization and it's not guaranteed to be contiguous
+        file.seekp(HEADER_SIZE);
         for (size_t i = 0; i < numBlocks; i += 8) {
             unsigned char byte = 0;
             for (size_t j = 0; j < 8 && i + j < numBlocks; j++) {
@@ -183,6 +208,7 @@ private:
 
     void readAllocationTable(std::fstream& file) {
         // NOTE: we can't read the allocation table in one go because std::vector<bool> is a specialization and it's not guaranteed to be contiguous
+        file.seekg(HEADER_SIZE);
         for (size_t i = 0; i < numBlocks; i += 8) {
             unsigned char byte = 0;
             file.read(reinterpret_cast<char*>(&byte), sizeof(byte));

@@ -2,27 +2,19 @@
 
 #include "BeTree.hpp"
 #include "BPlusStore.hpp"
-#include "NoCache.hpp"
-
-
 #include "DataNode.hpp"
 #include "IndexNode.hpp"
-
+#include "NoCache.hpp"
+#include "NoCacheObject.hpp"
+#include "TypeUID.h"
 #include <cassert>
 #include <chrono>
-
-#include "NoCacheObject.hpp"
-//#include "PMemStorage.hpp"
-
-#include "TypeUID.h"
 #include <cstdio>
 #include <cstdlib>
+#include <ErrorCodes.h>
 #include <map>
 #include <string>
 #include <vadefs.h>
-#include <ErrorCodes.h>
-
-
 
 #ifdef __CONCURRENT__
 
@@ -586,7 +578,9 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
     typedef int KeyType;
     typedef int ValueType;
 
-    BeTree<KeyType, ValueType> tree(fanout, bufferSize);
+    // BeTree<KeyType, ValueType> tree(fanout, bufferSize);
+    // BeTree(uint16_t fanout, uint16_t maxBufferSize, size_t blockSize, size_t storageSize, const std::string& filename, size_t cache_capacity)
+    BeTree<KeyType, ValueType> tree(fanout, bufferSize, 4192, 1024 * 1024 * 1024, "./filestore.hdb", 100);
 
     int* arr = new int[testSize];
     for (int i = 0; i < testSize; i++) {
@@ -595,17 +589,20 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
 
     shuffle(arr, testSize);
     auto start = std::chrono::high_resolution_clock::now();
-    cout << "Testing insert..." << endl;
+    //cout << "Testing insert..." << endl;
     for (int i = 0; i < testSize; i++) {
-        print_progress(i, testSize, step);
+        //print_progress(i, testSize, step);
+        cout << "Inserting " << arr[i] << endl;
         tree.insert(arr[i], arr[i]);
+        // print the tree
+        tree.printTree(cout);
 
         if (!stochastic) {
-        // all inserted keys should be in the tree
-        for (int j = 0; j <= i; j++) {
-            auto [value, err] = tree.search(arr[j]);
-            ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[j], "insert failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value);
-        }
+            // all inserted keys should be in the tree
+            for (int j = 0; j <= i; j++) {
+                auto [value, err] = tree.search(arr[j]);
+                ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[j], "insert failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value);
+            }
         } else {
             // only test the last inserted key and some random keys
             auto [value, err] = tree.search(arr[i]);
@@ -615,28 +612,28 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
                 int k = rand() % (i + 1);
                 auto [value, err] = tree.search(arr[k]);
                 ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[k], "insert failed: i=" << i << " j=" << j << " k=" << k << " arr[k]=" << arr[k] << " value=" << value);
-    }
+            }
         }
 
     }
 
     shuffle(arr, testSize);
-    cout << endl << "Testing remove..." << endl;
+    //cout << endl << "Testing remove..." << endl;
     // remove
     int breakon = 490;
     for (int i = 0; i < testSize; i++) {
-        print_progress(i, testSize, step);
+        //print_progress(i, testSize, step);
         tree.remove(arr[i]);
 
         auto [value, err] = tree.search(arr[i]);
         assert(err == ErrorCode::KeyDoesNotExist);
 
         if (!stochastic) {
-        // all not removed keys should still be in the tree
-        for (int j = i + 1; j < testSize; j++) {
-            auto [value, err] = tree.search(arr[j]);
-            ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[j], "remove failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value);
-        }
+            // all not removed keys should still be in the tree
+            for (int j = i + 1; j < testSize; j++) {
+                auto [value, err] = tree.search(arr[j]);
+                ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[j], "remove failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value);
+            }
         } else {
             // only test the last removed key and some random keys
             auto [value, err] = tree.search(arr[i]);
@@ -647,7 +644,7 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
                 int k = rand() % (testSize - i - 1) + i + 1;
                 auto [value, err] = tree.search(arr[k]);
                 ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[k], "remove failed: i=" << i << " j=" << j << " k=" << k << " arr[k]=" << arr[k] << " value=" << value);
-    }
+            }
         }
     }
 
@@ -661,11 +658,11 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
     shuffle(insertArr, testSize);
     shuffle(removeArr, testSize);
 
-    cout << endl << "Testing interleaved insert and remove..." << endl;
+    //cout << endl << "Testing interleaved insert and remove..." << endl;
     int repeat = 10;
     int i;
     for (int j = 0; j < testSize * repeat;j++) {
-        print_progress(j, testSize * repeat, step);
+        //print_progress(j, testSize * repeat, step);
         i = j % testSize;
 
         // Insert
@@ -684,7 +681,7 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
 
     auto end = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    cout << endl << "Time taken: " << duration << "ms" << endl;
+    cout << "Time taken: " << duration << "ms" << endl;
 
     delete[] arr;
     delete[] insertArr;
@@ -703,17 +700,18 @@ int main(int argc, char* argv[]) {
     int size = 100;
     for (int i = 0; i < sizeof(fanouts) / sizeof(fanouts[0]); i++) {
         for (int j = 0; j < sizeof(bufferSizes) / sizeof(bufferSizes[0]); j++) {
-            int localSize = fanouts[i] * bufferSizes[j] * size;
-        bool stochastic = localSize > 1500;
-        int step = localSize / 10;
+            //int localSize = (fanouts[i] + bufferSizes[j]) * size;
+            int localSize = 100;
+            bool stochastic = localSize > 1500;
+            int step = localSize / 10;
             testBeTree(fanouts[i], bufferSizes[j], localSize, step, stochastic);
+        }
     }
-    }
-
     cout << "All tests passed!" << endl;
 
-
 #ifdef __TREE_WITH_CACHE__
+    typedef int KeyType;
+    typedef int ValueType;
     typedef ObjectFatUID ObjectUIDType;
 
     typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
@@ -722,7 +720,7 @@ int main(int argc, char* argv[]) {
     typedef LRUCacheObject<TypeMarshaller, DataNodeType, IndexNodeType> ObjectType;
     typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
     typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, FileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
-    BPlusStoreType* ptrTree = new BPlusStoreType(3, 100, 512, 1024 * 1024 * 1024, "D:\\filestore.hdb");
+    BPlusStoreType* ptrTree = new BPlusStoreType(3, 100, 512, 1024 * 1024 * 1024, "./filestore.hdb");
     ptrTree->init<DataNodeType>();
 
 
@@ -790,7 +788,7 @@ int main(int argc, char* argv[]) {
         ErrorCode code = ptrTree->search(nCntr, nValue);
 
         assert(nValue == nCntr);
-}
+    }
 
 #ifdef __TREE_WITH_CACHE__
     ptrTree->flush();

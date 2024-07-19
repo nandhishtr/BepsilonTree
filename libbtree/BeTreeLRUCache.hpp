@@ -1,11 +1,14 @@
 #pragma once
-
-#include <list>
-#include <unordered_map>
-#include <memory>
-#include <functional>
+#include "BeTreeIStorage.hpp"
 #include "BeTreeNode.hpp"
-#include "BeTreeFileStorage.hpp"
+#include <cstdint>
+#include <list>
+#include <memory>
+#include <unordered_map>
+#include <utility>
+
+template <typename KeyType, typename ValueType> class BeTreeNode;
+template <typename KeyType, typename ValueType> class BeTreeIStorage;
 
 template <typename KeyType, typename ValueType>
 class BeTreeLRUCache {
@@ -15,11 +18,21 @@ private:
     size_t capacity;
     std::list<std::pair<uint64_t, NodePtr>> cache;
     std::unordered_map<uint64_t, decltype(cache.begin())> cacheMap;
-    std::shared_ptr<BeTreeFileStorage<KeyType, ValueType>> storage;
+    std::shared_ptr<BeTreeIStorage<KeyType, ValueType>> storage;
 
 public:
-    BeTreeLRUCache(size_t capacity, std::shared_ptr<BeTreeFileStorage<KeyType, ValueType>> storage)
+    BeTreeLRUCache(size_t capacity, std::shared_ptr<BeTreeIStorage<KeyType, ValueType>> storage = nullptr)
         : capacity(capacity), storage(storage) {}
+
+    void setStorage(std::shared_ptr<BeTreeIStorage<KeyType, ValueType>> storage) {
+        this->storage = storage;
+    }
+
+    void create(NodePtr node) {
+        uint64_t id = storage->saveNode(0, node);
+        put(id, node);
+        node->id = id;
+    }
 
     void put(uint64_t id, NodePtr node) {
         if (cacheMap.find(id) != cacheMap.end()) {
@@ -39,7 +52,8 @@ public:
     NodePtr get(uint64_t id) {
         auto it = cacheMap.find(id);
         if (it == cacheMap.end()) {
-            NodePtr node = storage->readNode(id);
+            NodePtr node;
+            storage->loadNode(id, node);
             put(id, node);
             return node;
         } else {
@@ -72,8 +86,8 @@ private:
     void evictLeastUsed() {
         if (!cache.empty()) {
             auto lastItem = cache.back();
-            storage->saveNode(lru.first, lru.second);
-            cacheMap.erase(lru.first);
+            storage->saveNode(lastItem.first, lastItem.second);
+            cacheMap.erase(lastItem.first);
             cache.pop_back();
         }
     }
