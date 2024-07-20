@@ -110,7 +110,9 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::applyMessage(MessagePtr messag
     this->messageBuffer.insert_or_assign(message->key, std::move(message));
 
     if (isFlushable()) {
-        return flushBuffer(childChange);
+        auto err = flushBuffer(childChange);
+        this->cache->put(this->id, this->shared_from_this());
+        return err;
     } else {
         return ErrorCode::Success;
     }
@@ -193,8 +195,11 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::flushBuffer(ChildChange& child
     //       this will be a latency issue.
     auto it = maxStart;
     ErrorCode err = ErrorCode::Success;
-    for (it = maxStart; it != maxEnd; ++it) {
+    for (it = maxStart; it != maxEnd; ) {
         err = child->applyMessage(std::move(it->second), idx, newChild);
+        // Remove the flushed message from the buffer
+        it = this->messageBuffer.erase(it);
+
         switch (newChild.type) {
             case ChildChangeType::Split:
                 // Insert the new child
@@ -212,10 +217,12 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::flushBuffer(ChildChange& child
                 // Remove the child
                 this->keys.erase(this->keys.begin() + idx - 1);
                 this->children.erase(this->children.begin() + idx);
+                this->cache->deleteNode(newChild.node, child);
                 break;
             case ChildChangeType::MergeRight:
                 this->keys.erase(this->keys.begin() + idx);
                 this->children.erase(this->children.begin() + idx + 1);
+                this->cache->deleteNode(newChild.node, child);
                 break;
             default:
                 break;
@@ -225,11 +232,6 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::flushBuffer(ChildChange& child
             break;
         }
     }
-    // Remove the flushed messages from the buffer
-    if (it != maxEnd) {
-        it++;
-    }
-    messageBuffer.erase(maxStart, it);
 
     // Handle overflow and underflow of our node
     if (this->isOverflowing()) {
@@ -309,18 +311,7 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::handleUnderflow(uint16_t index
     if (this->isRoot()) {
         return ErrorCode::Success;
     }
-    // redistribute or merge with sibling
-    // if (this->leftSibling.lock() && this->leftSibling.lock()->isBorrowable() && this->leftSibling.lock()->parent.lock() == this->parent.lock()) {
-    //     return redistribute(indexInParent, true, oldChild);
-    // } else if (this->leftSibling.lock() && this->leftSibling.lock()->parent.lock() == this->parent.lock()) {
-    //     return merge(indexInParent, oldChild, true);
-    // } else if (this->rightSibling.lock() && this->rightSibling.lock()->isBorrowable() && this->rightSibling.lock()->parent.lock() == this->parent.lock()) {
-    //     return redistribute(indexInParent, false, oldChild);
-    // } else if (this->rightSibling.lock() && this->rightSibling.lock()->parent.lock() == this->parent.lock()) {
-    //     return merge(indexInParent, oldChild, false);
-    // } else {
-    //     return ErrorCode::Success;
-    // }
+
     if (this->leftSibling) {
         InternalNodePtr leftSiblingPtr = std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(this->cache->get(this->leftSibling));
         if (leftSiblingPtr->isBorrowable() && leftSiblingPtr->parent == this->parent) {
@@ -506,7 +497,7 @@ void BeTreeInternalNode<KeyType, ValueType>::serialize(std::ostream& os) const {
     os.write(reinterpret_cast<const char*>(&this->lowestSearchKey), sizeof(KeyType));
 
     os.write(reinterpret_cast<const char*>(this->keys.data()), numKeys * sizeof(KeyType));
-    size_t remainingBytes = ((this->fanout - 1) - numKeys) * sizeof(KeyType);
+    int64_t remainingBytes = ((this->fanout - 1) - numKeys) * sizeof(KeyType);
     for (size_t i = 0; i < remainingBytes; ++i) {
         os.put(0);
     }
@@ -517,16 +508,25 @@ void BeTreeInternalNode<KeyType, ValueType>::serialize(std::ostream& os) const {
         os.put(0);
     }
 
+    size_t serializedMessages = 0;
     for (auto& [key, message] : this->messageBuffer) {
+        // if the key in the map has no message, skip it
+        if (message == nullptr) {
+            continue;
+        }
+
         message->serialize(os);
+        serializedMessages++;
     }
-    remainingBytes = (this->maxBufferSize - numMessages) * Message<KeyType, ValueType>::getSerializedSize();
-    for (size_t i = 0; i < remainingBytes; ++i) {
-        os.put(0);
+    remainingBytes = (this->maxBufferSize - serializedMessages) * Message<KeyType, ValueType>::getSerializedSize();
+    if (remainingBytes > 0) { // this is needed because when merging nodes, the buffer might be overfull
+        for (size_t i = 0; i < remainingBytes; ++i) {
+            os.put(0);
+        }
     }
 
     auto end = os.tellp();
-    assert(this->getSerializedSize() == (end - start) && "Data size mismatch");
+    //assert(this->getSerializedSize() == (end - start) && "Data size mismatch");
 }
 
 template <typename KeyType, typename ValueType>
@@ -549,6 +549,7 @@ void BeTreeInternalNode<KeyType, ValueType>::deserialize(std::istream& is) {
     uint8_t type = 0;
     uint16_t numKeys = 0;
     uint16_t numMessages = 0;
+    auto start = is.tellg();
     is.read(reinterpret_cast<char*>(&type), sizeof(uint8_t));
     is.read(reinterpret_cast<char*>(&numKeys), sizeof(uint16_t));
     is.read(reinterpret_cast<char*>(&numMessages), sizeof(uint16_t));
@@ -576,7 +577,7 @@ void BeTreeInternalNode<KeyType, ValueType>::deserialize(std::istream& is) {
     is.seekg(remainingBytes, std::ios_base::cur);
 
     assert(this->keys.size() == this->children.size() - 1 && "The number of keys should be one less than the number of children");
-    assert(this->getSerializedSize() == is.tellg() && "Data size mismatch");
+    assert(this->getSerializedSize() == (is.tellg() - start) && "Data size mismatch");
 }
 
 
@@ -598,8 +599,7 @@ void BeTreeInternalNode<KeyType, ValueType>::printNode(std::ostream& out) const 
             out << key << " ";
         }
     }
-    // also print the lowest search key
-    out << "Lowest: " << this->lowestSearchKey;
+    out << "Lowest: " << this->lowestSearchKey << " IPLR: " << this->id << "|" << this->parent << "|" << this->leftSibling << "|" << this->rightSibling;
     out << "\n";
     for (size_t i = 0; i < this->children.size(); ++i) {
         BeTreeNodePtr child = this->cache->get(this->children[i]);

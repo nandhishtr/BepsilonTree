@@ -137,6 +137,7 @@ public:
             return start;
         } else {
             // if the node is in the file, then overwrite it
+            file.seekp(id * this->blockSize);
             node->serialize(file);
 
             return 0;
@@ -164,6 +165,7 @@ public:
         } else {
             throw std::runtime_error("Invalid node type");
         }
+        node->id = id;
         return node;
     }
 

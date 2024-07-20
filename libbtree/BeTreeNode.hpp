@@ -61,7 +61,7 @@ public:
     uint16_t size() const { return this->keys.size(); }
     bool isUnderflowing() const { return size() < (this->fanout - 1) / 2; }
     bool isMergeable() const { return size() == this->fanout / 2; }
-    bool isBorrowable() const { return size() > (this->fanout - 1) / 2; }
+    bool isBorrowable() const { return size() > this->fanout / 2; }
     bool isSplittable() const { return size() >= this->fanout - 1; }
     bool isOverflowing() const { return size() >= this->fanout; }
 

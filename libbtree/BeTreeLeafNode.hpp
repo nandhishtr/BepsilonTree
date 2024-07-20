@@ -1,5 +1,6 @@
 #pragma once
 
+#include "BeTreeInternalNode.hpp"
 #include "BeTreeMessage.hpp"
 #include "BeTreeNode.hpp"
 #include "ErrorCodes.h"
@@ -8,6 +9,7 @@
 #include <cstring>
 #include <ios>
 #include <iosfwd>
+#include <memory>
 #include <string>
 #include <type_traits>
 #include <utility>
@@ -115,7 +117,7 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::insert(MessagePtr message, ChildCh
     if (this->isOverflowing()) {
         return this->split(newChild);
     } else {
-        return ErrorCode::Success;
+        return ErrorCode::FinishedMessagePassing;
     }
 }
 
@@ -199,16 +201,17 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::handleUnderflow(uint16_t indexInPa
         } else if (leftSiblingPtr->parent == this->parent) {
             return merge(oldChild, leftSiblingPtr);
         }
-    } else if (this->rightSibling) {
+    }
+
+    if (this->rightSibling) {
         LeafNodePtr rightSiblingPtr = std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->cache->get(this->rightSibling));
         if (rightSiblingPtr->isBorrowable() && rightSiblingPtr->parent == this->parent) {
             return redistribute(indexInParent, rightSiblingPtr, oldChild);
         } else if (rightSiblingPtr->parent == this->parent) {
             return merge(oldChild, rightSiblingPtr);
         }
-    } else {
-        return ErrorCode::Error;
     }
+    return ErrorCode::Error;
 }
 
 template <typename KeyType, typename ValueType>
@@ -335,6 +338,7 @@ void BeTreeLeafNode<KeyType, ValueType>::deserialize(std::istream& is) {
 
     uint8_t type = 0;
     uint16_t numKeys = 0;
+    auto start = is.tellg();
     is.read(reinterpret_cast<char*>(&type), sizeof(uint8_t));
     is.read(reinterpret_cast<char*>(&numKeys), sizeof(uint16_t));
     is.read(reinterpret_cast<char*>(&this->parent), sizeof(uint64_t));
@@ -353,7 +357,7 @@ void BeTreeLeafNode<KeyType, ValueType>::deserialize(std::istream& is) {
     is.seekg(remainingBytes, std::ios_base::cur);
 
     assert(this->keys.size() == this->values.size() && "Keys and values must have the same size");
-    assert(this->getSerializedSize() == is.tellg() && "Data size mismatch");
+    assert(this->getSerializedSize() == (is.tellg() - start) && "Data size mismatch");
 }
 
 
@@ -363,5 +367,6 @@ void BeTreeLeafNode<KeyType, ValueType>::printNode(std::ostream& out) const {
     for (size_t i = 0; i < this->size(); ++i) {
         out << this->keys[i] << " ";
     }
+    out << " IPLR: " << this->id << "|" << this->parent << "|" << this->leftSibling << "|" << this->rightSibling;
     out << "\n";
 }

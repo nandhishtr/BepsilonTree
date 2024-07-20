@@ -2,6 +2,7 @@
 #include "BeTreeIStorage.hpp"
 #include "BeTreeNode.hpp"
 #include <cstdint>
+#include <iostream>
 #include <list>
 #include <memory>
 #include <unordered_map>
@@ -84,10 +85,15 @@ public:
 private:
     void evictLeastUsed() {
         if (!cache.empty()) {
-            auto lastItem = cache.back();
-            storage->saveNode(lastItem.first, lastItem.second);
-            cacheMap.erase(lastItem.first);
-            cache.pop_back();
+            // Iterate through the cache from the back and remove the first node with use_count() <= 2
+            for (auto it = cache.rbegin(); it != cache.rend(); ++it) {
+                if (it->second.use_count() <= 2) {
+                    storage->saveNode(it->first, it->second);
+                    cacheMap.erase(it->first);
+                    cache.erase(std::next(it).base());
+                    break;
+                }
+            }
         }
     }
 };

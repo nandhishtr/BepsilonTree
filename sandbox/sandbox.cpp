@@ -580,7 +580,7 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
 
     // BeTree<KeyType, ValueType> tree(fanout, bufferSize);
     // BeTree(uint16_t fanout, uint16_t maxBufferSize, size_t blockSize, size_t storageSize, const std::string& filename, size_t cache_capacity)
-    BeTree<KeyType, ValueType> tree(fanout, bufferSize, 4192, 1024 * 1024 * 1024, "./filestore.hdb", 100);
+    BeTree<KeyType, ValueType> tree(fanout, bufferSize, 4192, 1024 * 1024 * 1024, "./filestore.hdb", 10);
 
     int* arr = new int[testSize];
     for (int i = 0; i < testSize; i++) {
@@ -592,10 +592,10 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
     //cout << "Testing insert..." << endl;
     for (int i = 0; i < testSize; i++) {
         //print_progress(i, testSize, step);
-        cout << "Inserting " << arr[i] << endl;
+        //cout << "Inserting " << arr[i] << endl;
         tree.insert(arr[i], arr[i]);
         // print the tree
-        tree.printTree(cout);
+        //tree.printTree(cout);
 
         if (!stochastic) {
             // all inserted keys should be in the tree
