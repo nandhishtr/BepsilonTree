@@ -1,10 +1,13 @@
 add_library(libbtree
-            BPlusStore.hpp
-            DataNode.hpp
+            BeTree.cpp
+            BeTreeInternalNode.cpp
             ErrorCodes.h
-            IndexNode.hpp
-            TypeMarshaller.hpp
-            TypeUID.h
+            BeTreeLeafNode.cpp
+            BeTreeMessage.cpp
+            BeTreeNode.cpp
+            BeTreeLRUCache.cpp
+            BeTreeFileStorage.cpp
+            BeTreeNVMStorage.cpp
 )
 
 
