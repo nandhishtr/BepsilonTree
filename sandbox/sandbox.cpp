@@ -77,17 +77,33 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
             for (int j = 0; j <= i; j++) {
                 auto [value, err] = tree.search(arr[j]);
                 ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[j], "insert failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value);
+                // for release mode testing
+                if (err != ErrorCode::Success || value != arr[j]) {
+                    cout << "insert failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value << endl;
+                    tree.printTree(cout);
+                    return false;
+            }
             }
         } else {
             // only test the last inserted key and some random keys
             auto [value, err] = tree.search(arr[i]);
             ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[i], "insert failed: i=" << i << " arr[i]=" << arr[i] << " value=" << value);
+            if (err != ErrorCode::Success || value != arr[i]) {
+                cout << "insert failed: i=" << i << " arr[i]=" << arr[i] << " value=" << value << endl;
+                tree.printTree(cout);
+                return false;
+            }
 
             for (int j = 0; j < 10; j++) {
                 int k = rand() % (i + 1);
                 auto [value, err] = tree.search(arr[k]);
                 ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[k], "insert failed: i=" << i << " j=" << j << " k=" << k << " arr[k]=" << arr[k] << " value=" << value);
+                if (err != ErrorCode::Success || value != arr[k]) {
+                    cout << "insert failed: i=" << i << " j=" << j << " k=" << k << " arr[k]=" << arr[k] << " value=" << value << endl;
+                    tree.printTree(cout);
+                    return false;
             }
+        }
         }
 
     }
@@ -107,19 +123,34 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
             for (int j = i + 1; j < testSize; j++) {
                 auto [value, err] = tree.search(arr[j]);
                 ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[j], "remove failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value);
+                if (err != ErrorCode::Success || value != arr[j]) {
+                    cout << "remove failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value << endl;
+                    tree.printTree(cout);
+                    return false;
+            }
             }
         } else {
             // only test the last removed key and some random keys
             auto [value, err] = tree.search(arr[i]);
             ASSERT_WITH_PRINT(err == ErrorCode::KeyDoesNotExist, "remove failed: i=" << i << " arr[i]=" << arr[i] << " value=" << value);
+            if (err != ErrorCode::KeyDoesNotExist) {
+                cout << "remove failed: i=" << i << " arr[i]=" << arr[i] << " value=" << value << endl;
+                tree.printTree(cout);
+                return false;
+            }
 
             for (int j = 0; j < 10; j++) {
                 if (i + j >= testSize - 1) break;
                 int k = rand() % (testSize - i - 1) + i + 1;
                 auto [value, err] = tree.search(arr[k]);
                 ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[k], "remove failed: i=" << i << " j=" << j << " k=" << k << " arr[k]=" << arr[k] << " value=" << value);
+                if (err != ErrorCode::Success || value != arr[k]) {
+                    cout << "remove failed: i=" << i << " j=" << j << " k=" << k << " arr[k]=" << arr[k] << " value=" << value << endl;
+                    tree.printTree(cout);
+                    return false;
             }
         }
+    }
     }
 
     // Interleaved insert and remove
@@ -143,13 +174,23 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
         tree.insert(insertArr[i], insertArr[i]);
         auto [value, err] = tree.search(insertArr[i]);
         ASSERT_WITH_PRINT(err == ErrorCode::Success && value == insertArr[i], "insert failed: j=" << j << " arr[i]=" << insertArr[i] << " value=" << value);
+        if (err != ErrorCode::Success || value != insertArr[i]) {
+            cout << "insert failed: j=" << j << " arr[i]=" << insertArr[i] << " value=" << value << endl;
+            tree.printTree(cout);
+            return false;
+        }
 
         // Delete
         if (j > testSize * 2) {
             tree.remove(removeArr[i]);
             auto [value, err] = tree.search(removeArr[i]);
             ASSERT_WITH_PRINT(err == ErrorCode::KeyDoesNotExist, "remove failed: j=" << j << " arr[i]=" << removeArr[i] << " value=" << value);
+            if (err != ErrorCode::KeyDoesNotExist) {
+                cout << "remove failed: j=" << j << " arr[i]=" << removeArr[i] << " value=" << value << endl;
+                tree.printTree(cout);
+                return false;
         }
+    }
     }
 
 
