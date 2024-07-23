@@ -54,7 +54,7 @@ public:
     }
 
     // returns true if the storage was initialized successfully
-    bool init(uint64_t& rootNodeOffset, uint16_t& fanout, uint16_t& maxBufferSize) {
+    bool init(uint64_t& rootNodeOffset, uint16_t& fanout, uint16_t& maxBufferSize) override {
         // if fanout and maxBufferSizes are 0, then read the file
         if (fanout == 0 && maxBufferSize == 0) {
             file.open(this->filename, std::ios::in | std::ios::out | std::ios::binary);
@@ -192,7 +192,6 @@ public:
         assert(file.is_open());
 
         // write the allocation table to the file
-        file.seekp(HEADER_SIZE);
         writeAllocationTable(file);
     }
 

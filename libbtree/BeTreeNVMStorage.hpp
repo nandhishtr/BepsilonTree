@@ -18,7 +18,7 @@ template <typename KeyType, typename ValueType>
 class BeTreeNVMStorage : public BeTreeIStorage<KeyType, ValueType> {
 private:
     using NodePtr = typename BeTreeIStorage<KeyType, ValueType>::NodePtr;
-    using CachePtr = std::shared_ptr<BeTreeLRUCache<KeyType, ValueType>>;
+    using CachePtr = std::weak_ptr<BeTreeLRUCache<KeyType, ValueType>>;
 
     void* pmemAddr;
     size_t mappedLen;
@@ -60,18 +60,22 @@ public:
 
             // Read header
             uint64_t magic;
+            size_t offset = 0;
             memcpy(&magic, pmemAddr, sizeof(magic));
+            offset += sizeof(magic);
             if (magic != MAGIC_NUMBER) {
                 pmem_unmap(pmemAddr, mappedLen);
                 return false;
             }
 
-            memcpy(&rootNodeOffset, static_cast<char*>(pmemAddr) + sizeof(magic), sizeof(rootNodeOffset));
-            memcpy(&fanout, static_cast<char*>(pmemAddr) + sizeof(magic) + sizeof(rootNodeOffset), sizeof(fanout));
-            memcpy(&maxBufferSize, static_cast<char*>(pmemAddr) + sizeof(magic) + sizeof(rootNodeOffset) + sizeof(fanout), sizeof(maxBufferSize));
+            memcpy(&rootNodeOffset, static_cast<char*>(pmemAddr) + offset, sizeof(rootNodeOffset));
+            offset += sizeof(rootNodeOffset);
+            memcpy(&fanout, static_cast<char*>(pmemAddr) + offset, sizeof(fanout));
+            offset += sizeof(fanout);
+            memcpy(&maxBufferSize, static_cast<char*>(pmemAddr) + offset, sizeof(maxBufferSize));
+            offset += sizeof(maxBufferSize);
             readAllocationTable();
-        }
-        else {
+        } else {
             // Create new file
             pmemAddr = pmem_map_file(this->filename.c_str(), this->storageSize, PMEM_FILE_CREATE, 0666, &mappedLen, &isPmem);
             if (pmemAddr == nullptr) {
@@ -80,10 +84,15 @@ public:
 
             // Write header
             uint64_t magic = MAGIC_NUMBER;
-            pmem_memcpy_persist(pmemAddr, &magic, sizeof(magic));
-            pmem_memcpy_persist(static_cast<char*>(pmemAddr) + sizeof(magic), &rootNodeOffset, sizeof(rootNodeOffset));
-            pmem_memcpy_persist(static_cast<char*>(pmemAddr) + sizeof(magic) + sizeof(rootNodeOffset), &fanout, sizeof(fanout));
-            pmem_memcpy_persist(static_cast<char*>(pmemAddr) + sizeof(magic) + sizeof(rootNodeOffset) + sizeof(fanout), &maxBufferSize, sizeof(maxBufferSize));
+            size_t offset = 0;
+            pmem_memcpy_persist(static_cast<char*>(pmemAddr) + offset, &magic, sizeof(magic));
+            offset += sizeof(magic);
+            pmem_memcpy_persist(static_cast<char*>(pmemAddr) + offset, &rootNodeOffset, sizeof(rootNodeOffset));
+            offset += sizeof(rootNodeOffset);
+            pmem_memcpy_persist(static_cast<char*>(pmemAddr) + offset, &fanout, sizeof(fanout));
+            offset += sizeof(fanout);
+            pmem_memcpy_persist(static_cast<char*>(pmemAddr) + offset, &maxBufferSize, sizeof(maxBufferSize));
+            offset += sizeof(maxBufferSize);
             writeAllocationTable();
         }
 
@@ -115,8 +124,7 @@ public:
                         end = i;
                         break;
                     }
-                }
-                else {
+                } else {
                     count = 0;
                 }
             }
@@ -138,8 +146,7 @@ public:
             }
 
             return start;
-        }
-        else {
+        } else {
             // Overwrite existing node
             void* destAddr = static_cast<char*>(pmemAddr) + id * this->blockSize;
             size_t writtenSize = 0;
@@ -151,7 +158,7 @@ public:
         }
     }
 
-    void loadNode(uint64_t id, NodePtr& node) override {
+    NodePtr loadNode(uint64_t id) override {
         assert(pmemAddr != nullptr);
         assert(id != 0);
 
@@ -161,13 +168,12 @@ public:
         uint8_t type;
         memcpy(&type, srcAddr, sizeof(type));
 
+        NodePtr node;
         if (type == 0) { // internal node
-            node = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(this->fanout, this->cache, this->maxBufferSize);
-        }
-        else if (type == 1) { // leaf node
-            node = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->maxBufferSize, this->cache);
-        }
-        else {
+            node = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(this->fanout, this->cache.lock(), this->maxBufferSize);
+        } else if (type == 1) { // leaf node
+            node = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->maxBufferSize, this->cache.lock());
+        } else {
             throw std::runtime_error("Invalid node type");
         }
 
@@ -175,6 +181,8 @@ public:
             memcpy(data, srcAddr, length);
             srcAddr = static_cast<char*>(srcAddr) + length;
             });
+        node->id = id;
+        return node;
     }
 
     void removeNode(uint64_t id, NodePtr node) override {
@@ -189,7 +197,7 @@ public:
         }
     }
 
-    void updateRootNode(uint64_t rootNodeOffset) override {
+    void updateRootNode(uint64_t rootNodeOffset) {
         assert(pmemAddr != nullptr);
 
         pmem_memcpy_persist(static_cast<char*>(pmemAddr) + sizeof(uint64_t), &rootNodeOffset, sizeof(rootNodeOffset));

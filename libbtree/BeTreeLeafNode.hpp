@@ -113,7 +113,7 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::insert(MessagePtr message, ChildCh
     if (this->isOverflowing()) {
         return this->split(newChild);
     } else {
-        return ErrorCode::FinishedMessagePassing;
+        return ErrorCode::Success;
     }
 }
 
