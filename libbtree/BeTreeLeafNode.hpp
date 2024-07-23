@@ -6,11 +6,9 @@
 #include "ErrorCodes.h"
 #include <cassert>
 #include <cstdint>
-#include <cstring>
 #include <ios>
 #include <iosfwd>
 #include <memory>
-#include <string>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -69,9 +67,7 @@ public:
             + 3 * sizeof(size_t) // parent, leftSibling, rightSibling
             + 1 * sizeof(KeyType); // lowestSearchKey
     }
-    size_t serialize(char*& buf) const; // returns the number of bytes written
     void serialize(std::ostream& os) const;
-    size_t deserialize(char*& buf, size_t bufferSize); // returns the number of bytes read
     void deserialize(std::istream& is);
 
     void printNode(std::ostream& out) const override;
@@ -161,7 +157,7 @@ std::pair<ValueType, ErrorCode> BeTreeLeafNode<KeyType, ValueType>::search(Messa
 template <typename KeyType, typename ValueType>
 ErrorCode BeTreeLeafNode<KeyType, ValueType>::split(ChildChange& newChild) {
     // Split the node
-    auto newLeaf = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->fanout, this->cache, this->parent);
+    auto newLeaf = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->fanout, this->cache.lock(), this->parent);
     auto mid = this->keys.size() / 2;
     KeyType newPivot = this->keys[mid];
     newLeaf->keys.insert(newLeaf->keys.begin(), this->keys.begin() + mid, this->keys.end());
@@ -171,13 +167,13 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::split(ChildChange& newChild) {
 
     newLeaf->lowestSearchKey = newLeaf->keys[0];
 
-    this->cache->create(newLeaf);
+    this->cache.lock()->create(newLeaf);
 
     // Set sibling pointers
     newLeaf->leftSibling = this->id;
     newLeaf->rightSibling = this->rightSibling;
     if (this->rightSibling) {
-        LeafNodePtr rightSiblingPtr = std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->cache->get(this->rightSibling));
+        LeafNodePtr rightSiblingPtr = std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->cache.lock()->get(this->rightSibling));
         rightSiblingPtr->leftSibling = newLeaf->id;
     }
     this->rightSibling = newLeaf->id;
@@ -195,7 +191,7 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::handleUnderflow(uint16_t indexInPa
 
     // redistribute or merge with sibling
     if (this->leftSibling) {
-        LeafNodePtr leftSiblingPtr = std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->cache->get(this->leftSibling));
+        LeafNodePtr leftSiblingPtr = std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->cache.lock()->get(this->leftSibling));
         if (leftSiblingPtr->isBorrowable() && leftSiblingPtr->parent == this->parent) {
             return redistribute(indexInParent, leftSiblingPtr, oldChild);
         } else if (leftSiblingPtr->parent == this->parent) {
@@ -204,7 +200,7 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::handleUnderflow(uint16_t indexInPa
     }
 
     if (this->rightSibling) {
-        LeafNodePtr rightSiblingPtr = std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->cache->get(this->rightSibling));
+        LeafNodePtr rightSiblingPtr = std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->cache.lock()->get(this->rightSibling));
         if (rightSiblingPtr->isBorrowable() && rightSiblingPtr->parent == this->parent) {
             return redistribute(indexInParent, rightSiblingPtr, oldChild);
         } else if (rightSiblingPtr->parent == this->parent) {
@@ -219,7 +215,7 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::redistribute(uint16_t indexInParen
     auto sizeDiff = (sibling->size() - this->size()) / 2;
     assert(sizeDiff >= 0);
 
-    InternalNodePtr parentPtr = std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(this->cache->get(this->parent));
+    InternalNodePtr parentPtr = std::static_pointer_cast<BeTreeInternalNode<KeyType, ValueType>>(this->cache.lock()->get(this->parent));
     if (this->leftSibling == sibling->id) {
         this->keys.insert(this->keys.begin(), sibling->keys.end() - sizeDiff, sibling->keys.end());
         this->values.insert(this->values.begin(), sibling->values.end() - sizeDiff, sibling->values.end());
@@ -252,7 +248,7 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::merge(ChildChange& oldChild, LeafN
         sibling->values.insert(sibling->values.end(), this->values.begin(), this->values.end());
         sibling->rightSibling = this->rightSibling;
         if (this->rightSibling) {
-            LeafNodePtr rightSiblingPtr = std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->cache->get(this->rightSibling));
+            LeafNodePtr rightSiblingPtr = std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->cache.lock()->get(this->rightSibling));
             rightSiblingPtr->leftSibling = sibling->id;
         }
         oldChild = { KeyType(), this->id, ChildChangeType::MergeLeft };
@@ -261,26 +257,13 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::merge(ChildChange& oldChild, LeafN
         this->values.insert(this->values.end(), sibling->values.begin(), sibling->values.end());
         this->rightSibling = sibling->rightSibling;
         if (sibling->rightSibling) {
-            LeafNodePtr rightSiblingPtr = std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->cache->get(sibling->rightSibling));
+            LeafNodePtr rightSiblingPtr = std::static_pointer_cast<BeTreeLeafNode<KeyType, ValueType>>(this->cache.lock()->get(sibling->rightSibling));
             rightSiblingPtr->leftSibling = this->id;
         }
         oldChild = { KeyType(), sibling->id, ChildChangeType::MergeRight };
     }
 
     return ErrorCode::FinishedMessagePassing;
-}
-
-template <typename KeyType, typename ValueType>
-size_t BeTreeLeafNode<KeyType, ValueType>::serialize(char*& buf) const {
-    std::stringstream memoryStream{};
-    this->serialize(memoryStream);
-
-    std::string data = memoryStream.str();
-    size_t bufferSize = data.size();
-    buf = new char[bufferSize];
-    memcpy(buf, data.c_str(), bufferSize);
-
-    return bufferSize;
 }
 
 template <typename KeyType, typename ValueType>
@@ -317,14 +300,6 @@ void BeTreeLeafNode<KeyType, ValueType>::serialize(std::ostream& os) const {
 
     auto end = os.tellp();
     assert(this->getSerializedSize() == (end - start) && "Data size mismatch");
-}
-
-template <typename KeyType, typename ValueType>
-size_t BeTreeLeafNode<KeyType, ValueType>::deserialize(char*& buf, size_t bufferSize) {
-    std::stringstream memoryStream{};
-    memoryStream.write(buf, bufferSize);
-    this->deserialize(memoryStream);
-    return memoryStream.tellg();
 }
 
 template <typename KeyType, typename ValueType>

@@ -24,7 +24,7 @@ class BeTreeFileStorage : public BeTreeIStorage<KeyType, ValueType> {
     /* Storage class that stores nodes in a file */
 private:
     using NodePtr = BeTreeIStorage<KeyType, ValueType>::NodePtr;
-    using CachePtr = std::shared_ptr<BeTreeLRUCache<KeyType, ValueType>>;
+    using CachePtr = std::weak_ptr<BeTreeLRUCache<KeyType, ValueType>>;
     uint64_t numBlocks = 0;
     std::fstream file;
     std::vector<bool> allocationTable;
@@ -157,10 +157,10 @@ public:
         file.seekg(id * this->blockSize);
         NodePtr node;
         if (type == 0) { // internal node
-            node = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(this->fanout, this->cache, this->maxBufferSize);
+            node = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(this->fanout, this->cache.lock(), this->maxBufferSize);
             node->deserialize(file);
         } else if (type == 1) { // leaf node
-            node = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->fanout, this->cache);
+            node = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->fanout, this->cache.lock());
             node->deserialize(file);
         } else {
             throw std::runtime_error("Invalid node type");

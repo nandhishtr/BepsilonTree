@@ -4,8 +4,10 @@
 #include "BeTreeMessage.hpp"
 #include "ErrorCodes.h"
 #include <cstdint>
+#include <cstring>
 #include <iosfwd>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -18,7 +20,7 @@ class BeTreeNode : public std::enable_shared_from_this<BeTreeNode<KeyType, Value
 public:
     using MessagePtr = std::unique_ptr<Message<KeyType, ValueType>>;
     using BeTreeNodePtr = std::shared_ptr<BeTreeNode<KeyType, ValueType>>;
-    using CachePtr = std::shared_ptr<BeTreeLRUCache<KeyType, ValueType>>;
+    using CachePtr = std::weak_ptr<BeTreeLRUCache<KeyType, ValueType>>;
 
     uint16_t fanout; // maximum amount of children an internal node can have
     std::vector<KeyType> keys;
@@ -70,9 +72,25 @@ public:
     }
 
     virtual size_t getSerializedSize() const = 0;
-    virtual size_t serialize(char*& buf) const = 0; // returns the number of bytes written
+    virtual size_t serialize(char*& buf) const { // returns the number of bytes written
+        std::stringstream memoryStream{};
+        this->serialize(memoryStream);
+
+        std::string data = memoryStream.str();
+        size_t bufferSize = data.size();
+        buf = new char[bufferSize];
+        memcpy(buf, data.c_str(), bufferSize);
+
+        return bufferSize;
+    }
     virtual void serialize(std::ostream& os) const = 0;
-    virtual size_t deserialize(char*& buf, size_t bufferSize) = 0; // returns the number of bytes read
+    virtual size_t deserialize(char*& buf, size_t bufferSize) { // returns the number of bytes read
+        std::stringstream memoryStream{};
+        memoryStream.write(buf, bufferSize);
+        this->deserialize(memoryStream);
+        return memoryStream.tellg();
+
+    }
     virtual void deserialize(std::istream& is) = 0;
 
     virtual void printNode(std::ostream& out) const = 0;

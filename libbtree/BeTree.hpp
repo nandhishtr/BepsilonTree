@@ -45,7 +45,10 @@ private:
 
     ErrorCode applyMessage(MessagePtr message);
 public:
-    ~BeTree() = default;
+    ~BeTree() {
+        cache->flush();
+        cache = nullptr;
+    }
     BeTree() = delete;
     BeTree(StoragePtr storage, size_t cache_capacity) : fanout(0), maxBufferSize(0), rootNode(0) {
         this->storage = storage;
