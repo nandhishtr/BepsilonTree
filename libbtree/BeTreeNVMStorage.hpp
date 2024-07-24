@@ -134,11 +134,12 @@ public:
 
             // Write the node to PMEM
             void* destAddr = static_cast<char*>(pmemAddr) + start * this->blockSize;
-            size_t writtenSize = 0;
-            node->serialize([&](const char* data, size_t length) {
-                pmem_memcpy_persist(static_cast<char*>(destAddr) + writtenSize, data, length);
-                writtenSize += length;
-                });
+            size_t writtenSize = node->serialize(destAddr);
+            pmem_msync(destAddr, writtenSize);
+            //node->serialize([&](const char* data, size_t length) {
+            //    pmem_memcpy_persist(static_cast<char*>(destAddr) + writtenSize, data, length);
+            //    writtenSize += length;
+            //    });
 
             // Update the allocation table
             for (uint64_t i = start; i <= end; i++) {
@@ -149,11 +150,12 @@ public:
         } else {
             // Overwrite existing node
             void* destAddr = static_cast<char*>(pmemAddr) + id * this->blockSize;
-            size_t writtenSize = 0;
-            node->serialize([&](const char* data, size_t length) {
-                pmem_memcpy_persist(static_cast<char*>(destAddr) + writtenSize, data, length);
-                writtenSize += length;
-                });
+            size_t writtenSize = node->serialize(destAddr);
+            pmem_msync(destAddr, writtenSize);
+            //node->serialize([&](const char* data, size_t length) {
+            //    pmem_memcpy_persist(static_cast<char*>(destAddr) + writtenSize, data, length);
+            //    writtenSize += length;
+            //    });
             return 0;
         }
     }
@@ -177,10 +179,11 @@ public:
             throw std::runtime_error("Invalid node type");
         }
 
-        node->deserialize([&](char* data, size_t length) {
-            memcpy(data, srcAddr, length);
-            srcAddr = static_cast<char*>(srcAddr) + length;
-            });
+        node->deserialize(srcAddr);
+        //node->deserialize([&](char* data, size_t length) {
+        //    memcpy(data, srcAddr, length);
+        //    srcAddr = static_cast<char*>(srcAddr) + length;
+        //    });
         node->id = id;
         return node;
     }

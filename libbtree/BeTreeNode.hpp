@@ -83,14 +83,19 @@ public:
 
         return bufferSize;
     }
+
     virtual void serialize(std::ostream& os) const = 0;
-    virtual size_t deserialize(char*& buf, size_t bufferSize) { // returns the number of bytes read
-        std::stringstream memoryStream{};
-        memoryStream.write(buf, bufferSize);
+    size_t deserialize(char* buf, size_t bufferSize) { // returns the number of bytes read
+        std::istringstream memoryStream(std::string(buf, bufferSize));
         this->deserialize(memoryStream);
         return memoryStream.tellg();
-
     }
+    size_t deserialize(const* buf) {
+        std::istringstream memoryStream(buf);
+        this->deserialize(memoryStream);
+        return memoryStream.tellg();
+    }
+
     virtual void deserialize(std::istream& is) = 0;
 
     virtual void printNode(std::ostream& out) const = 0;
