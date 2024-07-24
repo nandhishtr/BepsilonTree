@@ -191,10 +191,10 @@ public:
         NodePtr node;
         if (type == 0) { // internal node
             node = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(this->fanout, this->cache.lock(), this->maxBufferSize);
-            node->deserialize(file);
+            node->deserialize(mappedAddr + offset);
         } else if (type == 1) { // leaf node
             node = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->fanout, this->cache.lock());
-            node->deserialize(file);
+            node->deserialize(mappedAddr + offset);
         } else {
             throw std::runtime_error("Invalid node type");
         }
@@ -233,7 +233,7 @@ public:
     }
 
 private:
-    void writeAllocationTable(std::fstream& file) {
+    void writeAllocationTable() {
         // NOTE: we can't write the allocation table in one go because std::vector<bool> is a specialization and it's not guaranteed to be contiguous
         size_t offset = HEADER_SIZE;
         for (size_t i = 0; i < numBlocks; i += 8) {

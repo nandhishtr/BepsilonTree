@@ -8,6 +8,7 @@
 #include <iosfwd>
 #include <memory>
 #include <string>
+#include <sstream>
 #include <utility>
 #include <vector>
 
@@ -72,7 +73,7 @@ public:
     }
 
     virtual size_t getSerializedSize() const = 0;
-    virtual size_t serialize(char*& buf) const { // returns the number of bytes written
+    virtual size_t serialize(char* buf) const { // returns the number of bytes written
         std::stringstream memoryStream{};
         this->serialize(memoryStream);
 

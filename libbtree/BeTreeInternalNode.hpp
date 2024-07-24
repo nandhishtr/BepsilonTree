@@ -559,7 +559,7 @@ void BeTreeInternalNode<KeyType, ValueType>::deserialize(std::istream& is) {
 }
 
 template <typename KeyType, typename ValueType>
-size_t deserialize(char* buf) {
+size_t BeTreeInternalNode<KeyType, ValueType>::deserialize(char* buf) {
     static_assert(
         std::is_trivial<KeyType>::value &&
         std::is_standard_layout<KeyType>::value &&
