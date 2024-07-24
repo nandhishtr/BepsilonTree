@@ -6,6 +6,7 @@
 #include "ErrorCodes.h"
 #include <cassert>
 #include <cstdint>
+#include <cstring>
 #include <ios>
 #include <iosfwd>
 #include <memory>
@@ -69,6 +70,7 @@ public:
     }
     void serialize(std::ostream& os) const;
     void deserialize(std::istream& is);
+    size_t deserialize(char* buf);
 
     void printNode(std::ostream& out) const override;
 };
@@ -335,6 +337,46 @@ void BeTreeLeafNode<KeyType, ValueType>::deserialize(std::istream& is) {
     assert(this->getSerializedSize() == (is.tellg() - start) && "Data size mismatch");
 }
 
+template <typename KeyType, typename ValueType>
+size_t BeTreeLeafNode<KeyType, ValueType>::deserialize(char* buf) {
+    static_assert(
+        std::is_trivial<KeyType>::value &&
+        std::is_standard_layout<KeyType>::value &&
+        std::is_trivial<ValueType>::value &&
+        std::is_standard_layout<ValueType>::value,
+        "Can only deserialize POD types with this function");
+
+    uint8_t type = 0;
+    uint16_t numKeys = 0;
+    size_t offset = 0;
+    std::memcpy(&type, buf + offset, sizeof(uint8_t));
+    offset += sizeof(uint8_t);
+    std::memcpy(&numKeys, buf + offset, sizeof(uint16_t));
+    offset += sizeof(uint16_t);
+    std::memcpy(&this->parent, buf + offset, sizeof(uint64_t));
+    offset += sizeof(uint64_t);
+    std::memcpy(&this->leftSibling, buf + offset, sizeof(uint64_t));
+    offset += sizeof(uint64_t);
+    std::memcpy(&this->rightSibling, buf + offset, sizeof(uint64_t));
+    offset += sizeof(uint64_t);
+    std::memcpy(&this->lowestSearchKey, buf + offset, sizeof(KeyType));
+    offset += sizeof(KeyType);
+
+    this->keys.resize(numKeys);
+    std::memcpy(this->keys.data(), buf + offset, numKeys * sizeof(KeyType));
+    offset += numKeys * sizeof(KeyType);
+    size_t remainingBytes = ((this->fanout - 1) - numKeys) * sizeof(KeyType);
+    offset += remainingBytes;
+
+    this->values.resize(numKeys);
+    std::memcpy(this->values.data(), buf + offset, numKeys * sizeof(ValueType));
+    offset += numKeys * sizeof(ValueType);
+    remainingBytes = ((this->fanout - 1) - numKeys) * sizeof(ValueType);
+    offset += remainingBytes;
+
+    assert(this->keys.size() == this->values.size() && "Keys and values must have the same size");
+    return offset;
+}
 
 template <typename KeyType, typename ValueType>
 void BeTreeLeafNode<KeyType, ValueType>::printNode(std::ostream& out) const {

@@ -90,11 +90,7 @@ public:
         this->deserialize(memoryStream);
         return memoryStream.tellg();
     }
-    size_t deserialize(const* buf) {
-        std::istringstream memoryStream(buf);
-        this->deserialize(memoryStream);
-        return memoryStream.tellg();
-    }
+    virtual size_t deserialize(char* buf) = 0;
 
     virtual void deserialize(std::istream& is) = 0;
 
