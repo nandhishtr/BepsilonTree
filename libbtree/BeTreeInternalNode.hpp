@@ -93,6 +93,7 @@ public:
             + sizeof(KeyType); // lowestSearchKey
     }
     void serialize(std::ostream& os) const;
+    size_t serialize(char* buf) const; // returns the number of bytes written
     void deserialize(std::istream& is);
     size_t deserialize(char* buf);
 
@@ -513,6 +514,72 @@ void BeTreeInternalNode<KeyType, ValueType>::serialize(std::ostream& os) const {
     }
 
     auto end = os.tellp();
+}
+
+template <typename KeyType, typename ValueType>
+size_t BeTreeInternalNode<KeyType, ValueType>::serialize(char* buf) const {
+    static_assert(
+        std::is_trivial<KeyType>::value &&
+        std::is_standard_layout<KeyType>::value &&
+        std::is_trivial<ValueType>::value &&
+        std::is_standard_layout<ValueType>::value,
+        "Can only deserialize POD types with this function");
+
+    assert(this->keys.size() == this->children.size() - 1 && "The number of keys should be one less than the number of children");
+    uint16_t numKeys = this->keys.size();
+    uint16_t numMessages = this->messageBuffer.size();
+    size_t offset = 0;
+
+    buf[offset] = 0; // type
+    offset += sizeof(uint8_t);
+    std::memcpy(buf + offset, &numKeys, sizeof(uint16_t));
+    offset += sizeof(uint16_t);
+    std::memcpy(buf + offset, &numMessages, sizeof(uint16_t));
+    offset += sizeof(uint16_t);
+    std::memcpy(buf + offset, &this->parent, sizeof(uint64_t));
+    offset += sizeof(uint64_t);
+    std::memcpy(buf + offset, &this->leftSibling, sizeof(uint64_t));
+    offset += sizeof(uint64_t);
+    std::memcpy(buf + offset, &this->rightSibling, sizeof(uint64_t));
+    offset += sizeof(uint64_t);
+    std::memcpy(buf + offset, &this->lowestSearchKey, sizeof(KeyType));
+    offset += sizeof(KeyType);
+
+    std::memcpy(buf + offset, this->keys.data(), numKeys * sizeof(KeyType));
+    offset += numKeys * sizeof(KeyType);
+    size_t remainingBytes = ((this->fanout - 1) - numKeys) * sizeof(KeyType);
+    for (size_t i = 0; i < remainingBytes; ++i) {
+        buf[offset] = 0;
+        offset += sizeof(KeyType);
+    }
+
+    std::memcpy(buf + offset, this->children.data(), (numKeys + 1) * sizeof(uint64_t));
+    offset += (numKeys + 1) * sizeof(uint64_t);
+    remainingBytes = ((this->fanout - 1) - numKeys) * sizeof(uint64_t);
+    for (size_t i = 0; i < remainingBytes; ++i) {
+        buf[offset] = 0;
+        offset += sizeof(uint64_t);
+    }
+
+    size_t serializedMessages = 0;
+    for (auto& [key, message] : this->messageBuffer) {
+        // if the key in the map has no message, skip it
+        if (message == nullptr) {
+            continue;
+        }
+
+        offset += message->serialize(buf + offset);
+        serializedMessages++;
+    }
+    remainingBytes = (this->maxBufferSize - serializedMessages) * Message<KeyType, ValueType>::getSerializedSize();
+    if (remainingBytes > 0) { // this is needed because when merging nodes, the buffer might be overfull
+        for (size_t i = 0; i < remainingBytes; ++i) {
+            buf[offset] = 0;
+            offset += Message<KeyType, ValueType>::getSerializedSize();
+        }
+    }
+
+    return offset;
 }
 
 template <typename KeyType, typename ValueType>

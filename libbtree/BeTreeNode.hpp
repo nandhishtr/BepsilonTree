@@ -4,11 +4,9 @@
 #include "BeTreeMessage.hpp"
 #include "ErrorCodes.h"
 #include <cstdint>
-#include <cstring>
 #include <iosfwd>
 #include <memory>
 #include <string>
-#include <sstream>
 #include <utility>
 #include <vector>
 
@@ -73,17 +71,7 @@ public:
     }
 
     virtual size_t getSerializedSize() const = 0;
-    virtual size_t serialize(char* buf) const { // returns the number of bytes written
-        std::stringstream memoryStream{};
-        this->serialize(memoryStream);
-
-        std::string data = memoryStream.str();
-        size_t bufferSize = data.size();
-        buf = new char[bufferSize];
-        memcpy(buf, data.c_str(), bufferSize);
-
-        return bufferSize;
-    }
+    virtual size_t serialize(char* buf) const = 0; // returns the number of bytes written
 
     virtual void serialize(std::ostream& os) const = 0;
     size_t deserialize(char* buf, size_t bufferSize) { // returns the number of bytes read

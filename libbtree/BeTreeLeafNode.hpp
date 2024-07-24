@@ -69,6 +69,7 @@ public:
             + 1 * sizeof(KeyType); // lowestSearchKey
     }
     void serialize(std::ostream& os) const;
+    size_t serialize(char* buf) const; // returns the number of bytes written
     void deserialize(std::istream& is);
     size_t deserialize(char* buf);
 
@@ -266,6 +267,48 @@ ErrorCode BeTreeLeafNode<KeyType, ValueType>::merge(ChildChange& oldChild, LeafN
     }
 
     return ErrorCode::FinishedMessagePassing;
+}
+
+template <typename KeyType, typename ValueType>
+size_t BeTreeLeafNode<KeyType, ValueType>::serialize(char* buf) const {
+    static_assert(
+        std::is_trivial<KeyType>::value &&
+        std::is_standard_layout<KeyType>::value &&
+        std::is_trivial<ValueType>::value &&
+        std::is_standard_layout<ValueType>::value,
+        "Can only deserialize POD types with this function");
+
+    assert(this->keys.size() == this->values.size() && "Keys and values must have the same size");
+    uint16_t numKeys = this->keys.size(); // values = keys
+    size_t offset = 0;
+
+    buf[offset] = 1; // type (leaf = 1)
+    offset += sizeof(uint8_t);
+    std::memcpy(buf + offset, &numKeys, sizeof(uint16_t));
+    offset += sizeof(uint16_t);
+    std::memcpy(buf + offset, &this->parent, sizeof(uint64_t));
+    offset += sizeof(uint64_t);
+    std::memcpy(buf + offset, &this->leftSibling, sizeof(uint64_t));
+    offset += sizeof(uint64_t);
+    std::memcpy(buf + offset, &this->rightSibling, sizeof(uint64_t));
+    offset += sizeof(uint64_t);
+    std::memcpy(buf + offset, &this->lowestSearchKey, sizeof(KeyType));
+    offset += sizeof(KeyType);
+
+    std::memcpy(buf + offset, this->keys.data(), numKeys * sizeof(KeyType));
+    offset += numKeys * sizeof(KeyType);
+    size_t remainingBytes = ((this->fanout - 1) - numKeys) * sizeof(KeyType);
+    std::memset(buf + offset, 0, remainingBytes);
+    offset += remainingBytes;
+
+    std::memcpy(buf + offset, this->values.data(), numKeys * sizeof(ValueType));
+    offset += numKeys * sizeof(ValueType);
+    remainingBytes = ((this->fanout - 1) - numKeys) * sizeof(ValueType);
+    std::memset(buf + offset, 0, remainingBytes);
+    offset += remainingBytes;
+
+    assert(this->getSerializedSize() == offset && "Data size mismatch");
+    return offset;
 }
 
 template <typename KeyType, typename ValueType>
