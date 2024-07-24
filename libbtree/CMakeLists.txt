@@ -1,13 +1,13 @@
 add_library(libbtree
-            BeTree.cpp
-            BeTreeInternalNode.cpp
+            BeTree.hpp
+            BeTreeInternalNode.hpp
             ErrorCodes.h
-            BeTreeLeafNode.cpp
-            BeTreeMessage.cpp
-            BeTreeNode.cpp
-            BeTreeLRUCache.cpp
-            BeTreeFileStorage.cpp
-            BeTreeNVMStorage.cpp
+            BeTreeLeafNode.hpp
+            BeTreeMessage.hpp
+            BeTreeNode.hpp
+            BeTreeLRUCache.hpp
+            BeTreeFileStorage.hpp
+            BeTreeNVMStorage.hpp
 )
 
 

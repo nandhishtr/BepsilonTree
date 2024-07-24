@@ -85,7 +85,7 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
                     cout << "insert failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value << endl;
                     tree.printTree(cout);
                     return false;
-            }
+                }
             }
         } else {
             // only test the last inserted key and some random keys
@@ -105,8 +105,8 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
                     cout << "insert failed: i=" << i << " j=" << j << " k=" << k << " arr[k]=" << arr[k] << " value=" << value << endl;
                     tree.printTree(cout);
                     return false;
+                }
             }
-        }
         }
 
     }
@@ -130,7 +130,7 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
                     cout << "remove failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value << endl;
                     tree.printTree(cout);
                     return false;
-            }
+                }
             }
         } else {
             // only test the last removed key and some random keys
@@ -151,9 +151,9 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
                     cout << "remove failed: i=" << i << " j=" << j << " k=" << k << " arr[k]=" << arr[k] << " value=" << value << endl;
                     tree.printTree(cout);
                     return false;
+                }
             }
         }
-    }
     }
 
     // Interleaved insert and remove
@@ -192,8 +192,8 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
                 cout << "remove failed: j=" << j << " arr[i]=" << removeArr[i] << " value=" << value << endl;
                 tree.printTree(cout);
                 return false;
+            }
         }
-    }
     }
 
 
@@ -334,7 +334,7 @@ void geneticAlgorithm(const BeTreeParams& minParams, const BeTreeParams& maxPara
                 population[i].cacheCapacity += (rand() % 2) * 2 - 1;
             }
         }
-        }
+    }
 
     // Print best parameters
     std::cout << "Best parameters: " << std::endl;
@@ -342,7 +342,7 @@ void geneticAlgorithm(const BeTreeParams& minParams, const BeTreeParams& maxPara
     std::cout << "MaxBufferSize: " << population[0].maxBufferSize << std::endl;
     std::cout << "CacheCapacity: " << population[0].cacheCapacity << std::endl;
     std::cout << "Operations: " << population[0].fitness << std::endl;
-    }
+}
 
 int main(int argc, char* argv[]) {
 
@@ -364,8 +364,8 @@ int main(int argc, char* argv[]) {
 
     // Genetic algorithm
     BeTreeParams minParams(32, 2, 10);
-    BeTreeParams maxParams(1024, 1024, 100);
-    std::chrono::milliseconds timeLimit(1000);
+    BeTreeParams maxParams(4096, 4096, 100);
+    std::chrono::milliseconds timeLimit(2500);
     geneticAlgorithm(minParams, maxParams, timeLimit, 25, 100);
 
     return 0;

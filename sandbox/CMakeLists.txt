@@ -6,7 +6,7 @@ project(sandbox VERSION 1.0)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #set(CMAKE_PREFIX_PATH "/usr/lib/x86_64-linux-gnu")
 
-find_package (glog 0.7.0 REQUIRED)
+#find_package (glog 0.7.0 REQUIRED)
 
 set(CMAKE_BUILD_TYPE Debug)
 #set(CMAKE_PREFIX_PATH "/usr/lib/x86_64-linux-gnu/")
@@ -28,7 +28,7 @@ add_executable(sandbox sandbox.cpp)
 
 
 find_package(PkgConfig REQUIRED)
-pkg_check_modules(LIBPMEM REQUIRED libpmem)
+#pkg_check_modules(LIBPMEM REQUIRED libpmem)
 
 target_link_libraries(sandbox PRIVATE ${LIBPMEM_LIBRARIES})
 target_include_directories(sandbox PRIVATE ${LIBPMEM_INCLUDE_DIRS})
