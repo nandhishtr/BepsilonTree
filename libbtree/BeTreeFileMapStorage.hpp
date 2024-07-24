@@ -162,7 +162,7 @@ public:
             }
 
             // write the node to the file
-            size_t offset = start * this->blockSize;
+            size_t offset = start * this->blockSize + HEADER_SIZE;
             size_t bytesWritten = node->serialize(mappedAddr + offset);
 
             // update the allocation table
@@ -173,7 +173,7 @@ public:
             return start;
         } else {
             // if the node is in the file, then overwrite it
-            size_t offset = id * this->blockSize;
+            size_t offset = id * this->blockSize + HEADER_SIZE;
             size_t bytesWritten = node->serialize(mappedAddr + offset);
 
             return 0;
@@ -185,7 +185,7 @@ public:
         assert(id != 0);
 
         // read the first byte to determine the type of the node
-        size_t offset = id * this->blockSize;
+        size_t offset = id * this->blockSize + HEADER_SIZE;
         uint8_t type;
         memcpy(&type, mappedAddr + offset, sizeof(uint8_t));
         NodePtr node;
