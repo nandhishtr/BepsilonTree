@@ -28,7 +28,7 @@ public:
         return sizeof(MessageType) + sizeof(KeyType) + sizeof(ValueType);
     }
 
-    size_t serialize(char*& buf) const {// returns the number of bytes written
+    size_t serialize(char* buf) const {// returns the number of bytes written
         size_t bytesWritten = 0;
         memcpy(buf, &type, sizeof(MessageType));
         bytesWritten += sizeof(MessageType);
@@ -48,7 +48,7 @@ public:
         os.write(reinterpret_cast<const char*>(&value), sizeof(ValueType));
     }
 
-    size_t deserialize(char*& buf, size_t bufferSize) { // returns the number of bytes read
+    size_t deserialize(char* buf) { // returns the number of bytes read
         size_t bytesRead = 0;
         memcpy(&type, buf, sizeof(MessageType));
         bytesRead += sizeof(MessageType);
