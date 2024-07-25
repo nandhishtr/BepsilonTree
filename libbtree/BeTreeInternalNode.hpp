@@ -110,7 +110,6 @@ ErrorCode BeTreeInternalNode<KeyType, ValueType>::applyMessage(MessagePtr messag
 
     if (isFlushable()) {
         auto err = flushBuffer(childChange);
-        this->cache.lock()->put(this->id, this->shared_from_this());
         return err;
     } else {
         return ErrorCode::Success;
@@ -547,19 +546,15 @@ size_t BeTreeInternalNode<KeyType, ValueType>::serialize(char* buf) const {
 
     std::memcpy(buf + offset, this->keys.data(), numKeys * sizeof(KeyType));
     offset += numKeys * sizeof(KeyType);
-    size_t remainingBytes = ((this->fanout - 1) - numKeys) * sizeof(KeyType);
-    for (size_t i = 0; i < remainingBytes; ++i) {
-        buf[offset] = 0;
-        offset += sizeof(KeyType);
-    }
+    int64_t remainingBytes = ((this->fanout - 1) - numKeys) * sizeof(KeyType);
+    std::memset(buf + offset, 0, remainingBytes);
+    offset += remainingBytes;
 
     std::memcpy(buf + offset, this->children.data(), (numKeys + 1) * sizeof(uint64_t));
     offset += (numKeys + 1) * sizeof(uint64_t);
     remainingBytes = ((this->fanout - 1) - numKeys) * sizeof(uint64_t);
-    for (size_t i = 0; i < remainingBytes; ++i) {
-        buf[offset] = 0;
-        offset += sizeof(uint64_t);
-    }
+    std::memset(buf + offset, 0, remainingBytes);
+    offset += remainingBytes;
 
     size_t serializedMessages = 0;
     for (auto& [key, message] : this->messageBuffer) {
@@ -573,10 +568,8 @@ size_t BeTreeInternalNode<KeyType, ValueType>::serialize(char* buf) const {
     }
     remainingBytes = (this->maxBufferSize - serializedMessages) * Message<KeyType, ValueType>::getSerializedSize();
     if (remainingBytes > 0) { // this is needed because when merging nodes, the buffer might be overfull
-        for (size_t i = 0; i < remainingBytes; ++i) {
-            buf[offset] = 0;
-            offset += Message<KeyType, ValueType>::getSerializedSize();
-        }
+        std::memset(buf + offset, 0, remainingBytes);
+        offset += remainingBytes;
     }
 
     return offset;
@@ -656,7 +649,7 @@ size_t BeTreeInternalNode<KeyType, ValueType>::deserialize(char* buf) {
     this->keys.resize(numKeys);
     std::memcpy(this->keys.data(), buf + offset, numKeys * sizeof(KeyType));
     offset += numKeys * sizeof(KeyType);
-    size_t remainingBytes = ((this->fanout - 1) - numKeys) * sizeof(KeyType);
+    int64_t remainingBytes = ((this->fanout - 1) - numKeys) * sizeof(KeyType);
     offset += remainingBytes;
 
     this->children.resize(numKeys + 1);

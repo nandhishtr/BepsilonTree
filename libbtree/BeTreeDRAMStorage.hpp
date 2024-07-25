@@ -1,19 +1,16 @@
 #pragma once
 
-#include <cstdint>
-
 #include "BeTreeInternalNode.hpp"
 #include "BeTreeIStorage.hpp"
 #include "BeTreeLeafNode.hpp"
 #include "BeTreeLRUCache.hpp"
 #include <cassert>
+#include <cstdint>
 #include <cstring>
-#include <fcntl.h>
+#include <iostream>
 #include <memory>
+#include <ostream>
 #include <stdexcept>
-#include <string>
-#include <sys/mman.h>
-#include <unistd.h>
 #include <vector>
 
 #define MAGIC_NUMBER 11647106966631696989 // 8 bytes
@@ -22,13 +19,12 @@
 #define HEADER_SIZE 20
 
 template <typename KeyType, typename ValueType>
-class BeTreeFileMapStorage : public BeTreeIStorage<KeyType, ValueType> {
-    /* Storage class that stores nodes in a memory-mapped file */
+class BeTreeDRAMStorage : public BeTreeIStorage<KeyType, ValueType> {
+    /* Storage class that stores nodes in a big memory block */
 private:
     using NodePtr = BeTreeIStorage<KeyType, ValueType>::NodePtr;
     using CachePtr = std::weak_ptr<BeTreeLRUCache<KeyType, ValueType>>;
     uint64_t numBlocks = 0;
-    int fd;
     char* mappedAddr;
     std::vector<bool> allocationTable;
     uint16_t fanout;
@@ -36,8 +32,8 @@ private:
     CachePtr cache;
 
 public:
-    BeTreeFileMapStorage(size_t blockSize, size_t storageSize, const std::string& filename, CachePtr cache)
-        : BeTreeIStorage<KeyType, ValueType>(blockSize, storageSize, filename), cache(cache) {
+    BeTreeDRAMStorage(size_t blockSize, size_t storageSize, CachePtr cache)
+        : BeTreeIStorage<KeyType, ValueType>(blockSize, storageSize, ""), cache(cache), mappedAddr(nullptr) {
         numBlocks = storageSize / blockSize;
         allocationTable.resize(numBlocks, false);
 
@@ -49,95 +45,44 @@ public:
         }
     }
 
-    ~BeTreeFileMapStorage() {
+    ~BeTreeDRAMStorage() {
         this->flush();
         if (mappedAddr != nullptr) {
-            munmap(mappedAddr, this->storageSize);
-        }
-        if (fd != -1) {
-            close(fd);
+            delete[] mappedAddr;
         }
     }
 
-    // returns true if the storage was initialized successfully
     bool init(uint64_t& rootNodeOffset, uint16_t& fanout, uint16_t& maxBufferSize) override {
-        // if fanout and maxBufferSizes are 0, then read the file
-        if (fanout == 0 && maxBufferSize == 0) {
-            fd = open(this->filename.c_str(), O_RDWR, S_IRUSR | S_IWUSR);
-            if (fd == -1) {
-                return false;
-            }
+        assert(mappedAddr == nullptr);
+        assert(rootNodeOffset == 0);
+        assert(fanout != 0 && maxBufferSize != 0 && "fanout and maxBufferSize must be set before calling init on dram storage");
 
-            // map the file
-            mappedAddr = static_cast<char*>(mmap(nullptr, this->storageSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
-            if (mappedAddr == MAP_FAILED) {
-                close(fd);
-                return false;
-            }
+        mappedAddr = new char[this->storageSize];
+        uint64_t magic = MAGIC_NUMBER;
+        size_t offset = 0;
+        std::memcpy(mappedAddr + offset, &magic, sizeof(magic));
+        offset += sizeof(magic);
+        std::memcpy(mappedAddr + offset, &rootNodeOffset, sizeof(rootNodeOffset));
+        offset += sizeof(rootNodeOffset);
+        std::memcpy(mappedAddr + offset, &fanout, sizeof(fanout));
+        offset += sizeof(fanout);
+        std::memcpy(mappedAddr + offset, &maxBufferSize, sizeof(maxBufferSize));
+        offset += sizeof(maxBufferSize);
 
-            // read the header
-            uint64_t magic;
-            size_t offset = 0;
-            memcpy(&magic, mappedAddr + offset, sizeof(uint64_t));
-            offset += sizeof(uint64_t);
-            if (magic != MAGIC_NUMBER) {
-                munmap(mappedAddr, this->storageSize);
-                close(fd);
-                return false;
-            }
+        writeAllocationTable();
 
-            memcpy(&rootNodeOffset, mappedAddr + offset, sizeof(uint64_t));
-            offset += sizeof(uint64_t);
+        this->fanout = fanout;
+        this->maxBufferSize = maxBufferSize;
 
-            memcpy(&fanout, mappedAddr + offset, sizeof(uint16_t));
-            offset += sizeof(uint16_t);
-
-            memcpy(&maxBufferSize, mappedAddr + offset, sizeof(uint16_t));
-            offset += sizeof(uint16_t);
-
-            readAllocationTable();
-        } else {
-            // write the header
-            fd = open(this->filename.c_str(), O_RDWR | O_CREAT, S_IRUSR | S_IWUSR);
-            if (fd == -1) {
-                return false;
-            }
-
-            if (ftruncate(fd, storageSize) == -1) {
-                close(fd);
-                return false;
-            }
-
-            mappedAddr = static_cast<char*>(mmap(nullptr, this->storageSize, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
-            if (mappedAddr == MAP_FAILED) {
-                close(fd);
-                return false;
-            }
-
-            uint64_t magic = MAGIC_NUMBER;
-            size_t offset = 0;
-            memcpy(mappedAddr + offset, &magic, sizeof(uint64_t));
-            offset += sizeof(uint64_t);
-
-            memcpy(mappedAddr + offset, &rootNodeOffset, sizeof(uint64_t));
-            offset += sizeof(uint64_t);
-
-            memcpy(mappedAddr + offset, &fanout, sizeof(uint16_t));
-            offset += sizeof(uint16_t);
-
-            memcpy(mappedAddr + offset, &maxBufferSize, sizeof(uint16_t));
-            offset += sizeof(uint16_t);
-
-            writeAllocationTable();
-        }
+        return true;
     }
 
     // returns the new id of the node if it was moved/created or 0 if it was not moved
-    uint64_t saveNode(uint64_t id, NodePtr node) {
+    uint64_t saveNode(uint64_t id, NodePtr node) override {
         assert(mappedAddr != nullptr);
         assert(node != nullptr);
 
-        // if the node is not in the file, then write it to the file
+        // if the node is not created, then it is a new node
         if (id == 0) {
             auto size = node->getSerializedSize();
             auto blocksNeeded = size / this->blockSize + (size % this->blockSize != 0);
@@ -164,9 +109,13 @@ public:
                 return 0;
             }
 
-            // write the node to the file
+            //size_t padding = this->blockSize - (size % this->blockSize);
+
+            // write the node to the buffer
             size_t offset = start * this->blockSize;
             size_t bytesWritten = node->serialize(mappedAddr + offset);
+            node->id = start;
+            //memset(mappedAddr + offset + bytesWritten, 0, padding);
 
             // update the allocation table
             for (uint64_t i = start; i <= end; i++) {
@@ -175,7 +124,7 @@ public:
 
             return start;
         } else {
-            // if the node is in the file, then overwrite it
+            // if the node is in the buffer, then update it
             size_t offset = id * this->blockSize;
             size_t bytesWritten = node->serialize(mappedAddr + offset);
 
@@ -189,28 +138,24 @@ public:
 
         size_t offset = id * this->blockSize;
         // read the first byte to determine the type of the node
-        uint8_t type;
-        memcpy(&type, mappedAddr + offset, sizeof(uint8_t));
-
+        char type = mappedAddr[offset];
         NodePtr node;
         if (type == 0) { // internal node
             node = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(this->fanout, this->cache.lock(), this->maxBufferSize);
-            node->deserialize(mappedAddr + offset);
-        } else if (type == 1) { // leaf node
+        } else if (type == 1) {
             node = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->fanout, this->cache.lock());
-            node->deserialize(mappedAddr + offset);
         } else {
             throw std::runtime_error("Invalid node type");
         }
+        node->deserialize(mappedAddr + offset);
         node->id = id;
-
         return node;
     }
 
     void removeNode(uint64_t id, NodePtr node) {
         assert(mappedAddr != nullptr);
-        assert(node != nullptr);
         assert(id != 0);
+        assert(node != nullptr);
 
         // update the allocation table
         size_t size = node->getSerializedSize();
@@ -225,41 +170,41 @@ public:
         assert(rootNodeOffset != 0);
 
         size_t offset = sizeof(uint64_t);
-        memcpy(mappedAddr + offset, &rootNodeOffset, sizeof(uint64_t));
+        std::memcpy(mappedAddr + offset, &rootNodeOffset, sizeof(rootNodeOffset));
     }
 
     void flush() {
         assert(mappedAddr != nullptr);
         writeAllocationTable();
-        if (msync(mappedAddr, this->storageSize, MS_SYNC) == -1) {
-            throw std::runtime_error("Failed to flush the memory-mapped file");
-        }
     }
 
 private:
     void writeAllocationTable() {
         // NOTE: we can't write the allocation table in one go because std::vector<bool> is a specialization and it's not guaranteed to be contiguous
+        assert(mappedAddr != nullptr);
+
         size_t offset = HEADER_SIZE;
         for (size_t i = 0; i < numBlocks; i += 8) {
             unsigned char byte = 0;
             for (size_t j = 0; j < 8 && i + j < numBlocks; j++) {
                 byte |= allocationTable[i + j] << j;
             }
-            memcpy(mappedAddr + offset, &byte, sizeof(byte));
+            mappedAddr[offset] = byte;
             offset += sizeof(byte);
         }
     }
 
     void readAllocationTable() {
         // NOTE: we can't read the allocation table in one go because std::vector<bool> is a specialization and it's not guaranteed to be contiguous
+        assert(mappedAddr != nullptr);
+
         size_t offset = HEADER_SIZE;
         for (size_t i = 0; i < numBlocks; i += 8) {
-            unsigned char byte;
-            memcpy(&byte, mappedAddr + offset, sizeof(byte));
-            offset += sizeof(byte);
+            unsigned char byte = mappedAddr[offset];
             for (size_t j = 0; j < 8 && i + j < numBlocks; j++) {
                 allocationTable[i + j] = byte & (1 << j);
             }
+            offset += sizeof(byte);
         }
     }
 };
