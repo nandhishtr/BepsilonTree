@@ -10,6 +10,9 @@
 #include "BeTreeIStorage.hpp"
 #include "BeTreeLeafNode.hpp"
 #include "BeTreeLRUCache.hpp"
+#include <cassert>
+#include <cstring>
+#include <stdexcept>
 
 #define MAGIC_NUMBER 11647106966631696989 // 8 bytes
 #define HEADER_SIZE 20 // magic number (8 bytes) + root node offset (8 bytes) + fanout (2 bytes) + max buffer size (2 bytes)
@@ -20,7 +23,7 @@ private:
     using NodePtr = typename BeTreeIStorage<KeyType, ValueType>::NodePtr;
     using CachePtr = std::weak_ptr<BeTreeLRUCache<KeyType, ValueType>>;
 
-    char* pmemAddr;
+    char* mappedAddr;
     size_t mappedLen;
     int isPmem;
     uint64_t numBlocks;
@@ -45,53 +48,53 @@ public:
 
     ~BeTreeNVMStorage() {
         this->flush();
-        if (pmemAddr != nullptr) {
-            pmem_unmap(pmemAddr, mappedLen);
+        if (mappedAddr != nullptr) {
+            pmem_unmap(mappedAddr, mappedLen);
         }
     }
 
     bool init(uint64_t& rootNodeOffset, uint16_t& fanout, uint16_t& maxBufferSize) override {
         if (fanout == 0 && maxBufferSize == 0) {
             // Try to open existing file
-            pmemAddr = (char*)pmem_map_file(this->filename.c_str(), 0, 0, 0666, &mappedLen, &isPmem);
-            if (pmemAddr == nullptr) {
+            mappedAddr = (char*)pmem_map_file(this->filename.c_str(), 0, 0, 0666, &mappedLen, &isPmem);
+            if (mappedAddr == nullptr) {
                 return false;
             }
 
             // Read header
             uint64_t magic;
             size_t offset = 0;
-            memcpy(&magic, pmemAddr + offset, sizeof(magic));
+            memcpy(&magic, mappedAddr + offset, sizeof(magic));
             offset += sizeof(magic);
             if (magic != MAGIC_NUMBER) {
-                pmem_unmap(pmemAddr, mappedLen);
+                pmem_unmap(mappedAddr, mappedLen);
                 return false;
             }
 
-            pmem_memcpy_persist(&rootNodeOffset, pmemAddr + offset, sizeof(rootNodeOffset));
+            pmem_memcpy_persist(&rootNodeOffset, mappedAddr + offset, sizeof(rootNodeOffset));
             offset += sizeof(rootNodeOffset);
-            pmem_memcpy_persist(&fanout, pmemAddr + offset, sizeof(fanout));
+            pmem_memcpy_persist(&fanout, mappedAddr + offset, sizeof(fanout));
             offset += sizeof(fanout);
-            pmem_memcpy_persist(&maxBufferSize, pmemAddr + offset, sizeof(maxBufferSize));
+            pmem_memcpy_persist(&maxBufferSize, mappedAddr + offset, sizeof(maxBufferSize));
             offset += sizeof(maxBufferSize);
             readAllocationTable();
         } else {
             // Create new file
-            pmemAddr = (char*)pmem_map_file(this->filename.c_str(), this->storageSize, PMEM_FILE_CREATE, 0666, &mappedLen, &isPmem);
-            if (pmemAddr == nullptr) {
+            mappedAddr = (char*)pmem_map_file(this->filename.c_str(), this->storageSize, PMEM_FILE_CREATE, 0666, &mappedLen, &isPmem);
+            if (mappedAddr == nullptr) {
                 return false;
             }
 
             // Write header
             uint64_t magic = MAGIC_NUMBER;
             size_t offset = 0;
-            pmem_memcpy_persist(pmemAddr + offset, &magic, sizeof(magic));
+            pmem_memcpy_persist(mappedAddr + offset, &magic, sizeof(magic));
             offset += sizeof(magic);
-            pmem_memcpy_persist(pmemAddr + offset, &rootNodeOffset, sizeof(rootNodeOffset));
+            pmem_memcpy_persist(mappedAddr + offset, &rootNodeOffset, sizeof(rootNodeOffset));
             offset += sizeof(rootNodeOffset);
-            pmem_memcpy_persist(pmemAddr + offset, &fanout, sizeof(fanout));
+            pmem_memcpy_persist(mappedAddr + offset, &fanout, sizeof(fanout));
             offset += sizeof(fanout);
-            pmem_memcpy_persist(pmemAddr + offset, &maxBufferSize, sizeof(maxBufferSize));
+            pmem_memcpy_persist(mappedAddr + offset, &maxBufferSize, sizeof(maxBufferSize));
             offset += sizeof(maxBufferSize);
             writeAllocationTable();
         }
@@ -103,7 +106,7 @@ public:
     }
 
     uint64_t saveNode(uint64_t id, NodePtr node) override {
-        assert(pmemAddr != nullptr);
+        assert(mappedAddr != nullptr);
         assert(node != nullptr);
 
         if (id == 0) {
@@ -134,8 +137,8 @@ public:
 
             // Write the node to PMEM
             size_t offset = start * this->blockSize;
-            size_t bytesWritten = node->serialize(pmemAddr + offset);
-            pmem_persist(pmemAddr + offset, bytesWritten);
+            size_t bytesWritten = node->serialize(mappedAddr + offset);
+            pmem_persist(mappedAddr + offset, bytesWritten);
 
             // Update the allocation table
             for (uint64_t i = start; i <= end; i++) {
@@ -146,37 +149,37 @@ public:
         } else {
             // Overwrite existing node
             size_t offset = id * this->blockSize;
-            size_t bytesWritten = node->serialize(pmemAddr + offset);
-            pmem_persist(pmemAddr + offset, bytesWritten);
+            size_t bytesWritten = node->serialize(mappedAddr + offset);
+            pmem_persist(mappedAddr + offset, bytesWritten);
 
             return 0;
         }
     }
 
     NodePtr loadNode(uint64_t id) override {
-        assert(pmemAddr != nullptr);
+        assert(mappedAddr != nullptr);
         assert(id != 0);
 
         size_t offset = id * this->blockSize;
         // Read the first byte to determine the type of the node
         uint8_t type;
-        pmem_memcpy_persist(&type, pmemAddr + offset, sizeof(type));
+        pmem_memcpy_persist(&type, mappedAddr + offset, sizeof(type));
 
         NodePtr node;
         if (type == 0) { // internal node
             node = std::make_shared<BeTreeInternalNode<KeyType, ValueType>>(this->fanout, this->cache.lock(), this->maxBufferSize);
         } else if (type == 1) { // leaf node
-            node = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->maxBufferSize, this->cache.lock());
+            node = std::make_shared<BeTreeLeafNode<KeyType, ValueType>>(this->fanout, this->cache.lock());
         } else {
             throw std::runtime_error("Invalid node type");
         }
-        node->deserialize(pmemAddr + offset);
+        node->deserialize(mappedAddr + offset);
         node->id = id;
         return node;
     }
 
     void removeNode(uint64_t id, NodePtr node) override {
-        assert(pmemAddr != nullptr);
+        assert(mappedAddr != nullptr);
         assert(node != nullptr);
         assert(id != 0);
 
@@ -189,23 +192,20 @@ public:
     }
 
     void updateRootNode(uint64_t rootNodeOffset) {
-        assert(pmemAddr != nullptr);
+        assert(mappedAddr != nullptr);
         assert(rootNodeOffset != 0);
 
         size_t offset = sizeof(uint64_t);
-        pmem_memcpy_persist(pmemAddr + offset, &rootNodeOffset, sizeof(rootNodeOffset));
+        pmem_memcpy_persist(mappedAddr + offset, &rootNodeOffset, sizeof(rootNodeOffset));
     }
 
     void flush() override {
-        assert(pmemAddr != nullptr);
+        assert(mappedAddr != nullptr);
 
         // Write the allocation table to PMEM
         writeAllocationTable();
 
-        if (pmem_persist(pmemAddr, mappedLen) != 0) {
-            throw std::runtime_error("Failed to persist data to PMEM");
-        }
-
+        pmem_persist(mappedAddr, mappedLen);
     }
 
 private:
@@ -217,7 +217,7 @@ private:
             for (size_t j = 0; j < 8 && i + j < numBlocks; j++) {
                 byte |= allocationTable[i + j] << j;
             }
-            pmem_memcpy_persist(pmemAddr + offset, &byte, sizeof(byte));
+            pmem_memcpy_persist(mappedAddr + offset, &byte, sizeof(byte));
             offset += sizeof(byte);
         }
     }
@@ -227,7 +227,7 @@ private:
         size_t offset = HEADER_SIZE;
         for (size_t i = 0; i < numBlocks; i += 8) {
             unsigned char byte;
-            pmem_memcpy_persist(&byte, pmemAddr + offset, sizeof(byte));
+            pmem_memcpy_persist(&byte, mappedAddr + offset, sizeof(byte));
             offset += sizeof(byte);
             for (size_t j = 0; j < 8 && i + j < numBlocks; j++) {
                 allocationTable[i + j] = byte & (1 << j);

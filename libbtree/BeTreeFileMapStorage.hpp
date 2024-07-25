@@ -78,22 +78,20 @@ public:
             // read the header
             uint64_t magic;
             size_t offset = 0;
-            memcpy(&magic, mappedAddr + offset, sizeof(uint64_t));
-            offset += sizeof(uint64_t);
+            memcpy(&magic, mappedAddr + offset, sizeof(magic));
+            offset += sizeof(magic);
             if (magic != MAGIC_NUMBER) {
                 munmap(mappedAddr, this->storageSize);
                 close(fd);
                 return false;
             }
 
-            memcpy(&rootNodeOffset, mappedAddr + offset, sizeof(uint64_t));
-            offset += sizeof(uint64_t);
-
-            memcpy(&fanout, mappedAddr + offset, sizeof(uint16_t));
-            offset += sizeof(uint16_t);
-
-            memcpy(&maxBufferSize, mappedAddr + offset, sizeof(uint16_t));
-            offset += sizeof(uint16_t);
+            memcpy(&rootNodeOffset, mappedAddr + offset, sizeof(rootNodeOffset));
+            offset += sizeof(rootNodeOffset);
+            memcpy(&fanout, mappedAddr + offset, sizeof(fanout));
+            offset += sizeof(fanout);
+            memcpy(&maxBufferSize, mappedAddr + offset, sizeof(maxBufferSize));
+            offset += sizeof(maxBufferSize);
 
             readAllocationTable();
         } else {
@@ -116,17 +114,14 @@ public:
 
             uint64_t magic = MAGIC_NUMBER;
             size_t offset = 0;
-            memcpy(mappedAddr + offset, &magic, sizeof(uint64_t));
-            offset += sizeof(uint64_t);
-
-            memcpy(mappedAddr + offset, &rootNodeOffset, sizeof(uint64_t));
-            offset += sizeof(uint64_t);
-
-            memcpy(mappedAddr + offset, &fanout, sizeof(uint16_t));
-            offset += sizeof(uint16_t);
-
-            memcpy(mappedAddr + offset, &maxBufferSize, sizeof(uint16_t));
-            offset += sizeof(uint16_t);
+            memcpy(mappedAddr + offset, &magic, sizeof(magic));
+            offset += sizeof(magic);
+            memcpy(mappedAddr + offset, &rootNodeOffset, sizeof(rootNodeOffset));
+            offset += sizeof(rootNodeOffset);
+            memcpy(mappedAddr + offset, &fanout, sizeof(fanout));
+            offset += sizeof(fanout);
+            memcpy(mappedAddr + offset, &maxBufferSize, sizeof(maxBufferSize));
+            offset += sizeof(maxBufferSize);
 
             writeAllocationTable();
         }
@@ -193,7 +188,7 @@ public:
         size_t offset = id * this->blockSize;
         // read the first byte to determine the type of the node
         uint8_t type;
-        memcpy(&type, mappedAddr + offset, sizeof(uint8_t));
+        memcpy(&type, mappedAddr + offset, sizeof(type));
 
         NodePtr node;
         if (type == 0) { // internal node
