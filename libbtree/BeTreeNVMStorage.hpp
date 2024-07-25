@@ -20,7 +20,7 @@ private:
     using NodePtr = typename BeTreeIStorage<KeyType, ValueType>::NodePtr;
     using CachePtr = std::weak_ptr<BeTreeLRUCache<KeyType, ValueType>>;
 
-    void* pmemAddr;
+    char* pmemAddr;
     size_t mappedLen;
     int isPmem;
     uint64_t numBlocks;
@@ -53,7 +53,7 @@ public:
     bool init(uint64_t& rootNodeOffset, uint16_t& fanout, uint16_t& maxBufferSize) override {
         if (fanout == 0 && maxBufferSize == 0) {
             // Try to open existing file
-            pmemAddr = pmem_map_file(this->filename.c_str(), 0, 0, 0666, &mappedLen, &isPmem);
+            pmemAddr = (char*)pmem_map_file(this->filename.c_str(), 0, 0, 0666, &mappedLen, &isPmem);
             if (pmemAddr == nullptr) {
                 return false;
             }
@@ -61,23 +61,23 @@ public:
             // Read header
             uint64_t magic;
             size_t offset = 0;
-            memcpy(&magic, pmemAddr, sizeof(magic));
+            memcpy(&magic, pmemAddr + offset, sizeof(magic));
             offset += sizeof(magic);
             if (magic != MAGIC_NUMBER) {
                 pmem_unmap(pmemAddr, mappedLen);
                 return false;
             }
 
-            memcpy(&rootNodeOffset, static_cast<char*>(pmemAddr) + offset, sizeof(rootNodeOffset));
+            pmem_memcpy_persist(&rootNodeOffset, pmemAddr + offset, sizeof(rootNodeOffset));
             offset += sizeof(rootNodeOffset);
-            memcpy(&fanout, static_cast<char*>(pmemAddr) + offset, sizeof(fanout));
+            pmem_memcpy_persist(&fanout, pmemAddr + offset, sizeof(fanout));
             offset += sizeof(fanout);
-            memcpy(&maxBufferSize, static_cast<char*>(pmemAddr) + offset, sizeof(maxBufferSize));
+            pmem_memcpy_persist(&maxBufferSize, pmemAddr + offset, sizeof(maxBufferSize));
             offset += sizeof(maxBufferSize);
             readAllocationTable();
         } else {
             // Create new file
-            pmemAddr = pmem_map_file(this->filename.c_str(), this->storageSize, PMEM_FILE_CREATE, 0666, &mappedLen, &isPmem);
+            pmemAddr = (char*)pmem_map_file(this->filename.c_str(), this->storageSize, PMEM_FILE_CREATE, 0666, &mappedLen, &isPmem);
             if (pmemAddr == nullptr) {
                 return false;
             }
@@ -85,13 +85,13 @@ public:
             // Write header
             uint64_t magic = MAGIC_NUMBER;
             size_t offset = 0;
-            pmem_memcpy_persist(static_cast<char*>(pmemAddr) + offset, &magic, sizeof(magic));
+            pmem_memcpy_persist(pmemAddr + offset, &magic, sizeof(magic));
             offset += sizeof(magic);
-            pmem_memcpy_persist(static_cast<char*>(pmemAddr) + offset, &rootNodeOffset, sizeof(rootNodeOffset));
+            pmem_memcpy_persist(pmemAddr + offset, &rootNodeOffset, sizeof(rootNodeOffset));
             offset += sizeof(rootNodeOffset);
-            pmem_memcpy_persist(static_cast<char*>(pmemAddr) + offset, &fanout, sizeof(fanout));
+            pmem_memcpy_persist(pmemAddr + offset, &fanout, sizeof(fanout));
             offset += sizeof(fanout);
-            pmem_memcpy_persist(static_cast<char*>(pmemAddr) + offset, &maxBufferSize, sizeof(maxBufferSize));
+            pmem_memcpy_persist(pmemAddr + offset, &maxBufferSize, sizeof(maxBufferSize));
             offset += sizeof(maxBufferSize);
             writeAllocationTable();
         }
@@ -133,13 +133,9 @@ public:
             }
 
             // Write the node to PMEM
-            void* destAddr = static_cast<char*>(pmemAddr) + start * this->blockSize;
-            size_t writtenSize = node->serialize(destAddr);
-            pmem_msync(destAddr, writtenSize);
-            //node->serialize([&](const char* data, size_t length) {
-            //    pmem_memcpy_persist(static_cast<char*>(destAddr) + writtenSize, data, length);
-            //    writtenSize += length;
-            //    });
+            size_t offset = start * this->blockSize;
+            size_t bytesWritten = node->serialize(pmemAddr + offset);
+            pmem_persist(pmemAddr + offset, bytesWritten);
 
             // Update the allocation table
             for (uint64_t i = start; i <= end; i++) {
@@ -149,13 +145,10 @@ public:
             return start;
         } else {
             // Overwrite existing node
-            void* destAddr = static_cast<char*>(pmemAddr) + id * this->blockSize;
-            size_t writtenSize = node->serialize(destAddr);
-            pmem_msync(destAddr, writtenSize);
-            //node->serialize([&](const char* data, size_t length) {
-            //    pmem_memcpy_persist(static_cast<char*>(destAddr) + writtenSize, data, length);
-            //    writtenSize += length;
-            //    });
+            size_t offset = id * this->blockSize;
+            size_t bytesWritten = node->serialize(pmemAddr + offset);
+            pmem_persist(pmemAddr + offset, bytesWritten);
+
             return 0;
         }
     }
@@ -164,11 +157,10 @@ public:
         assert(pmemAddr != nullptr);
         assert(id != 0);
 
-        void* srcAddr = static_cast<char*>(pmemAddr) + id * this->blockSize;
-
+        size_t offset = id * this->blockSize;
         // Read the first byte to determine the type of the node
         uint8_t type;
-        memcpy(&type, srcAddr, sizeof(type));
+        pmem_memcpy_persist(&type, pmemAddr + offset, sizeof(type));
 
         NodePtr node;
         if (type == 0) { // internal node
@@ -178,18 +170,14 @@ public:
         } else {
             throw std::runtime_error("Invalid node type");
         }
-
-        node->deserialize(srcAddr);
-        //node->deserialize([&](char* data, size_t length) {
-        //    memcpy(data, srcAddr, length);
-        //    srcAddr = static_cast<char*>(srcAddr) + length;
-        //    });
+        node->deserialize(pmemAddr + offset);
         node->id = id;
         return node;
     }
 
     void removeNode(uint64_t id, NodePtr node) override {
         assert(pmemAddr != nullptr);
+        assert(node != nullptr);
         assert(id != 0);
 
         // Update the allocation table
@@ -202,8 +190,10 @@ public:
 
     void updateRootNode(uint64_t rootNodeOffset) {
         assert(pmemAddr != nullptr);
+        assert(rootNodeOffset != 0);
 
-        pmem_memcpy_persist(static_cast<char*>(pmemAddr) + sizeof(uint64_t), &rootNodeOffset, sizeof(rootNodeOffset));
+        size_t offset = sizeof(uint64_t);
+        pmem_memcpy_persist(pmemAddr + offset, &rootNodeOffset, sizeof(rootNodeOffset));
     }
 
     void flush() override {
@@ -211,33 +201,36 @@ public:
 
         // Write the allocation table to PMEM
         writeAllocationTable();
+
+        if (pmem_persist(pmemAddr, mappedLen) != 0) {
+            throw std::runtime_error("Failed to persist data to PMEM");
+        }
+
     }
 
 private:
     void writeAllocationTable() {
-        size_t allocationTableSize = (numBlocks + 7) / 8; // Round up to nearest byte
-        void* destAddr = static_cast<char*>(pmemAddr) + HEADER_SIZE;
-
-        for (size_t i = 0; i < allocationTableSize; i++) {
-            uint8_t byte = 0;
-            for (size_t j = 0; j < 8 && i * 8 + j < numBlocks; j++) {
-                if (allocationTable[i * 8 + j]) {
-                    byte |= (1 << j);
-                }
+        // NOTE: we can't write the allocation table in one go because std::vector<bool> is a specialization and it's not guaranteed to be contiguous
+        size_t offset = HEADER_SIZE;
+        for (size_t i = 0; i < numBlocks; i += 8) {
+            unsigned char byte = 0;
+            for (size_t j = 0; j < 8 && i + j < numBlocks; j++) {
+                byte |= allocationTable[i + j] << j;
             }
-            pmem_memcpy_persist(static_cast<char*>(destAddr) + i, &byte, sizeof(uint8_t));
+            pmem_memcpy_persist(pmemAddr + offset, &byte, sizeof(byte));
+            offset += sizeof(byte);
         }
     }
 
     void readAllocationTable() {
-        size_t allocationTableSize = (numBlocks + 7) / 8; // Round up to nearest byte
-        void* srcAddr = static_cast<char*>(pmemAddr) + HEADER_SIZE;
-
-        for (size_t i = 0; i < allocationTableSize; i++) {
-            uint8_t byte;
-            memcpy(&byte, static_cast<char*>(srcAddr) + i, sizeof(uint8_t));
-            for (size_t j = 0; j < 8 && i * 8 + j < numBlocks; j++) {
-                allocationTable[i * 8 + j] = (byte & (1 << j)) != 0;
+        // NOTE: we can't read the allocation table in one go because std::vector<bool> is a specialization and it's not guaranteed to be contiguous
+        size_t offset = HEADER_SIZE;
+        for (size_t i = 0; i < numBlocks; i += 8) {
+            unsigned char byte;
+            pmem_memcpy_persist(&byte, pmemAddr + offset, sizeof(byte));
+            offset += sizeof(byte);
+            for (size_t j = 0; j < 8 && i + j < numBlocks; j++) {
+                allocationTable[i + j] = byte & (1 << j);
             }
         }
     }

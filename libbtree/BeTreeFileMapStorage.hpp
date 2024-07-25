@@ -130,6 +130,9 @@ public:
 
             writeAllocationTable();
         }
+
+        this->fanout = fanout;
+        this->maxBufferSize = maxBufferSize;
     }
 
     // returns the new id of the node if it was moved/created or 0 if it was not moved
