@@ -134,7 +134,7 @@ public:
 
             // Write the node to PMEM
             void* destAddr = static_cast<char*>(pmemAddr) + start * this->blockSize;
-            size_t writtenSize = node->serialize(destAddr);
+            size_t writtenSize = node->serialize((char*)destAddr);
             pmem_msync(destAddr, writtenSize);
             //node->serialize([&](const char* data, size_t length) {
             //    pmem_memcpy_persist(static_cast<char*>(destAddr) + writtenSize, data, length);
@@ -150,7 +150,7 @@ public:
         } else {
             // Overwrite existing node
             void* destAddr = static_cast<char*>(pmemAddr) + id * this->blockSize;
-            size_t writtenSize = node->serialize(destAddr);
+            size_t writtenSize = node->serialize((char*)destAddr);
             pmem_msync(destAddr, writtenSize);
             //node->serialize([&](const char* data, size_t length) {
             //    pmem_memcpy_persist(static_cast<char*>(destAddr) + writtenSize, data, length);
@@ -179,7 +179,7 @@ public:
             throw std::runtime_error("Invalid node type");
         }
 
-        node->deserialize(srcAddr);
+        node->deserialize((char*)srcAddr);
         //node->deserialize([&](char* data, size_t length) {
         //    memcpy(data, srcAddr, length);
         //    srcAddr = static_cast<char*>(srcAddr) + length;

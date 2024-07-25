@@ -73,7 +73,7 @@ bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool sto
         //cout << "Inserting " << arr[i] << endl;
         tree.insert(arr[i], arr[i]);
         // print the tree
-        //tree.printTree(cout);
+        // tree.printTree(cout);
 
         if (!stochastic) {
             // all inserted keys should be in the tree

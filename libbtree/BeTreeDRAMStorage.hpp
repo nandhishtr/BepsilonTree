@@ -22,7 +22,7 @@ template <typename KeyType, typename ValueType>
 class BeTreeDRAMStorage : public BeTreeIStorage<KeyType, ValueType> {
     /* Storage class that stores nodes in a big memory block */
 private:
-    using NodePtr = BeTreeIStorage<KeyType, ValueType>::NodePtr;
+    using NodePtr = typename BeTreeIStorage<KeyType, ValueType>::NodePtr;
     using CachePtr = std::weak_ptr<BeTreeLRUCache<KeyType, ValueType>>;
     uint64_t numBlocks = 0;
     char* mappedAddr;
