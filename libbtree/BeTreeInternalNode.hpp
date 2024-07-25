@@ -1,6 +1,5 @@
 #pragma once
 
-#include "pch.h"
 #include "BeTreeIStorage.hpp"
 #include "BeTreeMessage.hpp"
 #include "BeTreeNode.hpp"

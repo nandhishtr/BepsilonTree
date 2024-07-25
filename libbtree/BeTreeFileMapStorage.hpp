@@ -25,7 +25,7 @@ template <typename KeyType, typename ValueType>
 class BeTreeFileMapStorage : public BeTreeIStorage<KeyType, ValueType> {
     /* Storage class that stores nodes in a memory-mapped file */
 private:
-    using NodePtr = BeTreeIStorage<KeyType, ValueType>::NodePtr;
+    using NodePtr = typename BeTreeIStorage<KeyType, ValueType>::NodePtr;
     using CachePtr = std::weak_ptr<BeTreeLRUCache<KeyType, ValueType>>;
     uint64_t numBlocks = 0;
     int fd;
@@ -103,7 +103,7 @@ public:
                 return false;
             }
 
-            if (ftruncate(fd, storageSize) == -1) {
+            if (ftruncate(fd, this->storageSize) == -1) {
                 close(fd);
                 return false;
             }

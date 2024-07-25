@@ -1,6 +1,7 @@
 #pragma once
 #include "BeTreeIStorage.hpp"
 #include "BeTreeNode.hpp"
+#include <algorithm>
 #include <cstdint>
 #include <iostream>
 #include <list>

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "BeTreeNVMStorage.hpp"
+#include "BeTreeFileMapStorage.hpp"
 #include "BeTreeDRAMStorage.hpp"
 #include "BeTreeInternalNode.hpp"
 #include "BeTreeIStorage.hpp"
@@ -59,8 +61,9 @@ public:
         : fanout(fanout), maxBufferSize(maxBufferSize), rootNode(0) {
         this->cache = std::make_shared<BeTreeLRUCache<KeyType, ValueType>>(cache_capacity);
         //this->storage = std::make_shared<BeTreeFileMapStorage<KeyType, ValueType>>(blockSize, storageSize, filename, this->cache);
-        this->storage = std::make_shared<BeTreeDRAMStorage<KeyType, ValueType>>(blockSize, storageSize, this->cache);
+        //this->storage = std::make_shared<BeTreeDRAMStorage<KeyType, ValueType>>(blockSize, storageSize, this->cache);
         //this->storage = std::make_shared<BeTreeFileStorage<KeyType, ValueType>>(blockSize, storageSize, filename, this->cache);
+        this->storage = std::make_shared<BeTreeNVMStorage<KeyType, ValueType>>(blockSize, storageSize, filename, this->cache);
         this->storage->init(this->rootNode, this->fanout, this->maxBufferSize);
         this->cache->setStorage(this->storage);
     }

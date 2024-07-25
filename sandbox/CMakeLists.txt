@@ -6,7 +6,7 @@ project(sandbox VERSION 1.0)
 #set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #set(CMAKE_PREFIX_PATH "/usr/lib/x86_64-linux-gnu")
 
-find_package (glog 0.7.0 REQUIRED)
+find_package (glog 0.6.0 REQUIRED)
 
 set(CMAKE_BUILD_TYPE Debug)
 #set(CMAKE_PREFIX_PATH "/usr/lib/x86_64-linux-gnu/")
