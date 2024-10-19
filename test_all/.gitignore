@@ -1,0 +1,12 @@
+CMakeCache.txt
+CMakeFiles/
+CTestTestfile.cmake
+Makefile
+_deps/
+cmake_install.cmake
+lib/
+libbtree/
+libcache/
+test_all
+test_all*_include.cmake
+test_all*_tests.cmake

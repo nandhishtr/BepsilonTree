@@ -40,12 +40,12 @@ public:
 	}
 
 	DataNode()
-		: m_ptrData(make_shared<DATANODESTRUCT>())
+		: m_ptrData(std::make_shared<DATANODESTRUCT>())
 	{
 	}
 
 	DataNode(const DataNode& source)
-		: m_ptrData(make_shared<DATANODESTRUCT>())
+		: m_ptrData(std::make_shared<DATANODESTRUCT>())
 	{
 		for (const auto& obj : source.m_ptrData->m_vtKeys)
 		{
@@ -59,7 +59,7 @@ public:
 	}
 
 	DataNode(const char* szData)
-		: m_ptrData(make_shared<DATANODESTRUCT>())
+		: m_ptrData(std::make_shared<DATANODESTRUCT>())
 	{
 		size_t nKeyCount, nValueCount = 0;
 
@@ -76,14 +76,54 @@ public:
 
 		size_t nKeysSize = nKeyCount * sizeof(KeyType);
 		memcpy(m_ptrData->m_vtKeys.data(), szData + nOffset, nKeysSize);
+
+		//std::vector<KeyType> vt_ints(
+		//	reinterpret_cast<const int*>(szData + nOffset),
+		//	reinterpret_cast<const int*>(szData + nOffset + nKeyCount * sizeof(KeyType))
+		//);;
+
 		nOffset += nKeysSize;
 
 		size_t nValuesSize = nValueCount * sizeof(ValueType);
 		memcpy(m_ptrData->m_vtValues.data(), szData + nOffset, nValuesSize);
 	}
 
+	DataNode(const char* szData, bool readonly)
+		: m_ptrData(std::make_shared<DATANODESTRUCT>())
+	{
+		size_t nKeyCount, nValueCount = 0;
+
+		size_t nOffset = sizeof(uint8_t);
+
+		memcpy(&nKeyCount, szData + nOffset, sizeof(size_t));
+		nOffset += sizeof(size_t);
+
+		memcpy(&nValueCount, szData + nOffset, sizeof(size_t));
+		nOffset += sizeof(size_t);
+
+		m_ptrData->m_vtKeys.resize(nKeyCount);
+		m_ptrData->m_vtValues.resize(nValueCount);
+
+		size_t nKeysSize = nKeyCount * sizeof(KeyType);
+		//memcpy(m_ptrData->m_vtKeys.data(), szData + nOffset, nKeysSize);
+
+		m_ptrData->m_vtKeys.assign(
+			reinterpret_cast<const KeyType*>(szData + nOffset),
+			reinterpret_cast<const KeyType*>(szData + nOffset + nKeysSize)
+		);
+
+		nOffset += nKeysSize;
+
+		size_t nValuesSize = nValueCount * sizeof(ValueType);
+		//memcpy(m_ptrData->m_vtValues.data(), szData + nOffset, nValuesSize);
+		m_ptrData->m_vtValues.assign(
+			reinterpret_cast<const ValueType*>(szData + nOffset),
+			reinterpret_cast<const ValueType*>(szData + nOffset + nValuesSize)
+		);
+	}
+
 	DataNode(std::fstream& is)
-		: m_ptrData(make_shared<DATANODESTRUCT>())
+		: m_ptrData(std::make_shared<DATANODESTRUCT>())
 	{
 		size_t keyCount, valueCount;
 
@@ -98,7 +138,7 @@ public:
 	}
 
 	DataNode(KeyTypeIterator itBeginKeys, KeyTypeIterator itEndKeys, ValueTypeIterator itBeginValues, ValueTypeIterator itEndValues)
-		: m_ptrData(make_shared<DATANODESTRUCT>())
+		: m_ptrData(std::make_shared<DATANODESTRUCT>())
 	{
 		m_ptrData->m_vtKeys.assign(itBeginKeys, itEndKeys);
 		m_ptrData->m_vtValues.assign(itBeginValues, itEndValues);
@@ -138,21 +178,35 @@ public:
 		return ErrorCode::KeyDoesNotExist;
 	}
 
-	inline bool requireSplit(size_t nDegree)
+	inline bool requireSplit(size_t nDegree) const
 	{
 		return m_ptrData->m_vtKeys.size() > nDegree;
 	}
 
-	inline bool requireMerge(size_t nDegree)
+	inline bool requireMerge(size_t nDegree) const
 	{
 		return m_ptrData->m_vtKeys.size() <= std::ceil(nDegree / 2.0f);
 	}
 
-	inline size_t getKeysCount() {
+	inline size_t getKeysCount() const {
 		return m_ptrData->m_vtKeys.size();
 	}
 
-	inline ErrorCode getValue(const KeyType& key, ValueType& value)
+	//inline ErrorCode getValue(const KeyType& key, ValueType& value)
+	//{
+	//	KeyTypeIterator it = std::lower_bound(m_ptrData->m_vtKeys.begin(), m_ptrData->m_vtKeys.end(), key);
+	//	if (it != m_ptrData->m_vtKeys.end() && *it == key)
+	//	{
+	//		size_t index = it - m_ptrData->m_vtKeys.begin();
+	//		value = m_ptrData->m_vtValues[index];
+
+	//		return ErrorCode::Success;
+	//	}
+
+	//	return ErrorCode::KeyDoesNotExist;
+	//}
+
+	inline ErrorCode getValue(const KeyType& key, ValueType& value) const
 	{
 		KeyTypeIterator it = std::lower_bound(m_ptrData->m_vtKeys.begin(), m_ptrData->m_vtKeys.end(), key);
 		if (it != m_ptrData->m_vtKeys.end() && *it == key)
@@ -188,6 +242,21 @@ public:
 		return ErrorCode::Success;
 	}
 
+	inline ErrorCode split(std::shared_ptr<SelfType> ptrSibling, KeyType& pivotKeyForParent)
+	{
+		size_t nMid = m_ptrData->m_vtKeys.size() / 2;
+
+		ptrSibling->m_ptrData->m_vtKeys.assign(m_ptrData->m_vtKeys.begin() + nMid, m_ptrData->m_vtKeys.end());
+		ptrSibling->m_ptrData->m_vtValues.assign(m_ptrData->m_vtValues.begin() + nMid, m_ptrData->m_vtValues.end());
+
+		pivotKeyForParent = m_ptrData->m_vtKeys[nMid];
+
+		m_ptrData->m_vtKeys.resize(nMid);
+		m_ptrData->m_vtValues.resize(nMid);
+
+		return ErrorCode::Success;
+	}
+
 	inline void moveAnEntityFromLHSSibling(std::shared_ptr<SelfType> ptrLHSSibling, KeyType& pivotKeyForParent)
 	{
 		KeyType key = ptrLHSSibling->m_ptrData->m_vtKeys.back();
@@ -198,7 +267,7 @@ public:
 
 		if (ptrLHSSibling->m_ptrData->m_vtKeys.size() == 0)
 		{
-			throw new std::exception("should not occur!");
+			throw new std::logic_error("should not occur!");
 		}
 
 		m_ptrData->m_vtKeys.insert(m_ptrData->m_vtKeys.begin(), key);
@@ -217,7 +286,7 @@ public:
 
 		if (ptrRHSSibling->m_ptrData->m_vtKeys.size() == 0)
 		{
-			throw new std::exception("should not occur!");
+			throw new std::logic_error("should not occur!");
 		}
 
 		m_ptrData->m_vtKeys.push_back(key);
@@ -233,23 +302,23 @@ public:
 	}
 
 public:
-	inline size_t getSize()
+	inline size_t getSize() const
 	{
 		return
 			sizeof(uint8_t)
 			+ sizeof(size_t)
 			+ sizeof(size_t)
 			+ (m_ptrData->m_vtKeys.size() * sizeof(KeyType))
-			+ (m_ptrData->m_vtValues.size() * sizeof(ObjectUIDType::NodeUID));
+			+ (m_ptrData->m_vtValues.size() * sizeof(ValueType));
 	}
 
-	inline void serialize(char*& szBuffer, uint8_t& uidObjectType, size_t& nBufferSize)
+	inline void serialize(char*& szBuffer, uint8_t& uidObjectType, size_t& nBufferSize) const
 	{
 		static_assert(
 			std::is_trivial<KeyType>::value &&
 			std::is_standard_layout<KeyType>::value &&
-			std::is_trivial<ObjectUIDType::NodeUID>::value &&
-			std::is_standard_layout<ObjectUIDType::NodeUID>::value,
+			std::is_trivial<ValueType>::value &&
+			std::is_standard_layout<ValueType>::value,
 			"Can only deserialize POD types with this function");
 
 		uidObjectType = UID;
@@ -260,7 +329,7 @@ public:
 		nBufferSize = sizeof(uint8_t) + (nKeyCount * sizeof(KeyType)) + (nValueCount * sizeof(ValueType)) + sizeof(size_t) + sizeof(size_t);
 
 		szBuffer = new char[nBufferSize + 1];
-		memset(szBuffer, '\0', nBufferSize + 1);
+		memset(szBuffer, 0, nBufferSize + 1);
 
 		size_t nOffset = 0;
 		memcpy(szBuffer, &UID, sizeof(uint8_t));
@@ -303,7 +372,7 @@ public:
 		*/
 	}
 
-	inline void writeToStream(std::fstream& os, uint8_t& uidObjectType, size_t& nDataSize)
+	inline void writeToStream(std::fstream& os, uint8_t& uidObjectType, size_t& nDataSize) const
 	{
 		static_assert(
 			std::is_trivial<KeyType>::value &&
@@ -312,14 +381,14 @@ public:
 			std::is_standard_layout<ValueType>::value,
 			"Can only deserialize POD types with this function");
 
-		uidObjectType = UID;
+		uidObjectType = SelfType::UID;
 
 		size_t nKeyCount = m_ptrData->m_vtKeys.size();
 		size_t nValueCount = m_ptrData->m_vtValues.size();
 
 		nDataSize = sizeof(uint8_t) + (nKeyCount * sizeof(KeyType)) + (nValueCount * sizeof(ValueType)) + sizeof(size_t) + sizeof(size_t);
 
-		os.write(reinterpret_cast<const char*>(&UID), sizeof(uint8_t));
+		os.write(reinterpret_cast<const char*>(&uidObjectType), sizeof(uint8_t));
 		os.write(reinterpret_cast<const char*>(&nKeyCount), sizeof(size_t));
 		os.write(reinterpret_cast<const char*>(&nValueCount), sizeof(size_t));
 		os.write(reinterpret_cast<const char*>(m_ptrData->m_vtKeys.data()), nKeyCount * sizeof(KeyType));

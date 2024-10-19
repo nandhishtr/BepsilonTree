@@ -10,15 +10,16 @@
 #include <queue>
 #include  <algorithm>
 #include <tuple>
+#include <condition_variable>
 
-#include "ErrorCodes.h"
 #include "IFlushCallback.h"
 #include "VariadicNthType.h"
 
-#define __CONCURRENT__
-//#define __TREE_AWARE_CACHE__
-
 #define FLUSH_COUNT 100
+
+
+using namespace std::chrono_literals;
+
 
 template <typename ICallback, typename StorageType>
 class LRUCache : public ICallback
@@ -100,7 +101,7 @@ public:
 		, m_ptrTail(nullptr)
 	{
 		m_ptrStorage = std::make_unique<StorageType>(args...);
-
+		
 #ifdef __CONCURRENT__
 		m_bStop = false;
 		m_threadCacheFlush = std::thread(handlerCacheFlush, this);
@@ -154,6 +155,8 @@ public:
 			std::shared_ptr<Item> ptrItem = m_mpObjects[uidObject];
 			moveToFront(ptrItem);
 			ptrObject = ptrItem->m_ptrObject;
+
+			//std::cout << std::endl;
 			return CacheErrorCode::Success;
 		}
 
@@ -163,6 +166,8 @@ public:
 #endif __CONCURRENT__
 
 		ObjectUIDType _uidUpdated = uidObject;
+				//std::cout << _uidUpdated.toString().c_str() << " , ";
+
 		if (m_mpUpdatedUIDs.find(uidObject) != m_mpUpdatedUIDs.end())
 		{
 
@@ -180,6 +185,7 @@ public:
 			m_mpUpdatedUIDs.erase(uidObject);	// Applied.
 			_uidUpdated = *uidUpdated;
 		}
+//std::cout << _uidUpdated.toString().c_str() << " ,..... ";
 
 #ifdef __CONCURRENT__
 		lock_storage.unlock();
@@ -223,9 +229,12 @@ public:
 #ifndef __CONCURRENT__
 			flushItemsToStorage();
 #endif __CONCURRENT__
-
+//std::cout << std::endl;
 			return CacheErrorCode::Success;
-		}
+		} else {
+			//std::cout << "is nulllllll!" << std::endl;
+		ptrObject == nullptr;
+}
 
 		return CacheErrorCode::Error;
 	}
@@ -249,7 +258,7 @@ public:
 			{
 				if (ensure) 
 				{
-					throw new std::exception("should not occur!");
+					throw new std::logic_error("should not occur!");
 				}
 			}
 
@@ -418,9 +427,9 @@ public:
 	template<class Type, typename... ArgsType>
 	CacheErrorCode createObjectOfType(std::optional<ObjectUIDType>& uidObject, std::shared_ptr<Type>& ptrCoreObject, const ArgsType... args)
 	{
-		std::shared_ptr<ObjectType> ptrObject = std::make_shared<ObjectType>(std::make_shared<Type>(args...));
+		ptrCoreObject = std::make_shared<Type>(args...);
 
-		ptrCoreObject = ptrObject->data;
+		std::shared_ptr<ObjectType> ptrObject = std::make_shared<ObjectType>(ptrCoreObject);
 
 		uidObject = ObjectUIDType::createAddressFromVolatilePointer(reinterpret_cast<uintptr_t>(ptrObject.get()));
 
@@ -473,6 +482,13 @@ public:
 		} while (_ptrItem != nullptr);
 
 		map = m_mpObjects.size();
+	}
+
+	CacheErrorCode flush()
+	{
+		flushCacheToStorage();
+
+		return CacheErrorCode::Success;
 	}
 
 private:
@@ -605,13 +621,13 @@ private:
 		std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>> vtObjects;
 
 		std::unique_lock<std::shared_mutex> lock_cache(m_mtxCache);
-
+//std::cout << m_mpObjects.size() << " , ";
 		if (m_mpObjects.size() < m_nCacheCapacity)
 			return;
 
 		size_t nFlushCount = m_mpObjects.size() - m_nCacheCapacity;
 
-		if (nFlushCount > FLUSH_COUNT)
+		if (nFlushCount > FLUSH_COUNT)	//todo: should push all the outstanding orders all together?
 			nFlushCount = FLUSH_COUNT;
 
 		for (size_t idx = 0; idx < nFlushCount; idx++)
@@ -639,6 +655,7 @@ private:
 				m_ptrTail->m_ptrObject->mutex.unlock();
 			}
 
+//std::cout << ptrItemToFlush->m_uidSelf.toString().c_str() << " , ";
 
 			std::shared_ptr<Item> ptrItemToFlush = m_ptrTail;
 
@@ -680,12 +697,12 @@ private:
 		{
 			if ((*it).second.second.use_count() != 1)
 			{
-				throw new std::exception("should not occur!");
+				throw new std::logic_error("should not occur!");
 			}
 
 			if (m_mpUpdatedUIDs.find((*it).first) != m_mpUpdatedUIDs.end())
 			{
-				throw new std::exception("should not occur!");
+				throw new std::logic_error("should not occur!");
 			}
 			else
 			{
@@ -708,7 +725,7 @@ private:
 			}
 			else
 			{
-				throw new std::exception("should not occur!");
+				throw new std::logic_error("should not occur!");
 			}
 
 			it++;
@@ -739,12 +756,12 @@ private:
 				ObjectUIDType uidUpdated;
 				if (m_ptrStorage->addObject(m_ptrTail->m_uidSelf, m_ptrTail->m_ptrObject, uidUpdated) != CacheErrorCode::Success)
 				{
-					throw new std::exception("should not occur!");
+					throw new std::logic_error("should not occur!");
 				}
 
 				if (m_mpUpdatedUIDs.find(m_ptrTail->m_uidSelf) != m_mpUpdatedUIDs.end())
 				{
-					throw new std::exception("should not occur!");
+					throw new std::logic_error("should not occur!");
 				}
 
 				m_mpUpdatedUIDs[m_ptrTail->m_uidSelf] = std::make_pair(uidUpdated, m_ptrTail->m_ptrObject);
@@ -768,6 +785,73 @@ private:
 #endif __CONCURRENT__
 	}
 
+	inline void flushCacheToStorage()
+	{
+#ifdef __CONCURRENT__
+		//The current implementation blocks the whole cache, should not be flush allowed at the node level!
+		//throw new std::logic_error("implementation missing!");
+		return; //fix this
+#else __CONCURRENT__
+
+		std::shared_ptr<Item> ptrCurrentTail = m_ptrTail;
+		int i = 0;
+		std::cout << m_mpObjects.size() << std::endl;
+
+		while (ptrCurrentTail)
+		{
+			//std::cout << i++ << std::endl;
+			if (ptrCurrentTail->m_ptrObject.use_count() > 1)
+			{
+				// Node in use.. technically this should not occur when flush is called.. anyhow abort the operation.. Also handle thsi case properly later!
+				/* Info:
+				 * Should proceed with the preceeding one?
+				 * But since each operation reorders the items at the end, therefore, the prceeding items would be in use as well!
+				 */
+				return;
+			}
+
+			if (ptrCurrentTail->m_ptrObject->dirty)
+			{
+				if (m_mpUpdatedUIDs.size() > 0)
+				{
+					m_ptrCallback->applyExistingUpdates(ptrCurrentTail->m_ptrObject, m_mpUpdatedUIDs);
+				}
+
+				ObjectUIDType uidUpdated;
+				if (m_ptrStorage->addObject(ptrCurrentTail->m_uidSelf, ptrCurrentTail->m_ptrObject, uidUpdated) != CacheErrorCode::Success)
+				{
+					throw new std::logic_error("should not occur!");
+				}
+
+				if (m_mpUpdatedUIDs.find(ptrCurrentTail->m_uidSelf) != m_mpUpdatedUIDs.end())
+				{
+					throw new std::logic_error("should not occur!");
+				}
+
+				m_mpUpdatedUIDs[ptrCurrentTail->m_uidSelf] = std::make_pair(uidUpdated, ptrCurrentTail->m_ptrObject);
+
+				m_mpObjects[uidUpdated] = ptrCurrentTail;
+				m_mpObjects.erase(ptrCurrentTail->m_uidSelf);
+			}
+
+			//m_mpObjects.erase(m_ptrTail->m_uidSelf);
+
+			//std::shared_ptr<Item> ptrTemp = m_ptrTail;
+
+			ptrCurrentTail = ptrCurrentTail->m_ptrPrev;
+
+			//if (m_ptrTail)
+			//{
+			//	m_ptrTail->m_ptrNext = nullptr;
+			//}
+			//else
+			//{
+			//	m_ptrHead = nullptr;
+			//}
+		}
+#endif __CONCURRENT__
+	}
+
 #ifdef __CONCURRENT__
 	static void handlerCacheFlush(SelfType* ptrSelf)
 	{
@@ -781,7 +865,7 @@ private:
 	}
 #endif __CONCURRENT__
 
-#ifdef __TREE_AWARE_CACHE__
+#ifdef __TREE_WITH_CACHE__
 public:
 	void applyExistingUpdates(std::vector<std::pair<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>>& vtNodes
 		, std::unordered_map<ObjectUIDType, std::pair<std::optional<ObjectUIDType>, std::shared_ptr<ObjectType>>>& mpUpdatedUIDs)
@@ -800,5 +884,5 @@ public:
 	{
 
 	}
-#endif __TREE_AWARE_CACHE__
+#endif __TREE_WITH_CACHE__
 };

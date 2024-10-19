@@ -1,639 +1,373 @@
-#include <iostream>
 
-#include "BPlusStore.hpp"
-#include "NoCache.hpp"
-#include "glog/logging.h"
-#include <type_traits>
-
-#include <variant>
-#include <typeinfo>
-
-#include "DataNode.hpp"
-#include "IndexNode.hpp"
-
-#include <chrono>
+#include "BeTree.hpp"
+#include <algorithm>
 #include <cassert>
-
-#include "LRUCache.hpp"
-#include "VolatileStorage.hpp"
-#include "NoCacheObject.hpp"
-#include "LRUCacheObject.hpp"
-#include "FileStorage.hpp"
-#include "TypeMarshaller.hpp"
-
-#include "TypeUID.h"
+#include <chrono>
+#include <cstdint>
+#include <ErrorCodes.h>
+#include <exception>
 #include <iostream>
+#include <random>
+#include <stdlib.h>
+#include <vector>
 
-#include "ObjectFatUID.h"
-#include "ObjectUID.h"
+using namespace std;
 
+#define ASSERT_WITH_PRINT(expr, message) \
+    do { \
+        if (!(expr)) { \
+            std::cerr << "Assertion failed: (" << #expr << ") " \
+                      << "at " << __FILE__ << ":" << __LINE__ << std::endl; \
+            std::cerr << message << std::endl; \
+            std::abort(); \
+        } \
+    } while (0)
 
+void print_progress(int iteration, int total, int step = 1) {
+    iteration++;
+    if (step == 0) return;
+    if (iteration % step != 0 && iteration != total) return; // Print only at step intervals (and at the end)
 
-#ifdef __CONCURRENT__
+    int barWidth = 70; // Width of the progress bar
+    float progress = (float)iteration / total;
+    std::cout << "[";
+    int pos = barWidth * progress;
 
-template <typename BPlusStoreType, typename IndexNodeType, typename DataNodeType>
-void insert_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
-    for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
-    {
-        ptrTree->insert(nCntr, nCntr);
+    for (int i = 0; i < barWidth; ++i) {
+        if (i < pos) std::cout << "=";
+        else if (i == pos) std::cout << ">";
+        else std::cout << " ";
+    }
+    std::cout << "] " << int(progress * 100.0) << "% (" << iteration << "/" << total << ")\r";
+    //std::cout.flush(); // Important to flush, so the progress bar is updated in the same line
+}
+
+void shuffle(int* arr, int size) {
+    for (int i = 0; i < size; i++) {
+        int j = rand() % size;
+        int temp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = temp;
     }
 }
 
-template <typename BPlusStoreType, typename IndexNodeType, typename DataNodeType>
-void reverse_insert_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
-    for (int nCntr = nRangeEnd - 1; nCntr >= nRangeStart; nCntr--)
-    {
-        ptrTree->insert(nCntr, nCntr);
-    }
-}
-
-template <typename BPlusStoreType, typename IndexNodeType, typename DataNodeType>
-void search_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
-    for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
-    {
-        int nValue = 0;
-        ErrorCode code = ptrTree->search(nCntr, nValue);
-
-        assert(nCntr == nValue);
-    }
-}
-
-template <typename BPlusStoreType, typename IndexNodeType, typename DataNodeType>
-void search_not_found_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
-    for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
-    {
-        int nValue = 0;
-        ErrorCode errCode = ptrTree->search(nCntr, nValue);
-
-        assert(errCode == ErrorCode::KeyDoesNotExist);
-    }
-}
-
-template <typename BPlusStoreType, typename IndexNodeType, typename DataNodeType>
-void delete_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
-    for (size_t nCntr = nRangeStart; nCntr < nRangeEnd; nCntr++)
-    {
-        ErrorCode code = ptrTree->remove(nCntr);
-    }
-}
-
-template <typename BPlusStoreType, typename IndexNodeType, typename DataNodeType>
-void reverse_delete_concurent(BPlusStoreType* ptrTree, int nRangeStart, int nRangeEnd) {
-    for (int nCntr = nRangeEnd - 1; nCntr >= nRangeStart; nCntr--)
-    {
-        ErrorCode code = ptrTree->remove(nCntr);
-    }
-}
-
-
-template <typename BPlusStoreType, typename IndexNodeType, typename DataNodeType>
-void threaded_test(BPlusStoreType* ptrTree, int degree, int total_entries, int thread_count)
-{
-    vector<std::thread> vtThreads;
-
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-
-    int i = 0;
-    while (i++ < 10) {
-        std::cout << i << std::endl;
-
-        for (int nIdx = 0; nIdx < thread_count; nIdx++)
-        {
-            int nTotal = total_entries / thread_count;
-            vtThreads.push_back(std::thread(insert_concurent<BPlusStoreType, IndexNodeType, DataNodeType>, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
-        }
-
-        auto it = vtThreads.begin();
-        while (it != vtThreads.end())
-        {
-            (*it).join();
-            it++;
-        }
-
-        vtThreads.clear();
-
-        for (int nIdx = 0; nIdx < thread_count; nIdx++)
-        {
-            int nTotal = total_entries / thread_count;
-            vtThreads.push_back(std::thread(search_concurent<BPlusStoreType, IndexNodeType, DataNodeType>, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
-        }
-
-        it = vtThreads.begin();
-        while (it != vtThreads.end())
-        {
-            (*it).join();
-            it++;
-        }
-
-        vtThreads.clear();
-
-        for (int nIdx = 0; nIdx < thread_count; nIdx++)
-        {
-            int nTotal = total_entries / thread_count;
-            vtThreads.push_back(std::thread(delete_concurent<BPlusStoreType, IndexNodeType, DataNodeType>, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
-        }
-
-        it = vtThreads.begin();
-        while (it != vtThreads.end())
-        {
-            (*it).join();
-            it++;
-        }
-
-        vtThreads.clear();
-
-        for (int nIdx = 0; nIdx < thread_count; nIdx++)
-        {
-            int nTotal = total_entries / thread_count;
-            vtThreads.push_back(std::thread(search_not_found_concurent<BPlusStoreType, IndexNodeType, DataNodeType>, ptrTree, nIdx * nTotal, nIdx * nTotal + nTotal));
-        }
-
-        it = vtThreads.begin();
-        while (it != vtThreads.end())
-        {
-            (*it).join();
-            it++;
-        }
-
-        vtThreads.clear();
-
-        size_t lru, map;
-        ptrTree->getCacheState(lru, map);
-        assert(lru == 1 && map == 1);
-
-    }
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
-    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
-}
-
-#endif __CONCURRENT__
-
-template <typename BPlusStoreType, typename IndexNodeType, typename DataNodeType>
-void int_test(BPlusStoreType* ptrTree, int degree, int total_entries)
-{
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-
-    int i = 0;
-    while (i++ < 10) {
-        std::cout << i << ",";
-        for (size_t nCntr = 0; nCntr < total_entries; nCntr = nCntr + 2)
-        {
-            ptrTree->insert(nCntr, nCntr);
-        }
-
-
-        /*std::ofstream out_1("d:\\tree_post_insert_0.txt");
-        ptrTree->print(out_1);
-        out_1.flush();
-        out_1.close();*/
-
-        for (size_t nCntr = 1; nCntr < total_entries; nCntr = nCntr + 2)
-        {
-            ptrTree->insert(nCntr, nCntr);
-
-            //std::string _fn = "d:\\tree_post_insert_file_";
-            //_fn.append(to_string(nCntr));
-            //_fn.append(".txt");
-            //std::ofstream out_t(_fn);
-            //ptrTree->print(out_t);
-            //out_t.flush();
-            //out_t.close();
-
-        }
-
-        /*std::ofstream out_t("d:\\tree_post_insert_file.txt");
-        ptrTree->print(out_t);
-        out_t.flush();
-        out_t.close();*/
-
-        for (size_t nCntr = 0; nCntr < total_entries; nCntr++)
-        {
-            int nValue = 0;
-            ErrorCode code = ptrTree->search(nCntr, nValue);
-
-            assert(nValue == nCntr);
-        }
-
-        for (size_t nCntr = 0; nCntr < total_entries; nCntr = nCntr + 2)
-        {
-            ErrorCode code = ptrTree->remove(nCntr);
-        }
-        for (size_t nCntr = 1; nCntr < total_entries; nCntr = nCntr + 2)
-        {
-            ErrorCode code = ptrTree->remove(nCntr);
-        }
-
-        for (int nCntr = 0; nCntr < total_entries; nCntr++)
-        {
-            int nValue = 0;
-            ErrorCode code = ptrTree->search(nCntr, nValue);
-
-            assert(code == ErrorCode::KeyDoesNotExist);
-        }
-
-        size_t lru, map;
-        ptrTree->getCacheState(lru, map);
-        assert(lru == 1 && map == 1);
-    }
-    i = 0;
-    while (i++ < 10) {
-        std::cout << "rev:" << i << ",";
-        for (int nCntr = total_entries; nCntr >= 0; nCntr = nCntr - 2)
-        {
-            ptrTree->insert(nCntr, nCntr);
-        }
-        for (int nCntr = total_entries - 1; nCntr >= 0; nCntr = nCntr - 2)
-        {
-            ptrTree->insert(nCntr, nCntr);
-        }
-
-        for (int nCntr = 0; nCntr < total_entries; nCntr++)
-        {
-            int nValue = 0;
-            ErrorCode code = ptrTree->search(nCntr, nValue);
-
-            assert(nValue == nCntr);
-        }
-
-        for (int nCntr = total_entries; nCntr >= 0; nCntr = nCntr - 2)
-        {
-            ErrorCode code = ptrTree->remove(nCntr);
-        }
-        for (int nCntr = total_entries - 1; nCntr >= 0; nCntr = nCntr - 2)
-        {
-            ErrorCode code = ptrTree->remove(nCntr);
-        }
-
-        for (int nCntr = 0; nCntr < total_entries; nCntr++)
-        {
-            int nValue = 0;
-            ErrorCode code = ptrTree->search(nCntr, nValue);
-
-            assert(code == ErrorCode::KeyDoesNotExist);
-        }
-
-        size_t lru, map;
-        ptrTree->getCacheState(lru, map);
-        assert(lru == 1 && map == 1);
-    }
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
-    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
-}
-
-template <typename BPlusStoreType, typename IndexNodeType, typename DataNodeType>
-void string_test(BPlusStoreType* ptrTree, int degree, int total_entries)
-{
-    std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
-
-    int i = 0;
-
-    while (i++ < 10) {
-        std::cout << i << ",";;
-        for (size_t nCntr = 0; nCntr < total_entries; nCntr = nCntr + 2)
-        {
-            ptrTree->insert(to_string(nCntr), to_string(nCntr));
-        }
-        for (size_t nCntr = 1; nCntr < total_entries; nCntr = nCntr + 2)
-        {
-            ptrTree->insert(to_string(nCntr), to_string(nCntr));
-        }
-
-        for (size_t nCntr = 0; nCntr < total_entries; nCntr++)
-        {
-            string nValue = "";
-            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
-
-            assert(nValue == to_string(nCntr));
-        }
-
-        for (size_t nCntr = 0; nCntr < total_entries; nCntr = nCntr + 2)
-        {
-            ErrorCode code = ptrTree->remove(to_string(nCntr));
-        }
-        for (size_t nCntr = 1; nCntr < total_entries; nCntr = nCntr + 2)
-        {
-            ErrorCode code = ptrTree->remove(to_string(nCntr));
-        }
-
-        for (size_t nCntr = 0; nCntr < total_entries; nCntr++)
-        {
-            string nValue = "";
-            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
-
-            assert(code == ErrorCode::KeyDoesNotExist);
-        }
-
-        size_t lru, map;
-        ptrTree->getCacheState(lru, map);
-        assert(lru == 1 && map == 1);
-    }
-
-    i = 0;
-    while (i++ < 10) {
-        std::cout << "rev:" << i << ",";
-
-        for (int nCntr = total_entries - 1; nCntr >= 0; nCntr = nCntr - 2)
-        {
-            ptrTree->insert(to_string(nCntr), to_string(nCntr));
-        }
-        for (int nCntr = total_entries; nCntr >= 0; nCntr = nCntr - 2)
-        {
-            ptrTree->insert(to_string(nCntr), to_string(nCntr));
-        }
-
-        for (int nCntr = 0; nCntr < total_entries; nCntr++)
-        {
-            string nValue = "";
-            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
-
-            assert(nValue == to_string(nCntr));
-        }
-
-        for (int nCntr = total_entries; nCntr >= 0; nCntr = nCntr - 2)
-        {
-            ErrorCode code = ptrTree->remove(to_string(nCntr));
-        }
-        for (int nCntr = total_entries - 1; nCntr >= 0; nCntr = nCntr - 2)
-        {
-            ErrorCode code = ptrTree->remove(to_string(nCntr));
-        }
-
-        for (int nCntr = 0; nCntr < total_entries; nCntr++)
-        {
-            string nValue = "";
-            ErrorCode code = ptrTree->search(to_string(nCntr), nValue);
-
-            assert(code == ErrorCode::KeyDoesNotExist);
-        }
-        size_t lru, map;
-        ptrTree->getCacheState(lru, map);
-        assert(lru == 1 && map == 1);
-    }
-
-    std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() << "[µs]" << std::endl;
-    std::cout << "Time difference = " << std::chrono::duration_cast<std::chrono::nanoseconds> (end - begin).count() << "[ns]" << std::endl;
-}
-
-void test_for_ints()
-{
-    for (int idx = 3; idx < 40; idx++) {
-        std::cout << "test_for_ints idx:" << idx << "| ";
-        {
-#ifndef __TREE_AWARE_CACHE__
-            typedef int KeyType;
-            typedef int ValueType;
-            typedef uintptr_t ObjectUIDType;
-
-            typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
-            typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> IndexNodeType;
-
-            typedef BPlusStore<KeyType, ValueType, NoCache<ObjectUIDType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
-            BPlusStoreType ptrTree(idx);
-            ptrTree.template init<DataNodeType>();
-
-            int_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 10000);
-#endif __TREE_AWARE_CACHE__
-        }
-        {
-#ifdef __TREE_AWARE_CACHE__
-            typedef int KeyType;
-            typedef int ValueType;
-            typedef ObjectFatUID ObjectUIDType;
-
-            typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
-            typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> IndexNodeType;
-
-            typedef LRUCacheObject<TypeMarshaller, DataNodeType, IndexNodeType> ObjectType;
-            typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
-
-            typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, VolatileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
-            BPlusStoreType ptrTree(idx, 1000, 100000000);
-            ptrTree.template init<DataNodeType>();
-
-            int_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 10000);
-#endif __TREE_AWARE_CACHE__
-        }
-        {
-#ifdef __TREE_AWARE_CACHE__
-            typedef int KeyType;
-            typedef int ValueType;
-            typedef ObjectFatUID ObjectUIDType;
-
-            typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
-            typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> IndexNodeType;
-
-            typedef LRUCacheObject<TypeMarshaller, DataNodeType, IndexNodeType> ObjectType;
-            typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
-
-            typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, FileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
-            BPlusStoreType* ptrTree = new BPlusStoreType(idx, 1000, 1024, 1024 * 1024 * 1024, "D:\\filestore.hdb");
-            ptrTree->init<DataNodeType>(); 
-            
-            int_test<BPlusStoreType, IndexNodeType, DataNodeType>(ptrTree, idx, 10000);
-#endif __TREE_AWARE_CACHE__
-        }
-        std::cout << std::endl;
-    }
-}
-
-void test_for_string()
-{
-    for (int idx = 3; idx < 40; idx++) {
-        std::cout << "test_for_string idx:" << idx << "| ";
-        {
-#ifndef __TREE_AWARE_CACHE__
-            typedef string KeyType;
-            typedef string ValueType;
-            typedef uintptr_t ObjectUIDType;
-
-            typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_STRING_STRING> DataNodeType;
-            typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_STRING_STRING> IndexNodeType;
-
-            typedef BPlusStore<KeyType, ValueType, NoCache<ObjectUIDType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
-            BPlusStoreType* ptrTree1 = new BPlusStoreType(idx);
-            ptrTree1->init<DataNodeType>();
-
-            string_test<BPlusStoreType, IndexNodeType, DataNodeType>(ptrTree1, idx, 10000);
-#endif __TREE_AWARE_CACHE__
-        }
-        {
-#ifdef __TREE_AWARE_CACHE__
-            typedef string KeyType;
-            typedef string ValueType;
-            typedef ObjectFatUID ObjectUIDType;
-
-            typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_STRING_STRING> DataNodeType;
-            typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_STRING_STRING> IndexNodeType;
-
-            typedef LRUCacheObject<TypeMarshaller, DataNodeType, IndexNodeType> ObjectType;
-            typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
-
-            typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, VolatileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
-            BPlusStoreType* ptrTree2 = new BPlusStoreType(idx, 1000, 100000000);
-            ptrTree2->init<DataNodeType>();
-
-            //string_test<BPlusStoreType, IndexNodeType, DataNodeType>(ptrTree2, idx, 10000);
-#endif __TREE_AWARE_CACHE__
-        }
-        {
-#ifdef __TREE_AWARE_CACHE__
-            /*typedef string KeyType;
-            typedef string ValueType;
-            typedef ObjectFatUID ObjectUIDType;
-
-            typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_STRING_STRING> DataNodeType;
-            typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_STRING_STRING> IndexNodeType;
-
-            typedef LRUCacheObject<TypeMarshaller, DataNodeType, IndexNodeType> ObjectType;
-            typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
-
-            typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, FileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
-            BPlusStoreType* ptrTree = new BPlusStoreType(3, 100, 1024, 1024 * 1024 * 1024, "D:\\filestore.hdb");
-            ptrTree->init<DataNodeType>();
-
-            string_test<BPlusStoreType, IndexNodeType, DataNodeType>(ptrTree, idx, 10000);*/
-#endif __TREE_AWARE_CACHE__
-        }
-        std::cout << std::endl;
-    }
-}
-
-void test_for_threaded()
-{
-#ifdef __CONCURRENT__
-    for (int idx = 3; idx < 20; idx++) {
-        std::cout << "iteration.." << idx << std::endl;
-        {
-#ifndef __TREE_AWARE_CACHE__
-            typedef int KeyType;
-            typedef int ValueType;
-            typedef uintptr_t ObjectUIDType;
-
-            typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
-            typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> IndexNodeType;
-
-            typedef BPlusStore<KeyType, ValueType, NoCache<ObjectUIDType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
-            BPlusStoreType ptrTree(idx);
-            ptrTree.template init<DataNodeType>();
-
-            threaded_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 3 * 10000, 10);
-#endif __TREE_AWARE_CACHE__
-
-        }
-        {
-#ifdef __TREE_AWARE_CACHE__
-            typedef int KeyType;
-            typedef int ValueType;
-            typedef ObjectFatUID ObjectUIDType;
-
-            typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
-            typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> IndexNodeType;
-
-            typedef LRUCacheObject<TypeMarshaller, DataNodeType, IndexNodeType> ObjectType;
-            typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
-
-
-            typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, VolatileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
-            BPlusStoreType ptrTree(idx, 1000, 100000000);
-            ptrTree.template init<DataNodeType>();
-
-            threaded_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 3 * 10000, 10);
-#endif __TREE_AWARE_CACHE__
-        }
-        {
-#ifdef __TREE_AWARE_CACHE__
-            typedef int KeyType;
-            typedef int ValueType;
-            typedef ObjectFatUID ObjectUIDType;
-
-            typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
-            typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> IndexNodeType;
-
-            typedef LRUCacheObject<TypeMarshaller, DataNodeType, IndexNodeType> ObjectType;
-            typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
-
-            typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, FileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
-            BPlusStoreType ptrTree(idx, 1000, 1024, 1024 * 1024 * 1024, "D:\\filestore.hdb");
-            ptrTree.template init<DataNodeType>();
-
-            threaded_test<BPlusStoreType, IndexNodeType, DataNodeType>(&ptrTree, idx, 3 * 10000, 10);
-#endif __TREE_AWARE_CACHE__
-        }
-    }
-#endif __CONCURRENT__
-}
-
-int main(int argc, char* argv[])
-{
-    test_for_ints();
-    test_for_string();
-    test_for_threaded();
-
+bool testBeTree(int fanout, int bufferSize, int testSize, int step = 1, bool stochastic = false) {
+    std::cout << "Testing BeTree with fanout=" << fanout << " bufferSize=" << bufferSize << " testSize=" << testSize << std::endl;
     typedef int KeyType;
     typedef int ValueType;
 
-#ifdef __TREE_AWARE_CACHE__
-   /*typedef ObjectFatUID ObjectUIDType;
-   ?ypedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
-    typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> IndexNodeType;
-    typedef LRUCacheObject<TypeMarshaller, DataNodeType, IndexNodeType> ObjectType;
-    typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
-    typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, FileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
-    BPlusStoreType* ptrTree = new BPlusStoreType(3, 200, 1024, 1024 * 1024 * 1024, "D:\\filestore.hdb");
-    ptrTree->init<DataNodeType>();
-    */
+    // BeTree<KeyType, ValueType> tree(fanout, bufferSize);
+    // BeTree(uint16_t fanout, uint16_t maxBufferSize, size_t blockSize, size_t storageSize, const std::string& filename, size_t cache_capacity)
+    BeTree<KeyType, ValueType> tree(fanout, bufferSize, 4192, 1024 * 1024 * 1024, "./filestore.hdb", 10);
 
-    typedef ObjectFatUID ObjectUIDType;
-    typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
-    typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> IndexNodeType;
-
-    typedef LRUCacheObject<TypeMarshaller, DataNodeType, IndexNodeType> ObjectType;
-    typedef IFlushCallback<ObjectUIDType, ObjectType> ICallback;
-
-    typedef BPlusStore<ICallback, KeyType, ValueType, LRUCache<ICallback, VolatileStorage<ICallback, ObjectUIDType, LRUCacheObject, TypeMarshaller, DataNodeType, IndexNodeType>>> BPlusStoreType;
-    BPlusStoreType* ptrTree = new BPlusStoreType(3, 200, 100000);
-    ptrTree->init<DataNodeType>();
-
-#else //__TREE_AWARE_CACHE__
-    typedef uintptr_t ObjectUIDType;
-    typedef DataNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::DATA_NODE_INT_INT> DataNodeType;
-    typedef IndexNode<KeyType, ValueType, ObjectUIDType, TYPE_UID::INDEX_NODE_INT_INT> IndexNodeType;
-    typedef BPlusStore<KeyType, ValueType, NoCache<ObjectUIDType, NoCacheObject, DataNodeType, IndexNodeType>> BPlusStoreType;
-    BPlusStoreType* ptrTree = new BPlusStoreType(3);
-#endif __TREE_AWARE_CACHE__
-
-    ptrTree->template init<DataNodeType>();
-
-    for (size_t nCntr = 0; nCntr < 10000; nCntr++)
-    {
-        ptrTree->insert(nCntr, nCntr);
+    int* arr = new int[testSize];
+    for (int i = 0; i < testSize; i++) {
+        arr[i] = i;
     }
 
-    for (size_t nCntr = 0; nCntr < 10000; nCntr++)
-    {
-        int nValue = 0;
-        ErrorCode code = ptrTree->search(nCntr, nValue);
+    shuffle(arr, testSize);
+    auto start = std::chrono::high_resolution_clock::now();
+    //cout << "Testing insert..." << endl;
+    for (int i = 0; i < testSize; i++) {
+        //print_progress(i, testSize, step);
+        //cout << "Inserting " << arr[i] << endl;
+        tree.insert(arr[i], arr[i]);
+        // print the tree
+        // tree.printTree(cout);
 
-        assert(nValue == nCntr);
+        if (!stochastic) {
+            // all inserted keys should be in the tree
+            for (int j = 0; j <= i; j++) {
+                auto [value, err] = tree.search(arr[j]);
+                ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[j], "insert failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value);
+                // for release mode testing
+                if (err != ErrorCode::Success || value != arr[j]) {
+                    cout << "insert failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value << endl;
+                    tree.printTree(cout);
+                    return false;
+            }
+            }
+        } else {
+            // only test the last inserted key and some random keys
+            auto [value, err] = tree.search(arr[i]);
+            ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[i], "insert failed: i=" << i << " arr[i]=" << arr[i] << " value=" << value);
+            if (err != ErrorCode::Success || value != arr[i]) {
+                cout << "insert failed: i=" << i << " arr[i]=" << arr[i] << " value=" << value << endl;
+                tree.printTree(cout);
+                return false;
+            }
+
+            for (int j = 0; j < 10; j++) {
+                int k = rand() % (i + 1);
+                auto [value, err] = tree.search(arr[k]);
+                ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[k], "insert failed: i=" << i << " j=" << j << " k=" << k << " arr[k]=" << arr[k] << " value=" << value);
+                if (err != ErrorCode::Success || value != arr[k]) {
+                    cout << "insert failed: i=" << i << " j=" << j << " k=" << k << " arr[k]=" << arr[k] << " value=" << value << endl;
+                    tree.printTree(cout);
+                    return false;
+            }
+        }
+        }
+
     }
 
-    for (size_t nCntr = 0; nCntr < 10000; nCntr++)
-    {
-        ErrorCode code = ptrTree->remove(nCntr);
+    shuffle(arr, testSize);
+    // remove
+    int breakon = 490;
+    for (int i = 0; i < testSize; i++) {
+        //print_progress(i, testSize, step);
+        tree.remove(arr[i]);
+
+        auto [value, err] = tree.search(arr[i]);
+        assert(err == ErrorCode::KeyDoesNotExist);
+
+        if (!stochastic) {
+            // all not removed keys should still be in the tree
+            for (int j = i + 1; j < testSize; j++) {
+                auto [value, err] = tree.search(arr[j]);
+                ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[j], "remove failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value);
+                if (err != ErrorCode::Success || value != arr[j]) {
+                    cout << "remove failed: i=" << i << " j=" << j << " arr[j]=" << arr[j] << " value=" << value << endl;
+                    tree.printTree(cout);
+                    return false;
+            }
+            }
+        } else {
+            // only test the last removed key and some random keys
+            auto [value, err] = tree.search(arr[i]);
+            ASSERT_WITH_PRINT(err == ErrorCode::KeyDoesNotExist, "remove failed: i=" << i << " arr[i]=" << arr[i] << " value=" << value);
+            if (err != ErrorCode::KeyDoesNotExist) {
+                cout << "remove failed: i=" << i << " arr[i]=" << arr[i] << " value=" << value << endl;
+                tree.printTree(cout);
+                return false;
+            }
+
+            for (int j = 0; j < 10; j++) {
+                if (i + j >= testSize - 1) break;
+                int k = rand() % (testSize - i - 1) + i + 1;
+                auto [value, err] = tree.search(arr[k]);
+                ASSERT_WITH_PRINT(err == ErrorCode::Success && value == arr[k], "remove failed: i=" << i << " j=" << j << " k=" << k << " arr[k]=" << arr[k] << " value=" << value);
+                if (err != ErrorCode::Success || value != arr[k]) {
+                    cout << "remove failed: i=" << i << " j=" << j << " k=" << k << " arr[k]=" << arr[k] << " value=" << value << endl;
+                    tree.printTree(cout);
+                    return false;
+            }
+        }
+    }
     }
 
-    for (size_t nCntr = 0; nCntr < 10000; nCntr++)
-    {
-        int nValue = 0;
-        ErrorCode code = ptrTree->search(nCntr, nValue);
-
-        assert(code == ErrorCode::KeyDoesNotExist);
+    // Interleaved insert and remove
+    int* insertArr = new int[testSize];
+    int* removeArr = new int[testSize];
+    for (int i = 0; i < testSize; i++) {
+        insertArr[i] = i;
+        removeArr[i] = i;
     }
-    std::cout << "End.";
-    char ch = getchar();
+    shuffle(insertArr, testSize);
+    shuffle(removeArr, testSize);
+
+    //cout << endl << "Testing interleaved insert and remove..." << endl;
+    int repeat = 10;
+    int i;
+    for (int j = 0; j < testSize * repeat;j++) {
+        //print_progress(j, testSize * repeat, step);
+        i = j % testSize;
+
+        // Insert
+        tree.insert(insertArr[i], insertArr[i]);
+        auto [value, err] = tree.search(insertArr[i]);
+        ASSERT_WITH_PRINT(err == ErrorCode::Success && value == insertArr[i], "insert failed: j=" << j << " arr[i]=" << insertArr[i] << " value=" << value);
+        if (err != ErrorCode::Success || value != insertArr[i]) {
+            cout << "insert failed: j=" << j << " arr[i]=" << insertArr[i] << " value=" << value << endl;
+            tree.printTree(cout);
+            return false;
+        }
+
+        // Delete
+        if (j > testSize * 2) {
+            tree.remove(removeArr[i]);
+            auto [value, err] = tree.search(removeArr[i]);
+            ASSERT_WITH_PRINT(err == ErrorCode::KeyDoesNotExist, "remove failed: j=" << j << " arr[i]=" << removeArr[i] << " value=" << value);
+            if (err != ErrorCode::KeyDoesNotExist) {
+                cout << "remove failed: j=" << j << " arr[i]=" << removeArr[i] << " value=" << value << endl;
+                tree.printTree(cout);
+                return false;
+        }
+    }
+    }
+
+
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
+    std::cout << "Time taken: " << duration << "ms" << std::endl;
+
+    delete[] arr;
+    delete[] insertArr;
+    delete[] removeArr;
+
+    return true;
+}
+
+class BeTreeParams {
+public:
+    uint16_t fanout;
+    uint16_t maxBufferSize;
+    size_t cacheCapacity;
+
+    uint64_t fitness;
+
+    BeTreeParams() : fanout(0), maxBufferSize(0), cacheCapacity(0), fitness(0) {};
+
+    BeTreeParams(uint16_t fanout, uint16_t maxBufferSize, size_t cacheCapacity)
+        : fanout(fanout), maxBufferSize(maxBufferSize), cacheCapacity(cacheCapacity), fitness(0) {};
+
+    BeTreeParams(BeTreeParams minParams, BeTreeParams maxParams) : BeTreeParams(0, 0, 0) {
+        // random instance
+        std::random_device rd;
+        std::mt19937 gen(rd());
+
+        std::uniform_int_distribution<uint16_t> fanoutDist(minParams.fanout, maxParams.fanout);
+        std::uniform_int_distribution<uint16_t> bufferDist(minParams.maxBufferSize, maxParams.maxBufferSize);
+        std::uniform_int_distribution<size_t> cacheDist(minParams.cacheCapacity, maxParams.cacheCapacity);
+
+        fanout = fanoutDist(gen);
+        maxBufferSize = bufferDist(gen);
+        cacheCapacity = cacheDist(gen);
+    };
+
+
+    // returns number of insertions and deletions performed in the time limit
+    uint64_t evaluateFitness(const std::chrono::milliseconds& timeLimit, int* insertArr, int* removeArr, int testSize) {
+
+        BeTree<int, int> tree(fanout, maxBufferSize, 4096, 1024 * 1024 * 1024, "./filestore.hdb", cacheCapacity);
+        auto start = std::chrono::high_resolution_clock::now();
+
+        uint64_t operations = 0;
+        int i = 0;
+        while (std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::high_resolution_clock::now() - start) < timeLimit) {
+            if (i >= testSize) {
+                i = 0;
+            }
+            try {
+                tree.insert(insertArr[i], insertArr[i]);
+                tree.remove(removeArr[i]);
+                operations += 2;
+            } catch (std::exception& e) {
+                goto finish;
+            }
+            i++;
+        }
+    finish:
+        fitness = operations;
+        return fitness;
+    };
+};
+
+void geneticAlgorithm(const BeTreeParams& minParams, const BeTreeParams& maxParams, const std::chrono::milliseconds& timeLimit, int populationSize, int numGenerations) {
+    std::vector<BeTreeParams> population(populationSize);
+    std::generate(population.begin(), population.end(), [&]() { return BeTreeParams(minParams, maxParams); });
+
+    for (int generation = 0; generation < numGenerations; ++generation) {
+        int testSize = 1000000;
+        int* insertArr = new int[testSize];
+        int* removeArr = new int[testSize];
+        for (int i = 0; i < testSize; i++) {
+            insertArr[i] = i;
+            removeArr[i] = i;
+        }
+        shuffle(insertArr, testSize);
+        shuffle(removeArr, testSize);
+        for (auto& params : population) {
+            params.evaluateFitness(timeLimit, insertArr, removeArr, testSize);
+        }
+        delete[] insertArr;
+        delete[] removeArr;
+
+        // Sort population by fitness
+        std::sort(population.begin(), population.end(), [](const BeTreeParams& a, const BeTreeParams& b) {
+            return a.fitness > b.fitness;
+            });
+        std::cout << "Generation " << generation << " best fitness: " << population[0].fitness << std::endl;
+        std::cout << "Parameters: " << population[0].fanout << " " << population[0].maxBufferSize << " " << population[0].cacheCapacity << std::endl;
+        std::cout.flush();
+
+        // Selection
+        int eliteSize = populationSize / 5;
+        population.resize(eliteSize);
+
+        // Random individuals
+        for (int i = 0; i < eliteSize; ++i) {
+            population.push_back(BeTreeParams(minParams, maxParams));
+        }
+
+        // Crossover
+        while (population.size() < populationSize) {
+            int parent1 = rand() % eliteSize;
+            int parent2 = rand() % eliteSize;
+            // 1-point crossover
+            int crossoverPoint = rand() % 4;
+            BeTreeParams child = population[parent1];
+            switch (crossoverPoint) {
+                case 0:
+                    child.fanout = population[parent2].fanout;
+                    break;
+                case 1:
+                    child.maxBufferSize = population[parent2].maxBufferSize;
+                    break;
+                case 3:
+                    child.cacheCapacity = population[parent2].cacheCapacity;
+                    break;
+            }
+            population.push_back(child);
+        };
+
+        // Mutation
+        for (int i = eliteSize; i < populationSize; ++i) {
+            // add or subtract 1 if it is within bounds
+            if (population[i].fanout > minParams.fanout && population[i].fanout < maxParams.fanout) {
+                population[i].fanout += (rand() % 2) * 2 - 1;
+            }
+            if (population[i].maxBufferSize > minParams.maxBufferSize && population[i].maxBufferSize < maxParams.maxBufferSize) {
+                population[i].maxBufferSize += (rand() % 2) * 2 - 1;
+            }
+            if (population[i].cacheCapacity > minParams.cacheCapacity && population[i].cacheCapacity < maxParams.cacheCapacity) {
+                population[i].cacheCapacity += (rand() % 2) * 2 - 1;
+            }
+        }
+        }
+
+    // Print best parameters
+    std::cout << "Best parameters: " << std::endl;
+    std::cout << "Fanout: " << population[0].fanout << std::endl;
+    std::cout << "MaxBufferSize: " << population[0].maxBufferSize << std::endl;
+    std::cout << "CacheCapacity: " << population[0].cacheCapacity << std::endl;
+    std::cout << "Operations: " << population[0].fitness << std::endl;
+    }
+
+int main(int argc, char* argv[]) {
+
+    int fanouts[] = { 2, 3, 4, 5, 6, 7, 8, 16, 32, 64, 128, 256 };
+    int bufferSizes[] = { 2, 4, 8, 16, 32, 64, 128, 256 };
+    int size = 10;
+    for (int i = 0; i < sizeof(fanouts) / sizeof(fanouts[0]); i++) {
+        for (int j = 0; j < sizeof(bufferSizes) / sizeof(bufferSizes[0]); j++) {
+            int localSize = (fanouts[i] + bufferSizes[j]) * size;
+            //int localSize = 100;
+            //bool stochastic = localSize > 1500;
+            bool stochastic = true;
+            int step = localSize / 10;
+            testBeTree(fanouts[i], bufferSizes[j], localSize, step, stochastic);
+        }
+    }
+    std::cout << "All tests passed!" << std::endl;
+    std::cout << "Starting genetic algorithm..." << std::endl;
+
+    // Genetic algorithm
+    BeTreeParams minParams(32, 2, 10);
+    BeTreeParams maxParams(1024, 1024, 100);
+    std::chrono::milliseconds timeLimit(1000);
+    geneticAlgorithm(minParams, maxParams, timeLimit, 25, 100);
+
     return 0;
 }
 

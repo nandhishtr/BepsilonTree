@@ -2,6 +2,10 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <cstring>
+#include <stdexcept>
+
+//#pragma pack(1)
 
 class ObjectFatUID
 {
@@ -39,6 +43,7 @@ public:
 		switch (nMediaType)
 		{
 		case None:
+			throw new std::logic_error("should not occur!");
 			break;
 		case Volatile:
 			return createAddressFromVolatilePointer(args...);
@@ -52,6 +57,8 @@ public:
 			return createAddressFromFileOffset(args...);
 			break;
 		}
+
+		throw new std::logic_error("should not occur!");
 	}
 
 	static ObjectFatUID createAddressFromFileOffset(uint32_t nPos, uint32_t nBlockSize, uint32_t nSize)
@@ -73,23 +80,71 @@ public:
 		return key;
 	}
 
-	static ObjectFatUID createAddressFromDRAMCacheCounter(uintptr_t ptr, ...)
+	static ObjectFatUID createAddressFromDRAMCacheCounter(uint32_t nPos, uint32_t nBlockSize, uint32_t nSize)
 	{
 		ObjectFatUID key;
 		key.m_uid.m_nMediaType = DRAM;
-		key.m_uid.FATPOINTER.m_ptrVolatile = ptr;
+		key.m_uid.FATPOINTER.m_ptrFile.m_nOffset = nPos * nBlockSize;
+		key.m_uid.FATPOINTER.m_ptrFile.m_nSize = nSize;
 
 		return key;
 	}
 
 	bool operator==(const ObjectFatUID& rhs) const 
 	{
-		return memcmp(&m_uid, &rhs.m_uid, sizeof(NodeUID)) == 0;
+        if (m_uid.m_nMediaType != rhs.m_uid.m_nMediaType)
+		{
+            return false;
+		}
+
+		switch (m_uid.m_nMediaType) 
+		{
+			case Volatile:
+				return m_uid.FATPOINTER.m_ptrVolatile == rhs.m_uid.FATPOINTER.m_ptrVolatile;
+			case DRAM:
+				return m_uid.FATPOINTER.m_ptrVolatile == rhs.m_uid.FATPOINTER.m_ptrVolatile;
+			case PMem:
+				return false;
+			case File:
+				return m_uid.FATPOINTER.m_ptrFile.m_nOffset == rhs.m_uid.FATPOINTER.m_ptrFile.m_nOffset &&
+					m_uid.FATPOINTER.m_ptrFile.m_nSize == rhs.m_uid.FATPOINTER.m_ptrFile.m_nSize;
+			default:
+				return std::memcmp(this, &rhs.m_uid, sizeof(NodeUID)) == 0;
+		}
+
+		//Following is comiler specific!
+		//return memcmp(&m_uid, &rhs.m_uid, sizeof(NodeUID)) == 0;
 	}
 
 	bool operator <(const ObjectFatUID& rhs) const
 	{
-		return memcmp(&m_uid, &rhs.m_uid, sizeof(NodeUID)) < 1;
+        if (m_uid.m_nMediaType < rhs.m_uid.m_nMediaType)
+            return true;
+        else if (m_uid.m_nMediaType > rhs.m_uid.m_nMediaType)
+            return false;
+
+		switch (m_uid.m_nMediaType) 
+		{
+			case Volatile:
+				return m_uid.FATPOINTER.m_ptrVolatile < rhs.m_uid.FATPOINTER.m_ptrVolatile;
+
+			case DRAM:
+				return m_uid.FATPOINTER.m_ptrVolatile < rhs.m_uid.FATPOINTER.m_ptrVolatile;
+
+			case File:
+				if (m_uid.FATPOINTER.m_ptrFile.m_nOffset < rhs.m_uid.FATPOINTER.m_ptrFile.m_nOffset)
+					return true;
+				else if (m_uid.FATPOINTER.m_ptrFile.m_nOffset > rhs.m_uid.FATPOINTER.m_ptrFile.m_nOffset)
+					return false;
+
+				return m_uid.FATPOINTER.m_ptrFile.m_nSize < rhs.m_uid.FATPOINTER.m_ptrFile.m_nSize;
+
+			default:
+				return std::memcmp(this, &rhs, sizeof(NodeUID)) < 0;
+		}
+
+		//Following is comiler specific!
+		//return memcmp(&m_uid, &rhs.m_uid, sizeof(NodeUID)) < 0;
 	}
 
 	struct HashFunction
@@ -109,7 +164,32 @@ public:
 	public:
 		bool operator()(const ObjectFatUID& lhs, const ObjectFatUID& rhs) const 
 		{
-			return memcmp(&lhs.m_uid, &rhs.m_uid, sizeof(NodeUID)) == 0;
+			if (lhs.m_uid.m_nMediaType < rhs.m_uid.m_nMediaType)
+				return true;
+			else if (lhs.m_uid.m_nMediaType > rhs.m_uid.m_nMediaType)
+				return false;
+
+			switch (lhs.m_uid.m_nMediaType) {
+				case Volatile:
+					return lhs.m_uid.FATPOINTER.m_ptrVolatile < rhs.m_uid.FATPOINTER.m_ptrVolatile;
+
+				case DRAM:
+					return lhs.m_uid.FATPOINTER.m_ptrVolatile < rhs.m_uid.FATPOINTER.m_ptrVolatile;
+
+				case File:
+					if (lhs.m_uid.FATPOINTER.m_ptrFile.m_nOffset < rhs.m_uid.FATPOINTER.m_ptrFile.m_nOffset)
+						return true;
+					else if (lhs.m_uid.FATPOINTER.m_ptrFile.m_nOffset > rhs.m_uid.FATPOINTER.m_ptrFile.m_nOffset)
+						return false;
+
+					return lhs.m_uid.FATPOINTER.m_ptrFile.m_nSize < rhs.m_uid.FATPOINTER.m_ptrFile.m_nSize;
+
+				default:
+					return std::memcmp(&lhs, &rhs, sizeof(NodeUID)) < 0;
+			}
+
+			//Following is comiler specific!
+			//return memcmp(&lhs.m_uid, &rhs.m_uid, sizeof(NodeUID)) == 0;
 		}
 	};
 
@@ -119,7 +199,7 @@ public:
 	{
 	}
 
-	std::string toString()
+	std::string toString() const
 	{
 		std::string szData;
 		switch (m_uid.m_nMediaType)
@@ -158,6 +238,8 @@ namespace std {
 
 			switch (rhs.m_uid.m_nMediaType)
 			{
+			case ObjectFatUID::Media::None:
+				break;
 			case ObjectFatUID::Media::Volatile:
 				hashValue ^= std::hash<uintptr_t>()(rhs.m_uid.FATPOINTER.m_ptrVolatile);
 				break;
