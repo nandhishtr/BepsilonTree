@@ -23,6 +23,10 @@ The goal of this work is to leverage NVM's **byte-addressability**, **low read l
 - **Central Buffer in NVM**: For handling messages that do not require immediate propagation to the leaf nodes, improving write efficiency.
 - **Hot/Cold Data Management**: Hot nodes are kept in DRAM, while cold nodes reside in NVM or slower storage mediums. This hybrid storage design improves access times for frequently used data.
 
+## Tree Structure
+
+![Bepsilon Tree](images/Bϵ-Tree.drawio.png)
+
 ## Tree Operations
 
 ### 1. **Point Queries**:
@@ -59,6 +63,12 @@ The goal of this work is to leverage NVM's **byte-addressability**, **low read l
 - **Write-Heavy Workloads**: The Bϵ-tree is designed for environments where frequent writes occur, as its structure is optimized to handle batch updates efficiently.
 - **Mixed Workloads**: Works well in systems with a combination of read and write operations due to its adaptive memory hierarchy and buffering strategies.
 - **Large-Scale Systems**: Ideal for systems managing large amounts of data distributed across different storage media, particularly where NVM is used as a middle tier between DRAM and slower storage.
+
+# Performance
+
+![Insert Performance](images/insert_performance_scatter.png)
+
+![10T heatmap](images/10T_heatmap_time_taken_across_fanout_buffer_size.png)
 
 ## Installation & Usage
 
