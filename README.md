@@ -1,80 +1,67 @@
-![C++ CI](https://github.com/SajadKarim/haldendb/actions/workflows/msbuild.yml/badge.svg)
-![C++ CI](https://github.com/SajadKarim/haldendb/actions/workflows/cmake-multi-platform.yml/badge.svg)
+# NVM-Optimized Bϵ-Tree
 
-Note: Use branch "feature/sctp"
+## Overview
+This repository implements an **NVM-Optimized Bϵ-Tree**, designed as an alternative index structure. The Bϵ-tree combines features from **B+-trees** and additonal buffers to provide a write-optimized index structure, particularly tuned for systems using **Non-Volatile Memory (NVM)**.
 
-# Project
+The goal of this work is to leverage NVM's **byte-addressability**, **low read latencies**, and **in-place updates** to reduce the number of write operations, enhance memory utilization, and improve performance over traditional disk-based index structures.
 
-This C++ project is an ongoing effort to explore and implement various B<sup>$\epsilon$</sup>-Tree and B<sup>+</sup>-Tree variants. Designed as a resource for both educational and practical applications, it aims to provide insights into the different optimizations and uses of B<sup>$\epsilon$</sup>-Tree and B<sup>+</sup>-Tree in databases and filesystems. As work progresses, the project will feature implementations ranging from basic structures suitable for learning purposes to more advanced versions optimized for specific challenges such as concurrency and cache efficiency. Contributors are welcome to join in this evolving exploration of one of the most fundamental data structures in computer science.
+## Key Concepts
 
-The project currently includes the following modules:
-- **libcache**: A library for managing cache operations, including LRUCache.
-- **libbtree**: The main library for implementing various B<sup>$\epsilon$</sup>-Tree and B<sup>+</sup>-Tree variants.
-- **sandbox**: A utility for debugging and validating functionality.
-- **test_all**: A unit testing suite.
+### Traditional Disk-Based Index Structures
+- **B-tree**: A multi-level index structure used for secondary storage.
+- **B+-tree**: Enhances the B-tree by increasing the branching factor, where internal nodes contain only keys and pivots, while values are stored in the leaf nodes. It is optimized for range queries.
+- **LSM-tree**: A write-optimized structure that maintains data in multiple levels, moving data in chunks and performing writes to a **Level-0** structure in DRAM.
 
-## Getting Started
+### NVM-Optimized Bϵ-Tree
+- Introduces **internal node buffers** to make B+-trees more write-optimized.
+- Leverages **Non-Volatile Memory (NVM)** for internal nodes, providing in-place updates, reducing tree balancing operations, and buffering small updates to reduce write amplification.
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
+## Key Features
 
-### Prerequisites
+- **In-Place Updates in NVM**: The internal nodes stored in NVM support in-place updates for key additions and deletions, reducing the overhead of frequent node copying between memory layers.
+- **Buffered Internal Nodes**: Nodes in DRAM have buffers to batch updates, which are then periodically flushed to NVM or other slower storage mediums like SSD.
+- **Central Buffer in NVM**: For handling messages that do not require immediate propagation to the leaf nodes, improving write efficiency.
+- **Hot/Cold Data Management**: Hot nodes are kept in DRAM, while cold nodes reside in NVM or slower storage mediums. This hybrid storage design improves access times for frequently used data.
 
-What things you need to install the software and how to install them, for example, Visual Studio, any specific editions or versions, etc.
+## Tree Operations
 
-1. **Windows**
-   
-   1.1. [Visual Studio](https://visualstudio.microsoft.com/downloads/) 2022 or later
-   
-   1.2. C++ development tools for Visual Studio
+### 1. **Point Queries**:
+   - Internal nodes are distributed across DRAM, NVM, and SSD.
+   - Hot nodes (frequently accessed Bϵ-tree nodes) reside in DRAM, while less-accessed nodes (B+-tree nodes) are in NVM.
+   - Querying begins by searching in DRAM, followed by NVM, and finally SSD for cold nodes.
 
-2. **Linux**
+### 2. **Tree Building**:
+   - Tree construction begins in DRAM, where nodes are buffered until they are flushed to NVM.
+   - Internal nodes without pending updates are moved to NVM and converted to B+-tree nodes, optimizing memory usage.
 
-   2.1. CMake
-   
-   2.2 g++-11
+### 3. **Update Scenario**:
+   - Updates are buffered in DRAM until a threshold is reached, after which they are either written back to the appropriate storage or moved to a central buffer in NVM.
+   - Nodes are dynamically moved between DRAM and NVM based on access patterns, utilizing a policy (e.g., 5 minutes for slow storage, 1 minute for NVM).
 
-   2.2. glog
+### 4. **Batching & Flushing**:
+   - Messages (updates) for internal nodes are either buffered in DRAM or written directly to NVM.
+   - When buffers reach a sufficient size, they are flushed down the tree to the respective leaf nodes or further storage layers.
 
-   2.5. libpmem (when using NVRAM)
-  
-### Installing
+## Memory Hierarchy & Use of NVM
 
-A step by step series of examples that tell you how to get a development environment running.
+- **NVM Characteristics**: Byte-addressable, with DRAM-like read latencies but slower write speeds. Using NVM for indexing allows for efficient in-place updates, but the system design aims to reduce unnecessary writes to NVM.
+- **Hot/Cold Nodes**: The system maintains a multi-level hierarchy where hot nodes (frequently accessed) reside in DRAM, and colder nodes are kept in NVM or SSD for longer-term storage.
 
-1. **Clone the repository**
+## Advantages of the NVM-Optimized Bϵ-Tree
 
+- **Reduced Write Amplification**: By buffering updates and selectively flushing them to lower levels of storage, the system minimizes unnecessary writes, especially for small updates.
+- **Improved Point Query Performance**: The strategic placement of hot nodes in DRAM and the use of NVM for internal nodes leads to faster point queries, as data is often found in a higher memory tier.
+- **Efficient Memory Utilization**: The system balances the use of DRAM, NVM, and SSD, improving both read and write performance while avoiding costly node copying between tiers.
+- **Reduced Fragmentation**: The structure minimizes fragmentation through in-place updates and careful memory management, which is particularly beneficial for random workloads.
+
+## Use Cases
+
+- **Write-Heavy Workloads**: The Bϵ-tree is designed for environments where frequent writes occur, as its structure is optimized to handle batch updates efficiently.
+- **Mixed Workloads**: Works well in systems with a combination of read and write operations due to its adaptive memory hierarchy and buffering strategies.
+- **Large-Scale Systems**: Ideal for systems managing large amounts of data distributed across different storage media, particularly where NVM is used as a middle tier between DRAM and slower storage.
+
+## Installation & Usage
+
+1. Clone the repository:
    ```bash
-   git clone https https://github.com/SajadKarim/haldendb.git
-   cd haldendb
-   git checkout feature/sctp
-   
-2. **Windows**
-   
-   2.1. Open the Solution
-   
-   Open haldendb.sln with Visual Studio.
-
-   2.2. Build the Project
-
-   Navigate to Build > Build Solution or press Ctrl+Shift+B to build the project.
-
-   2.3. Run the Application
-
-   Set the desired project as the startup project by right-clicking on the project in the Solution Explorer and selecting Set as StartUp Project.
-   Run the project by clicking on Debug > Start Without Debugging or pressing Ctrl+F5.
-
-4. **Linux**
-   
-   4.1. cd test_all
-
-   4.2. mkdir build
-
-   4.3. cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-D__CONCURRENT__ -D__TREE_WITH_CACHE__"
-
-   4.4. cmake --build .
-
-   4.5. ./test_all
-
-   
-
-> The Markhor/Ibex (Halden in Burushaski), a majestic wild goat species native to the mountainous regions of Central Asia, is renowned for its distinctive corkscrew horns and impressive agility in rugged terrains. It faces predation challenges from formidable carnivores such as snow leopards, wolves, Eurasian lynx, and brown bears. The golden eagle has been reported to prey upon young markhor. To survive in these harsh environments, Markhors and Ibexes have developed remarkable adaptations. Their keen senses, including exceptional eyesight and acute hearing, help them detect approaching predators from a distance. Additionally, their powerful climbing abilities allow them to navigate steep and rocky terrain, providing escape routes from potential threats. These ungulates also exhibit a strong herding behavior, with individuals collectively vigilant against predators. The combination of physical prowess, keen senses, and social structures enhances their chances of survival in the challenging ecosystems they call home.
+   git clone https://github.com/nandhishtr/BepsilonTree.git
